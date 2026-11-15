@@ -102,7 +102,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | P1 | Green baseline | pnpm test passes with zero failures on this Mac | none | done | [plan](phases/01-green-baseline/plan.md) |
 | P7 | pnpm migration | Installer, update, lockfile, docs and film templates use pnpm on every OS; npm-era installs migrate on update | P1 | done | [plan](phases/07-pnpm-migration/plan.md) |
-| P2 | macOS platform fixes | GPU name and stable launcher Node path are correct on real macOS, with darwin tests | P7 | planned | pending |
+| P2 | macOS platform fixes | GPU name and stable launcher Node path are correct on real macOS, with darwin tests | P7 | planned | [plan](phases/02-macos-platform-fixes/plan.md) |
 | P3 | Scratch install and review | Scratch setup.sh install opens from VideoHub.command; live preview, notes, folder picker and Finder reveal work | P2 | planned | pending |
 | P4 | Render and protection | One reviewed VideoToolbox render with sound; Stop, QoS/niceness, RAM protection and hidden CPU sliders verified | P3 | planned | pending |
 | P5 | Lifecycle and agents | Finder Trash restore, LaunchAgent login start, data-preserving update, clean uninstall, Claude Code hub_* tools | P4 | planned | pending |
