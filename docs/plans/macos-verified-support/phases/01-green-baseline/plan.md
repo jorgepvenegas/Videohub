@@ -2,8 +2,8 @@
 
 - Plan ID: `macos-verified-support`
 - Phase: P1
-- Plan version: 1
-- Validated against master version: 7
+- Plan version: 2
+- Validated against master version: 12
 - Status: draft
 - Approved by: pending
 - Approved at: pending
@@ -22,19 +22,20 @@
 
 ## 1. Phase objective
 
-Make `npm test` pass with zero failures on this Mac before any macOS work, so every later phase has a clean baseline. The three current failures are repository housekeeping, not macOS defects: the retired Windows launchers `open.vbs` and `open.ps1` are still tracked even though `scripts/windows-safety.test.js` requires them to be gone, and the committed local agent-skill folders `.agents/` and `.claude/` (dot names, symlinks) are walked by two distribution tests that are meant to inspect only shipped files.
+Make `pnpm test` pass with zero failures on this Mac before any macOS work, so every later phase has a clean baseline. The three current failures are repository housekeeping, not macOS defects: the retired Windows launchers `open.vbs` and `open.ps1` are still tracked even though `scripts/windows-safety.test.js` requires them to be gone, and the committed local agent-skill folders `.agents/` and `.claude/` (dot names, symlinks) are walked by two distribution tests that are meant to inspect only shipped files.
 
 ## 2. Master traceability
 
 | Master item | How this phase advances it | Phase criterion |
 |---|---|---|
-| D1 | Removes the three baseline failures so the suite is green on this Mac | A1, A2, A3 |
+| D1 | Removes the three baseline failures so the suite is green on this Mac | A1, A2, A3, A4 |
 
 ## Prior discoveries applied
 
 | Ledger | Discovery | Effect on this phase |
 |---|---|---|
-| None | The discovery ledger has no rows yet (`discoveries` returns none) | No change |
+| L2 | `pnpm test` auto-installs on pnpm 11 and creates `pnpm-lock.yaml`/`node_modules/` | Entry, A1 and the standards check use `pnpm --config.verify-deps-before-run=false test`; A4 checks no lockfile or `node_modules/` is left |
+| L1 | User requires pnpm for development and the product (scope-change, C4) | All P1 verification uses `pnpm test`; the npm → pnpm product migration (lockfile, installer, docs) is out of scope here and belongs to P7 |
 
 ## 3. Scope
 
@@ -46,11 +47,13 @@ Out of scope:
 - Changing `LEGACY_LAUNCHERS`, `retireLegacyAgent`, `scripts/windows-security.mjs` or the platform legacy-launcher recognizers; installed copies are still migrated by update.
 - Adding a `.gitignore`, changing `scripts/make-upload.mjs` or `upload-rules.mjs`, or moving the skill folders.
 - Any macOS platform change (P2 onward).
+- The pnpm product migration: `package-lock.json`, `pnpm-lock.yaml`, `packageManager`, installer `npm ci`, docs (P7). P1 runs tests with `pnpm --config.verify-deps-before-run=false test`, which executes the existing `node scripts/test.mjs` without installing; plain `pnpm test` auto-installs on pnpm 11 and would create `pnpm-lock.yaml` and `node_modules/` (L2). P1 must leave neither behind.
 
 ## 4. Entry conditions
 
 - [ ] On branch `plan/macos-verified-support` with only plan files changed — verify: `git branch --show-current && git status --short`
-- [ ] Baseline reproduces 3 failures — verify: `npm test 2>&1 | grep -E "^ℹ (pass|fail)"` → `pass 338`, `fail 3`
+- [ ] pnpm is available — verify: `pnpm --version` (11.x on this Mac)
+- [ ] Baseline reproduces 3 failures — verify: `pnpm --config.verify-deps-before-run=false test 2>&1 | grep -E "^ℹ (pass|fail)"` → `pass 338`, `fail 3`
 - [ ] A real Node binary is first on PATH (C3) — verify: `node -e "console.log(process.execPath)"` prints a non-shim path
 - [ ] Phase plan revalidated against current master version
 - [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
@@ -87,8 +90,9 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — The full suite is green — verify: `npm test 2>&1 | grep -E "^ℹ (pass|fail)"` → `fail 0`
+- [ ] A1 — The full suite is green — verify: `pnpm --config.verify-deps-before-run=false test 2>&1 | grep -E "^ℹ (pass|fail)"` → `fail 0`
 - [ ] A2 — The distribution tests still reject dot files and symlinks outside the local folders — verify: temporary negative check from S2 fails as expected, then is removed (`git status --short` shows no leftover)
+- [ ] A4 — P1 leaves no pnpm install artifacts — verify: `git status --short` shows neither `pnpm-lock.yaml` nor `node_modules/`
 - [ ] A3 — Changed sources parse — verify: `node --check scripts/upload-rules.test.js && node --check scripts/distribution-safety.test.js`
 
 ## 7. Code standards check
@@ -97,7 +101,7 @@ If a step reveals work outside this phase, report it and continue the approved s
 - [ ] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
 - [ ] Names and structure state intent; comments explain only non-obvious reasons
 - [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation
-- [ ] Master standards commands pass: format none, lint none, `node --check` on changed files, `npm test`
+- [ ] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm --config.verify-deps-before-run=false test`
 
 ## 8. Risks and unknowns
 
@@ -105,11 +109,20 @@ If a step reveals work outside this phase, report it and continue the approved s
 |---|---|---|---|
 | Excluding `.claude` hides a future shipped file placed there | low | low | VideoHub ships its agent files from `claude/` and `skill/` (no dot); `ITEMS` in `scripts/install.mjs:48` decides what is installed |
 | `__pycache__` from the planning scripts appears under `.agents/` | high | low | Excluded by the same `LOCAL` entry; coordinator keeps it out of commits via `.git/info/exclude` |
-| A test relies on `open.vbs`/`open.ps1` existing in the source tree | low | medium | Full `npm test` run in A1 |
+| A test relies on `open.vbs`/`open.ps1` existing in the source tree | low | medium | Full `pnpm test` run in A1 |
+| `pnpm test` output format differs from `npm test` (pnpm prefixes its own lines) | low | low | Check the Node test-runner summary lines (`ℹ pass`, `ℹ fail`), not pnpm's own output |
 
 ## 9. Deviations and working notes
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
+
+**Refinement round 1 — 2026-11-14**
+- User request: "we must use pnpm"; scope confirmed as dev + product migration
+- Level: master
+- Sections changed: header versions, objective, prior discoveries (L1, L2), scope, entry conditions, acceptance A1 and new A4, traceability, code standards check, risks
+- Versions: plan v1 -> v2; master v7 -> v12
+- Product code: none
+- Outcome: re-presented for approval
 
 ## 10. Closeout
 
