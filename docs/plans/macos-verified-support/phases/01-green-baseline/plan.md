@@ -4,10 +4,10 @@
 - Phase: P1
 - Plan version: 2
 - Validated against master version: 14
-- Status: in_progress
+- Status: done
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-14
-- Commit: pending
+- Commit: 23de366
 - Implementation mode: subagent
 - Implemented by: sonnet-worker-p1
 - Implemented at: 2026-11-14

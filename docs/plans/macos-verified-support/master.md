@@ -1,7 +1,7 @@
 # Master Plan — macOS verified support
 
 - Plan ID: `macos-verified-support`
-- Master version: 14
+- Master version: 15
 - Status: active
 - Created: 2026-11-14
 - Source: user request (2026-11-14): "I need to create a macOS compatible version of this project. create a plan to achieve this"
@@ -100,7 +100,7 @@ flowchart LR
 
 | ID | Phase | Outcome | Depends on | Status | Plan |
 |---|---|---|---|---|---|
-| P1 | Green baseline | pnpm test passes with zero failures on this Mac | none | in_progress | [plan](phases/01-green-baseline/plan.md) |
+| P1 | Green baseline | pnpm test passes with zero failures on this Mac | none | done | [plan](phases/01-green-baseline/plan.md) |
 | P7 | pnpm migration | Installer, update, lockfile, docs and film templates use pnpm on every OS; npm-era installs migrate on update | P1 | planned | pending |
 | P2 | macOS platform fixes | Volumes, GPU names and launcher Node path are correct on real macOS, with darwin tests | P7 | planned | pending |
 | P3 | Scratch install and review | Scratch setup.sh install opens from VideoHub.command; live preview, notes, folder picker and Finder reveal work | P2 | planned | pending |
@@ -137,6 +137,7 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 |---|---|---|---|---|---|---|---|
 | L1 | 2026-11-14 | P1 | all | User requires pnpm instead of npm for development and the shipped installer; installer (scripts/install.mjs:164-165 npm ci, :280-289 package-lock.json), README, CLAUDE.md, ARCHITECTURE.md and film templates reference npm | scope-change | Confirmed with user (dev + product). Added D8 and phase P7 pnpm migration before P2; plan/dev commands switched to pnpm | applied |
 | L2 | 2026-11-14 | P1 | P1,P7 | pnpm 11 auto-installs before 'pnpm test' when node_modules is missing or stale, creating node_modules/ and pnpm-lock.yaml from package.json (seen 2026-11-14 during refinement; artifacts removed). '--config.verify-deps-before-run=false' runs the script without installing | phase-amend | P1 runs 'pnpm --config.verify-deps-before-run=false test' and must leave no pnpm-lock.yaml/node_modules; P7 owns creating the lockfile and decides the steady-state test command | applied |
+| L3 | 2026-11-14 | P1 | P7 | R6 checked in scratchpad: after npm ci, 'pnpm import' converted package-lock.json to pnpm-lock.yaml and 'pnpm install --frozen-lockfile </dev/null' replaced the npm node_modules non-interactively (exit 0, pnpm 11.5.2) | next-phase-amend | P7 generates pnpm-lock.yaml with 'pnpm import' to keep resolved versions; keep an npm→pnpm update test but no purge flag is needed | applied |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
@@ -159,6 +160,7 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 
 | Phase | Date | Verdict | Criteria met | Commit | Report |
 |---|---|---|---|---|---|
+| P1 | 2026-11-14 | addressed | A1, A2, A3, A4 | 23de366 | [report](phases/01-green-baseline/plan.md) |
 
 ## 12. Resume brief
 
