@@ -1,7 +1,7 @@
 # Master Plan — macOS verified support
 
 - Plan ID: `macos-verified-support`
-- Master version: 21
+- Master version: 22
 - Status: active
 - Created: 2026-11-14
 - Source: user request (2026-11-14): "I need to create a macOS compatible version of this project. create a plan to achieve this"
@@ -103,7 +103,7 @@ flowchart LR
 | P1 | Green baseline | pnpm test passes with zero failures on this Mac | none | done | [plan](phases/01-green-baseline/plan.md) |
 | P7 | pnpm migration | Installer, update, lockfile, docs and film templates use pnpm on every OS; npm-era installs migrate on update | P1 | done | [plan](phases/07-pnpm-migration/plan.md) |
 | P2 | macOS platform fixes | GPU name and stable launcher Node path are correct on real macOS, with darwin tests | P7 | done | [plan](phases/02-macos-platform-fixes/plan.md) |
-| P3 | Scratch install and review | Scratch setup.sh install opens from VideoHub.command; live preview, notes, folder picker and Finder reveal work | P2 | in_progress | [plan](phases/03-scratch-install-and-review/plan.md) |
+| P3 | Scratch install and review | Scratch setup.sh install opens from VideoHub.command; live preview, notes, folder picker and Finder reveal work | P2 | done | [plan](phases/03-scratch-install-and-review/plan.md) |
 | P4 | Render and protection | One reviewed VideoToolbox render with sound; Stop, QoS/niceness, RAM protection and hidden CPU sliders verified | P3 | planned | pending |
 | P5 | Lifecycle and agents | Finder Trash restore, LaunchAgent login start, data-preserving update, clean uninstall, Claude Code hub_* tools | P4 | planned | pending |
 | P6 | Docs verified status | PLATFORMS/README/CLAUDE docs mark macOS Apple Silicon verified and record new limits | P5 | planned | pending |
@@ -144,6 +144,7 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L6 | 2026-11-15 | P3 | P3 | hub_workspace tells agents 'New films go in: FILMS\FILM-NAME ... copy templates\new-film' with hard-coded Windows separators (server/tools.js:87), misleading agents on macOS/Linux | phase-amend | Added P3 step S5: use the platform separator, with a test | applied |
 | L7 | 2026-11-15 | P3 | P3,P6 | Setup ignores --workspace when data/config.json already exists without a workspace (seeded {port:7799} made dry-run keep ~/Documents/VideoHub); setup writes port 7788 even when VIDEOHUB_PORT is set, so a custom port must be set in config.json after setup. Plan S1 order was wrong; worker set the port after setup | plan-defect | Missed fact: initConfig treats any config.json as installed. P3 evidence records the post-setup port edit; P6 notes it if docs describe custom ports. Not a macOS defect; no code change | applied |
 | L8 | 2026-11-15 | P3 | P4,P5 | Scratch launcher Node is asdf 22.22.3 (asdf global for that folder), not 24.16.0; versioned path as designed. /api/capabilities and /api/settings do not exist; real endpoints are /api/config and /api/encoders. hub_* CLI takes a JSON argument | note | P4/P5 use /api/config, /api/encoders and JSON CLI arguments | applied |
+| L9 | 2026-11-15 | P3 | P6 | Gatekeeper showed no prompt when the user double-clicked the setup-generated VideoHub.command: xattr has no com.apple.quarantine (local file). Docs (PLATFORMS.md, CLAUDE.md, install.mjs setup message) say macOS may block its first launch | next-phase-amend | P6 corrects the Gatekeeper wording; setup message change is P6's call | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
@@ -169,6 +170,7 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 | P1 | 2026-11-14 | addressed | A1, A2, A3, A4 | 23de366 | [report](phases/01-green-baseline/plan.md) |
 | P7 | 2026-11-14 | addressed | A1, A2, A3, A4, A5, A6 | 94b012e | [report](phases/07-pnpm-migration/plan.md) |
 | P2 | 2026-11-15 | addressed | A1, A2, A3, A4, A5 | 020e394 | [report](phases/02-macos-platform-fixes/plan.md) |
+| P3 | 2026-11-15 | addressed | A1, A2, A3, A4, A5, A6 | 6abc3fb | [report](phases/03-scratch-install-and-review/plan.md) |
 
 ## 12. Resume brief
 

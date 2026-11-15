@@ -3,14 +3,14 @@
 - Plan ID: `macos-verified-support`
 - Phase: P3
 - Plan version: 2
-- Validated against master version: 21
-- Status: in_progress
+- Validated against master version: 22
+- Status: done
 - Approved by: Jorge Venegas (standing instruction C6)
 - Approved at: 2026-11-15
-- Commit: pending
+- Commit: 6abc3fb
 - Implementation mode: subagent
-- Implemented by: Sonnet 5.5 subagent (S1-S3); S4 pending coordinator
-- Implemented at: 2026-11-15 (S1-S3)
+- Implemented by: sonnet-worker-p3
+- Implemented at: 2026-11-15
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -41,6 +41,7 @@ Prove on the real Mac that a user can install VideoHub with `bash setup.sh`, ope
 | L6 | hub_workspace hard-codes `\\` separators | Added S5 and A6 |
 | L7 | Seeded config.json blocks --workspace; port must be set after setup | S1 evidence records the post-setup port edit; no code change |
 | L8 | Real API endpoints and JSON CLI arguments; asdf Node 22.22.3 | Notes only for this phase |
+| L9 | No Gatekeeper prompt for the generated `.command` | Observed in S4; docs fix belongs to P6 |
 | L1 | pnpm for development and product | S2 needs pnpm on PATH; setup runs `pnpm install --frozen-lockfile` |
 
 C8 (decision, not a ledger row) sets the agent, launcher and port choices used in S1–S2.
@@ -59,11 +60,11 @@ Out of scope:
 
 ## 4. Entry conditions
 
-- [ ] P2 done; suite green — verify: `pnpm test 2>&1 | grep -E "^ℹ (pass|fail)"` → `fail 0`
-- [ ] No other VideoHub on the account — verify: `lsof -nP -iTCP:7788 -iTCP:7799 -sTCP:LISTEN` empty; no `~/Desktop/VideoHub.command`; `claude mcp list` has no `videohub`
-- [ ] `/Users/jorge/VideoHubScratch` does not exist yet — verify: `test ! -e /Users/jorge/VideoHubScratch`
-- [ ] Phase plan revalidated against current master version
-- [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
+- [x] P2 done; suite green — verify: `pnpm test 2>&1 | grep -E "^ℹ (pass|fail)"` → `fail 0`
+- [x] No other VideoHub on the account — verify: `lsof -nP -iTCP:7788 -iTCP:7799 -sTCP:LISTEN` empty; no `~/Desktop/VideoHub.command`; `claude mcp list` has no `videohub`
+- [x] `/Users/jorge/VideoHubScratch` does not exist yet — verify: `test ! -e /Users/jorge/VideoHubScratch`
+- [x] Phase plan revalidated against current master version
+- [x] User approved this phase plan — verify: `Approved by` is set and status is `ready`
 
 ## 5. Steps
 
@@ -150,20 +151,20 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — `bash setup.sh` installs the scratch copy with pnpm, Claude Code integration only, and the recorded answers — verify: S2 evidence
-- [ ] A2 — The Desktop `VideoHub.command` opens the hub; its Node path follows the stable rule; Gatekeeper behavior is recorded — verify: S2 content + S4 (1)
-- [ ] A3 — The example plays in live preview and a note is saved — verify: S4 (2) + `hub_notes`
-- [ ] A4 — macOS folder dialog and Finder reveal work from the UI — verify: S4 (3), (4)
-- [ ] A6 — hub_workspace guidance uses the platform separator on macOS — verify: S5
-- [ ] A5 — If any repository fix was made, the full suite passes and changed files pass `node --check` — verify: `pnpm test` → `fail 0`, or "no repo change" with `git status --short`
+- [x] A1 — `bash setup.sh` installs the scratch copy with pnpm, Claude Code integration only, and the recorded answers — verify: S2 evidence
+- [x] A2 — The Desktop `VideoHub.command` opens the hub; its Node path follows the stable rule; Gatekeeper behavior is recorded — verify: S2 content + S4 (1)
+- [x] A3 — The example plays in live preview and a note is saved — verify: S4 (2) + `hub_notes`
+- [x] A4 — macOS folder dialog and Finder reveal work from the UI — verify: S4 (3), (4)
+- [x] A6 — hub_workspace guidance uses the platform separator on macOS — verify: S5
+- [x] A5 — If any repository fix was made, the full suite passes and changed files pass `node --check` — verify: `pnpm test` → `fail 0`, or "no repo change" with `git status --short`
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
-- [ ] Names and structure state intent; comments explain only non-obvious reasons
-- [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation
-- [ ] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
+- [x] Names and structure state intent; comments explain only non-obvious reasons
+- [x] Every new test fails if the behavior it covers breaks; no test restates the implementation
+- [x] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
 
 ## 8. Risks and unknowns
 
@@ -186,24 +187,37 @@ Append during implementation. One line per deviation: date, step, what changed, 
 
 ## 10. Closeout
 
-Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
-
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-15
+- Session: coordinator + Sonnet 5.5 workers (S1-S3 WIP 0b2901d, S5 6abc3fb); S4 walkthrough with Jorge Venegas
+- Verdict: addressed
+- Steps complete: S1, S2, S3, S4, S5
+- Verification run: setup dry-run and real run; `claude mcp list` before/after; `cat`/`xattr ~/Desktop/VideoHub.command`; `VIDEOHUB_PORT=7799 node server/cli.js hub_workspace '{}'`, `hub_project '{"project":"hello-film"}'`; HTTP 200 on `/`, `/api/ping`, `/api/config`; `/api/encoders` → `gpus: ["Apple M2 Max"]`; `ps` shows `Google Chrome --app=http://127.0.0.1:7799`; `.videohub/notes.json`; `pnpm test` → 348 tests, 347 pass, 0 fail, 1 skipped
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | met / partial / not met / deferred | `<command>` — <result> |
-| D1 (master) | met / partial / not met / deferred | `<command>` — <result> |
+| A1 | met | `bash setup.sh --workspace ~/VideoHubScratch/workspace --agents claude --global-rule no --shortcut yes --startup no --example yes` exit 0; `pnpm install --frozen-lockfile` ran; `claude mcp list` adds only `videohub` (connected); skill `videohub` added; `~/.claude/CLAUDE.md` absent before and after |
+| A2 | met | `VideoHub.command` (rwx) execs `/Users/jorge/.asdf/installs/nodejs/22.22.3/bin/node` (asdf: versioned path per the stable rule); user double-click: Terminal opened, **no Gatekeeper prompt**, Chrome app window on 7799 (`ps` pid 17610); `xattr` has no `com.apple.quarantine` |
+| A3 | met | User played live preview and left a note: `notes.json` id 1, t 2.95 s, frame 88, "Scene 1 should also have a moon", status approved (approved notes are not listed by `hub_notes` open view) |
+| A4 | met | User report 2026-11-15: folder dialog opened, cancel and pick both worked; Finder reveal worked |
+| A5 | met | `pnpm test` → 347 pass, 0 fail; `node --check server/tools.js server/tools.test.js` clean |
+| A6 | met | `server/tools.js` uses `path.join`; `server/tools.test.js` fails with the backslash text restored (worker revert check) |
+| D3 (master) | met | A1–A4 |
+| D2 (master) | met | Real-install GPU `Apple M2 Max`; launcher Node path follows the rule |
+| D1 (master) | met | `pnpm test` fail 0 |
+| D8 (master) | met | First real macOS setup ran `pnpm install --frozen-lockfile` (+115 packages) from the shipped `pnpm-lock.yaml` |
+| L9 | applied | Recorded for P6 (Gatekeeper wording) |
+
+**Discovery sweep:** (1) Wrong assumption: S1 seeding `config.json` before setup blocks `--workspace` (L7). (2) New constraint: setup always writes port 7788; a custom port is set afterwards (L7). (3) Unplanned work: S5 separator fix (L6). (4) For the next phase: real endpoints are `/api/config`, `/api/encoders`; CLI takes JSON; approved notes are hidden from the open-notes view (L8). (5) Suspect evidence: master section 6 said Node 24.16.0; the install folder resolves asdf Node 22.22.3 (L8); no earlier phase result is invalidated.
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| L6 | hub_workspace hard-coded backslashes | phase-amend | P3 | S5 implemented |
+| L7 | Seeded config blocks `--workspace`; setup writes port 7788 | plan-defect | P3, P6 | Port set after setup; P6 notes it if relevant |
+| L8 | Endpoints, JSON CLI, asdf Node 22.22.3 | note | P4, P5 | Used by P4/P5 plans |
+| L9 | Gatekeeper does not prompt for the setup-generated `VideoHub.command` (no quarantine attribute); docs claim it may | next-phase-amend | P6 | P6 corrects PLATFORMS/README/CLAUDE wording |
 
-**Master updates written:** <version bump, ledger rows, phase map changes, or none>
-**Next-phase updates written:** <phase ID, plan version, sections changed, or none>
-**Remaining work and handoff:** Closeout pending S4 (coordinator with user)
+**Master updates written:** L6–L9, C8; master v21+
+**Next-phase updates written:** none yet; P4 plan is written next with L8 applied
+**Remaining work and handoff:** Scratch hub stays running on 7799 with the user's note; P4 renders the example once (user approved 2026-11-15).
