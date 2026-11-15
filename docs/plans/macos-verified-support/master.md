@@ -1,7 +1,7 @@
 # Master Plan — macOS verified support
 
 - Plan ID: `macos-verified-support`
-- Master version: 25
+- Master version: 28
 - Status: active
 - Created: 2026-11-14
 - Source: user request (2026-11-14): "I need to create a macOS compatible version of this project. create a plan to achieve this"
@@ -131,6 +131,7 @@ Append-only. Supersede a decision with a new row; never delete history.
 | C8 | 2026-11-15 | Scratch install on the real account (answered 2026-11-15): setup registers Claude Code only (MCP + skill), no global rule block in ~/.claude/CLAUDE.md, no OpenCode; it creates the Desktop VideoHub.command and P5 enables the login LaunchAgent; P5 uninstall removes all of them. The scratch install's own data/config.json pins port 7799. No other VideoHub install exists on the account (checked: no ~/Documents/VideoHub, Desktop command, LaunchAgent, or listener on 7788/7799) | User answers to the R3/launcher questions; CLAUDE.md requires asking before touching the real agent profile | P3,P4,P5,P6 |
 | C9 | 2026-11-15 | P4 renders the scratch hello-film twice, one at a time: one full render to completion (user approval 2026-11-15 after preview review) and one started and stopped after about 10 s to verify whole-tree Stop | User answers 2026-11-15 | P4 |
 | C10 | 2026-11-15 | One extra scratch render of hello-film with hub_render env {DUR:"120"} (no film code change) to snapshot priority/background QoS and press Stop partway; stopped before completion | User approval 2026-11-15 after the 5 s render made A2/A4 unobservable | P4 |
+| C11 | 2026-11-15 | After the Stop fix, P5 updates the scratch install and runs one more 120 s scratch render that is stopped partway, to confirm no orphans on real hardware | User answer 2026-11-15 | P4,P5 |
 
 ## 9. Discovery ledger
 
@@ -148,6 +149,8 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L8 | 2026-11-15 | P3 | P4,P5 | Scratch launcher Node is asdf 22.22.3 (asdf global for that folder), not 24.16.0; versioned path as designed. /api/capabilities and /api/settings do not exist; real endpoints are /api/config and /api/encoders. hub_* CLI takes a JSON argument | note | P4/P5 use /api/config, /api/encoders and JSON CLI arguments | applied |
 | L9 | 2026-11-15 | P3 | P6 | Gatekeeper showed no prompt when the user double-clicked the setup-generated VideoHub.command: xattr has no com.apple.quarantine (local file). Docs (PLATFORMS.md, CLAUDE.md, install.mjs setup message) say macOS may block its first launch | next-phase-amend | P6 corrects the Gatekeeper wording; setup message change is P6's call | open |
 | L10 | 2026-11-15 | P4 | P4 | The 10 s example renders in about 5 s, too fast to snapshot priority/QoS or press Stop after ~10 s; the second permitted render ran to completion (hello-film_v2.mp4) because the worker's zsh capture script failed. Renders-page Stop for a queued job uses POST /api/jobs/JOB-ID/cancel; slow/normal commands act only on a tracked running render | plan-defect | Missed fact: render duration. User approved one extra scratch render with env DUR=120 (C10); added S5 for A2/A4 via /api/jobs/:id/cancel | applied |
+| L11 | 2026-11-15 | P4 | P4,P5,P6 | Stop leaves orphan headless Chrome on Unix: killTree SIGTERMs the tree, puppeteer's SIGTERM handler keeps node render.js alive, its chunk-retry restart() relaunches Chrome, puppeteer starts Chrome in its own process group, so the later group SIGKILL misses it and it is reparented to pid 1 (2 browsers, 14 pids observed; coordinator killed them after confirming puppeteer profiles) | phase-amend | Added P4 S6: Unix killTree freezes the root (SIGSTOP) before terminating, re-reads the tree, TERM then KILL children, KILL root; real-process test reproduces the relaunch. Real stopped-render confirmation in P5 after update (C11). P6 documents the fix | applied |
+| L12 | 2026-11-15 | P4 | P6 | Slow mode set nice 19 / pri 4 on the render tree except two Chrome 'Aperitif Renderer' helpers (stayed nice 10); after normal, pri returned but nice stayed 19 (unprivileged niceness cannot be lowered, as documented best effort) | note | P6 mentions that some Chrome helper processes may keep normal priority in slow mode | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.

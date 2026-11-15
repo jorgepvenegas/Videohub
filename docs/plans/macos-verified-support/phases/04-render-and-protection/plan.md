@@ -3,7 +3,7 @@
 - Plan ID: `macos-verified-support`
 - Phase: P4
 - Plan version: 1
-- Validated against master version: 25
+- Validated against master version: 28
 - Status: in_progress
 - Approved by: Jorge Venegas (standing instruction C6; render approved C9)
 - Approved at: 2026-11-15
@@ -37,6 +37,8 @@ Prove on the real Mac that VideoHub's protected render queue works (D4): the rev
 |---|---|---|
 | L1 | pnpm for development and product | Any fix is tested with `pnpm test` |
 | L10 | 10 s render takes about 5 s; second render ran to completion; Stop uses `/api/jobs/:id/cancel` | Added S5 with a 120 s render (C10); A2/A4 verified by S5 |
+| L11 | Stop orphans relaunched Chrome (own process group) | Added S6 fix + real-process test; A4 reworded; real-render recheck moves to P5 (C11) |
+| L12 | Two Chrome helpers keep nice 10 in slow mode; nice stays 19 after normal | Note; A2 judged on the render tree as documented best effort |
 | L8 | Real endpoints are `/api/config`, `/api/encoders`; CLI takes JSON; asdf Node 22.22.3 in the install | S1–S3 use JSON CLI arguments and real endpoints only; discover render/guard endpoints from `server/hub.js` (`/api/renders`, `/api/renders/cmd`, `/api/guard/settings`, `/api/guard/temp`) |
 
 ## 3. Scope
@@ -134,12 +136,26 @@ If a step reveals work outside this phase, report it and continue the approved s
   - Left running: per scope fence only recorded pids may be killed, so the two orphan trees were not killed; coordinator decision needed.
 - Rollback: if any recorded pid survives, kill only those pids and report the defect; delete a partial output if one was kept
 
+### S6 — Stop must not leave relaunched Chrome behind (phase-amend L11)
+
+- Depends on: S5
+- Files:
+  - `server/platform.js` (modify) — Unix `killTree`
+  - `server/platform.darwin.test.js` and `server/platform.linux.test.js` (modify) — injected-order tests
+  - `server/killtree-unix.test.js` (create) — real-process test, skipped on Windows
+- Change: in the Unix `killTree`, first send SIGSTOP to the root so it cannot spawn replacements, then re-read the process tree, SIGTERM the descendants (and the root's process group), wait the existing grace period, SIGKILL any surviving descendant, then SIGKILL the root (a stopped process still dies on SIGKILL). Keep the guards (`pid <= 1`, own pid), the start-time identity check, and the function's signature and return. Windows (`taskkill /T /F`) unchanged.
+- Acceptance:
+  - [ ] Injected tests: the root is stopped before any child is signalled, and the root is killed last
+  - [ ] Real-process test (under `.test-tmp`): a node "render" that ignores SIGTERM and, whenever its child dies, spawns a detached replacement child in a new process group; after `killTree(root)` neither the root nor any child (original or replacement) is alive. The test fails against the old `killTree`
+- Verification: `node --test server/killtree-unix.test.js server/platform.darwin.test.js server/platform.linux.test.js`; `pnpm test` → `fail 0`
+- Rollback: `git checkout HEAD -- server/platform.js server/platform.darwin.test.js server/platform.linux.test.js && rm server/killtree-unix.test.js`
+
 ## 6. Phase acceptance criteria
 
 - [ ] A1 — One render completes through the queue with video and audio using VideoToolbox — verify: S2 `hub_job`, `ffprobe`, job log
 - [ ] A2 — Render niceness and background QoS apply in slow mode and restoration is recorded — verify: S5 snapshots
 - [ ] A3 — RAM protection reads free memory consistent with `vm_stat` and CPU affinity is reported unavailable — verify: S1
-- [ ] A4 — Stop ends the whole render tree — verify: S5 before/after `ps` (S3 superseded: the render finished before Stop)
+- [ ] A4 — Stop ends the whole render tree, including Chrome relaunched during Stop — verify: S6 real-process test; S5 showed the defect; real-render reconfirmation after update is owed to P5 (C11)
 - [ ] A5 — Renders page hides CPU-core controls with the explanation — verify: S4 (1)
 - [ ] A6 — Suite stays green and any repository fix passes checks — verify: `pnpm test` → `fail 0`, `node --check` on changed files, or `git status --short` shows no source change
 
