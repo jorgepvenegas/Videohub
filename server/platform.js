@@ -471,7 +471,9 @@ function createUnixPlatform({ osName: OS, env, home, temp, fs, os, path, spawn, 
   function tree(rows, root) { const ids = new Set([root]); let n; do { n = ids.size; for (const p of rows || []) if (ids.has(p.ppid)) ids.add(p.pid); } while (ids.size > n); return [...ids]; }
   async function killTree(pid) {
     pid = +pid; if (!Number.isSafeInteger(pid) || pid <= 1 || pid === process.pid) return;
-    const before = await processList(), ids = tree(before, pid), starts = new Map((before || []).map(p => [p.pid, p.start]));
+    // Freeze the root first: render.js ignores SIGTERM and relaunches Chrome (own process group) when a child dies.
+    try { kill(pid, 'SIGSTOP'); } catch { }
+    const before = await processList(), ids = tree(before, pid).filter(id => id !== pid), starts = new Map((before || []).map(p => [p.pid, p.start]));
     try { kill(-pid, 'SIGTERM'); } catch { }
     for (const id of ids.reverse()) try { kill(id, 'SIGTERM'); } catch { }
     await delay(3000);
@@ -480,6 +482,7 @@ function createUnixPlatform({ osName: OS, env, home, temp, fs, os, path, spawn, 
     const surviving = ids.filter(same), root = after?.find(p => p.pid === pid);
     if (surviving.length && (!root || same(pid))) try { kill(-pid, 'SIGKILL'); } catch { }
     for (const id of surviving) try { kill(id, 'SIGKILL'); } catch { }
+    if (!after || same(pid)) try { kill(pid, 'SIGKILL'); } catch { }
   }
   const affinity = new Map();
   async function setTreePriority(rootPid, level, cores) {

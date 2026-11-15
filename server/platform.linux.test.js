@@ -108,7 +108,7 @@ test('Linux protection reports failed native affinity commands for retry while k
 test('Linux stop sends TERM then KILL to the isolated group and its process tree', async () => {
   const h = harness({ proc: ['100', '101'], files: { ...procFiles(100, 7), ...procFiles(101, 100) } });
   await h.killTree(100); assert.deepEqual(h.delays, [3000]);
-  assert.deepEqual(h.signals, [[-100, 'SIGTERM'], [101, 'SIGTERM'], [100, 'SIGTERM'], [-100, 'SIGKILL'], [101, 'SIGKILL'], [100, 'SIGKILL']]);
+  assert.deepEqual(h.signals, [[100, 'SIGSTOP'], [-100, 'SIGTERM'], [101, 'SIGTERM'], [-100, 'SIGKILL'], [101, 'SIGKILL'], [100, 'SIGKILL']]);
   const count = h.signals.length; for (const pid of [0, 1, -2, 1.5, 'wrong']) await h.killTree(pid); assert.equal(h.signals.length, count);
 });
 

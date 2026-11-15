@@ -145,10 +145,11 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `server/killtree-unix.test.js` (create) — real-process test, skipped on Windows
 - Change: in the Unix `killTree`, first send SIGSTOP to the root so it cannot spawn replacements, then re-read the process tree, SIGTERM the descendants (and the root's process group), wait the existing grace period, SIGKILL any surviving descendant, then SIGKILL the root (a stopped process still dies on SIGKILL). Keep the guards (`pid <= 1`, own pid), the start-time identity check, and the function's signature and return. Windows (`taskkill /T /F`) unchanged.
 - Acceptance:
-  - [ ] Injected tests: the root is stopped before any child is signalled, and the root is killed last
-  - [ ] Real-process test (under `.test-tmp`): a node "render" that ignores SIGTERM and, whenever its child dies, spawns a detached replacement child in a new process group; after `killTree(root)` neither the root nor any child (original or replacement) is alive. The test fails against the old `killTree`
+  - [x] Injected tests: the root is stopped before any child is signalled, and the root is killed last
+  - [x] Real-process test (under `.test-tmp`): a node "render" that ignores SIGTERM and, whenever its child dies, spawns a detached replacement child in a new process group; after `killTree(root)` neither the root nor any child (original or replacement) is alive. The test fails against the old `killTree`
 - Verification: `node --test server/killtree-unix.test.js server/platform.darwin.test.js server/platform.linux.test.js`; `pnpm test` → `fail 0`
 - Rollback: `git checkout HEAD -- server/platform.js server/platform.darwin.test.js server/platform.linux.test.js && rm server/killtree-unix.test.js`
+- Evidence (2026-11-15): `node --check server/platform.js` ok; `node --test server/killtree-unix.test.js server/platform.darwin.test.js server/platform.linux.test.js` -> pass 33, fail 0 (about 1 s); revert check: with `server/platform.js` stashed to the old killTree the real-process test failed ("alive after Stop: <replacement child pid>"), restored and it passes; `pnpm test` -> tests 349, pass 348, fail 0 (1 skipped); no leftover test processes in `ps`, no `killtree-*` dir left in `.test-tmp`. New sequence: SIGSTOP root, read tree, SIGTERM group and descendants, 3 s grace, SIGKILL surviving descendants (and group), SIGKILL root last.
 
 ## 6. Phase acceptance criteria
 

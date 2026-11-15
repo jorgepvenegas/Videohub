@@ -140,7 +140,7 @@ test('macOS available memory includes inactive and speculative pages and caches 
 test('macOS disk information shares df byte conversion and Stop handles the full process group', async () => {
   const h = harness({ answer: (file, args) => ({ code: 0, stdout: file === 'df' ? 'Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/disk1s1 10000 1000 9000 10% /Volumes/Film disk\n' : args.at(-1).includes('lstart') ? '100 7 2048 Fri Nov 13 10:20:30 2026 node\n101 100 300 Fri Nov 13 10:20:31 2026 ffmpeg\n' : '100 node render.js\n101 ffmpeg\n', stderr: '' }) });
   assert.deepEqual(await h.volumes(), [{ mount: '/Volumes/Film disk', freeBytes: 9000 * 1024, totalBytes: 10000 * 1024 }]);
-  await h.killTree(100); assert.deepEqual(h.delays, [3000]); assert.deepEqual(h.signals, [[-100, 'SIGTERM'], [101, 'SIGTERM'], [100, 'SIGTERM'], [-100, 'SIGKILL'], [101, 'SIGKILL'], [100, 'SIGKILL']]);
+  await h.killTree(100); assert.deepEqual(h.delays, [3000]); assert.deepEqual(h.signals, [[100, 'SIGSTOP'], [-100, 'SIGTERM'], [101, 'SIGTERM'], [-100, 'SIGKILL'], [101, 'SIGKILL'], [100, 'SIGKILL']]);
 });
 
 test('macOS LaunchAgent autostart requires an owned plist and loaded service and disables by bootout plus Trash', async () => {
