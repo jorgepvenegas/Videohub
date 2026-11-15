@@ -3,7 +3,7 @@
 - Plan ID: `macos-verified-support`
 - Phase: P4
 - Plan version: 1
-- Validated against master version: 23
+- Validated against master version: 25
 - Status: in_progress
 - Approved by: Jorge Venegas (standing instruction C6; render approved C9)
 - Approved at: 2026-11-15
@@ -36,6 +36,7 @@ Prove on the real Mac that VideoHub's protected render queue works (D4): the rev
 | Ledger | Discovery | Effect on this phase |
 |---|---|---|
 | L1 | pnpm for development and product | Any fix is tested with `pnpm test` |
+| L10 | 10 s render takes about 5 s; second render ran to completion; Stop uses `/api/jobs/:id/cancel` | Added S5 with a 120 s render (C10); A2/A4 verified by S5 |
 | L8 | Real endpoints are `/api/config`, `/api/encoders`; CLI takes JSON; asdf Node 22.22.3 in the install | S1–S3 use JSON CLI arguments and real endpoints only; discover render/guard endpoints from `server/hub.js` (`/api/renders`, `/api/renders/cmd`, `/api/guard/settings`, `/api/guard/temp`) |
 
 ## 3. Scope
@@ -111,12 +112,24 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Verification: user report
 - Rollback: none
 
+### S5 — Longer render: priority/QoS snapshots and Stop (phase-amend L10, C10)
+
+- Depends on: S2
+- Files:
+  - none in the repository
+- Change: write a capture script to a file in the scratchpad (bash, `#!/bin/bash`, no command stored in a variable; invoke with `bash script.sh`) that prints `ps -axo pid,ppid,pgid,nice,pri,command` filtered to the render tree (root = the job's process; include descendants by ppid, plus Chrome/ffmpeg children). Queue `hub_render '{"project":"hello-film","mode":"full","env":{"DUR":"120"}}'` from the scratch install with `VIDEOHUB_PORT=7799`. When the tree exists: snapshot 1 (normal); POST the Renders-page slow command for that render; wait 4 s (guard tick 3 s); snapshot 2 (expect nice 19 and lowered pri across the tree); POST the normal command; wait 4 s; snapshot 3 (record restoration, best effort). Then record every pid of the tree and `POST /api/jobs/JOB-ID/cancel` (the Renders-page Stop for jobs); wait 5 s; run `ps -p` on every recorded pid and check for orphan Chrome/ffmpeg tied to the scratch film.
+- Acceptance:
+  - [ ] Snapshot 2 shows nice 19 (and lower pri) on the tree; restoration recorded
+  - [ ] Cancel ends the job as cancelled/stopped and no recorded pid survives
+- Verification: the three snapshots, the cancel response, `hub_job` final state and the post-Stop `ps -p` output recorded under this step
+- Rollback: if any recorded pid survives, kill only those pids and report the defect; delete a partial output if one was kept
+
 ## 6. Phase acceptance criteria
 
 - [ ] A1 — One render completes through the queue with video and audio using VideoToolbox — verify: S2 `hub_job`, `ffprobe`, job log
-- [ ] A2 — Render niceness and background QoS apply in slow mode and restoration is recorded — verify: S2 `ps` snapshots
+- [ ] A2 — Render niceness and background QoS apply in slow mode and restoration is recorded — verify: S5 snapshots
 - [ ] A3 — RAM protection reads free memory consistent with `vm_stat` and CPU affinity is reported unavailable — verify: S1
-- [ ] A4 — Stop ends the whole render tree — verify: S3 before/after `ps`
+- [ ] A4 — Stop ends the whole render tree — verify: S5 before/after `ps` (S3 superseded: the render finished before Stop)
 - [ ] A5 — Renders page hides CPU-core controls with the explanation — verify: S4 (1)
 - [ ] A6 — Suite stays green and any repository fix passes checks — verify: `pnpm test` → `fail 0`, `node --check` on changed files, or `git status --short` shows no source change
 
@@ -139,6 +152,8 @@ If a step reveals work outside this phase, report it and continue the approved s
 | Repo fixes do not reach the running scratch install | certain | low | A fix is tested in the repo; P5 update carries it to the scratch install |
 
 ## 9. Deviations and working notes
+
+**S4 user answers (2026-11-15, Jorge Venegas):** (1) Renders page: CPU-core sliders hidden, macOS note shown. (2) A macOS "Render finished" notification appeared. (3) `hello-film_v1.mp4` plays with sound.
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 

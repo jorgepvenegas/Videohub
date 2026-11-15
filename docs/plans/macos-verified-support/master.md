@@ -1,7 +1,7 @@
 # Master Plan — macOS verified support
 
 - Plan ID: `macos-verified-support`
-- Master version: 23
+- Master version: 25
 - Status: active
 - Created: 2026-11-14
 - Source: user request (2026-11-14): "I need to create a macOS compatible version of this project. create a plan to achieve this"
@@ -130,6 +130,7 @@ Append-only. Supersede a decision with a new row; never delete history.
 | C7 | 2026-11-14 | Implementation subagents run on the Sonnet 5.5 model (Agent tool model: sonnet) | User instruction 2026-11-14 | all |
 | C8 | 2026-11-15 | Scratch install on the real account (answered 2026-11-15): setup registers Claude Code only (MCP + skill), no global rule block in ~/.claude/CLAUDE.md, no OpenCode; it creates the Desktop VideoHub.command and P5 enables the login LaunchAgent; P5 uninstall removes all of them. The scratch install's own data/config.json pins port 7799. No other VideoHub install exists on the account (checked: no ~/Documents/VideoHub, Desktop command, LaunchAgent, or listener on 7788/7799) | User answers to the R3/launcher questions; CLAUDE.md requires asking before touching the real agent profile | P3,P4,P5,P6 |
 | C9 | 2026-11-15 | P4 renders the scratch hello-film twice, one at a time: one full render to completion (user approval 2026-11-15 after preview review) and one started and stopped after about 10 s to verify whole-tree Stop | User answers 2026-11-15 | P4 |
+| C10 | 2026-11-15 | One extra scratch render of hello-film with hub_render env {DUR:"120"} (no film code change) to snapshot priority/background QoS and press Stop partway; stopped before completion | User approval 2026-11-15 after the 5 s render made A2/A4 unobservable | P4 |
 
 ## 9. Discovery ledger
 
@@ -146,6 +147,7 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L7 | 2026-11-15 | P3 | P3,P6 | Setup ignores --workspace when data/config.json already exists without a workspace (seeded {port:7799} made dry-run keep ~/Documents/VideoHub); setup writes port 7788 even when VIDEOHUB_PORT is set, so a custom port must be set in config.json after setup. Plan S1 order was wrong; worker set the port after setup | plan-defect | Missed fact: initConfig treats any config.json as installed. P3 evidence records the post-setup port edit; P6 notes it if docs describe custom ports. Not a macOS defect; no code change | applied |
 | L8 | 2026-11-15 | P3 | P4,P5 | Scratch launcher Node is asdf 22.22.3 (asdf global for that folder), not 24.16.0; versioned path as designed. /api/capabilities and /api/settings do not exist; real endpoints are /api/config and /api/encoders. hub_* CLI takes a JSON argument | note | P4/P5 use /api/config, /api/encoders and JSON CLI arguments | applied |
 | L9 | 2026-11-15 | P3 | P6 | Gatekeeper showed no prompt when the user double-clicked the setup-generated VideoHub.command: xattr has no com.apple.quarantine (local file). Docs (PLATFORMS.md, CLAUDE.md, install.mjs setup message) say macOS may block its first launch | next-phase-amend | P6 corrects the Gatekeeper wording; setup message change is P6's call | open |
+| L10 | 2026-11-15 | P4 | P4 | The 10 s example renders in about 5 s, too fast to snapshot priority/QoS or press Stop after ~10 s; the second permitted render ran to completion (hello-film_v2.mp4) because the worker's zsh capture script failed. Renders-page Stop for a queued job uses POST /api/jobs/JOB-ID/cancel; slow/normal commands act only on a tracked running render | plan-defect | Missed fact: render duration. User approved one extra scratch render with env DUR=120 (C10); added S5 for A2/A4 via /api/jobs/:id/cancel | applied |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
