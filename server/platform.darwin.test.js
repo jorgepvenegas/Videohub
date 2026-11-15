@@ -90,9 +90,11 @@ test('macOS Finder Trash passes unusual filenames as data and refuses failures w
   const target = '/Users/me/Films/a "quote" \\ ü; shell.mp4', h = harness({ files: { [target]: 'film' } });
   assert.equal((await h.trash([target]))[0].ok, true);
   assert.equal(h.calls[0].file, 'osascript'); assert.deepEqual(h.calls[0].args.slice(2), ['--', target]);
-  assert.equal(h.calls[0].args[1].includes(target), false); assert.match(h.calls[0].args[1], /tell application "Finder" to delete/);
+  assert.equal(h.calls[0].args[1].includes(target), false); assert.match(h.calls[0].args[1], /set f to POSIX file \(item 1 of argv\) as alias\ntell application "Finder" to delete f/);
   const failed = harness({ files: { [target]: 'film' }, answer: () => ({ code: 1, stdout: '', stderr: 'Not authorized to send Apple events' }) });
   const [r] = await failed.trash([target]); assert.equal(r.ok, false); assert.match(r.error, /Automation permission/); assert.equal(failed.files.has(target), true);
+  const other = harness({ files: { [target]: 'film' }, answer: () => ({ code: 1, stdout: '', stderr: "Finder got an error: Can't get POSIX file. (-1728)" }) });
+  const [o] = await other.trash([target]); assert.equal(o.ok, false); assert.match(o.error, /^Could not move to Trash: Finder got an error/); assert.doesNotMatch(o.error, /Automation/); assert.equal(other.files.has(target), true);
   assert.equal((await h.trash(['/']))[0].ok, false); assert.equal((await h.trash(['/Users/me']))[0].ok, false);
 });
 

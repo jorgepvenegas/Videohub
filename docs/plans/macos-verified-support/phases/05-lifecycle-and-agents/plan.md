@@ -142,10 +142,16 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `server/platform.darwin.test.js` (modify) — Trash script test
 - Change: coerce the target with `POSIX file (item 1 of argv) as alias` before the `tell application "Finder"` block, keep passing the path as argv (no quoting/injection risk), and keep the refusal behavior. The error text should no longer claim the cause is Automation permission unless stderr says so (e.g. -1743 "Not authorized"); otherwise report Finder's message. No hard-delete fallback.
 - Acceptance:
-  - [ ] Darwin test: the script coerces to an alias outside the Finder `tell`, passes the path only as argv, and a failure leaves the source and reports the error
-  - [ ] Real-Finder test on a throwaway folder under `.test-tmp` moves it to the Trash (darwin only; skipped elsewhere and when `osascript` is unavailable)
+  - [x] Darwin test: the script coerces to an alias outside the Finder `tell`, passes the path only as argv, and a failure leaves the source and reports the error
+  - [x] Real-Finder test on a throwaway folder under `.test-tmp` moves it to the Trash (darwin only; skipped elsewhere and when `osascript` is unavailable)
 - Verification: `node --test server/platform.darwin.test.js` plus the real-Finder test; `pnpm test` → `fail 0`
 - Rollback: `git checkout HEAD -- server/platform.js server/platform.darwin.test.js`
+- Evidence (S6): script `on run argv\nset f to POSIX file (item 1 of argv) as alias\ntell application "Finder" to delete f\nend run`; error keeps the Automation hint only for -1743/not authorized/not allowed, else `Could not move to Trash: <Finder message, 200 chars>`.
+  - `node --check` on platform.js, platform.darwin.test.js, trash-darwin.test.js: ok
+  - `node --test server/platform.darwin.test.js server/trash-darwin.test.js`: pass 16, fail 0 (real-Finder test ran, folder moved to Trash)
+  - Revert check: with the old platform.js (git stash) the real-Finder test failed with Finder -1728 "Can't get POSIX file"; restored, passes
+  - Real-Finder test lives in new file `server/trash-darwin.test.js` (darwin only, skipped without osascript)
+  - `pnpm test`: tests 350, pass 349, skipped 1, fail 0
 
 ### S7 — Re-update the scratch install and retry the user Trash check
 
