@@ -3,7 +3,7 @@
 - Plan ID: `macos-verified-support`
 - Phase: P5
 - Plan version: 1
-- Validated against master version: 29
+- Validated against master version: 30
 - Status: in_progress
 - Approved by: Jorge Venegas (standing instruction C6; stopped render C11)
 - Approved at: 2026-11-15
@@ -38,6 +38,7 @@ Finish the real-Mac lifecycle (D5, D6, D9): update the scratch install from the 
 
 | Ledger | Discovery | Effect on this phase |
 |---|---|---|
+| L14 | Finder Trash AppleScript always fails (-1728) | Added S6 fix and S7 retry; A4 verified by S7 |
 | L1 | pnpm for development and product | Update runs `pnpm install --frozen-lockfile` only if the lockfile changed |
 | L8 | Real endpoints, JSON CLI arguments, asdf Node 22.22.3 in the install | All CLI/API calls use JSON and `/api/config`, `/api/renders`, `/api/jobs/:id/cancel` |
 | L11 | Stop orphaned relaunched Chrome; fixed in `killTree` | S2 is the real-render recheck (C11) |
@@ -74,10 +75,10 @@ If a step reveals work outside this phase, report it and continue the approved s
   - [x] Data, notes, outputs and port 7799 unchanged; `VideoHub.command` still valid; `claude mcp list` still one `videohub`; `~/.config/opencode` unchanged
 - Verification: before/after snapshots and update output recorded
 - Evidence (2026-11-15, worker): before/after snapshots (script `scratchpad/p5-snap.sh`) are byte-identical (`diff` empty): `data/config.json` d63a17c1... (port 7799), `setup-answers.json` 75654ffb..., `notes.json` f07808d1..., outputs v1 082f0cb9... and v2 6388b22e... (workspace/outputs copies the same), `~/Desktop/VideoHub.command` b86c3ade... (content unchanged: `exec '/Users/jorge/.asdf/installs/nodejs/22.22.3/bin/node' '.../install/scripts/install.mjs' open "$@"`). `ls -la ~/.config/opencode` before = after (.gitignore, cli.json, plugins, service.json, tui.json; no change). `claude mcp list` before = after: one `videohub: node /Users/jorge/VideoHubScratch/install/server/mcp.js - Connected`.
-  - Dry run: `check the render queue and stop only the server belonging to <install>`, `back up replaced code to .../data/update-backup/<ts>`, `keep installed Node packages`, `would copy VideoHub skill to /Users/jorge/.claude/skills/videohub`, `Update complete...`. No warnings.
+  - Dry run: `check the render queue and stop only the server belonging to /Users/jorge/VideoHubScratch/install`, `back up replaced code to .../data/update-backup/2026-11-15T20-39-06-569Z`, `keep installed Node packages`, `would copy VideoHub skill to /Users/jorge/.claude/skills/videohub`, `Update complete...`. No warnings.
   - Real: `stop this install's server (pid 17592)`, `back up replaced code to /Users/jorge/VideoHubScratch/install/data/update-backup/2026-11-15T20-39-06-569Z and copy the new code (data and projects stay)`, `keep installed Node packages`, `copy VideoHub skill to /Users/jorge/.claude/skills/videohub`, `Update complete. Open VideoHub with its existing launcher and restart your agent session.` No warnings. (Exit code was not captured because of the `tee` pipe; the completion line and effects confirm success.)
-  - `grep -n SIGSTOP <install>/server/platform.js` -> 0 matches before, `475:    try { kill(pid, 'SIGSTOP'); } catch { }` after.
-  - Dot-folders / plans: the install already had `.agents/` and `.claude/` (created 12:01 by setup, not by update; empty skills dirs) and `docs/plans`; `diff -rq <repo>/docs <install>/docs` is empty after update. Update copies docs/plans from a git checkout (low impact; note).
+  - `grep -n SIGSTOP /Users/jorge/VideoHubScratch/install/server/platform.js` -> 0 matches before, `475:    try { kill(pid, 'SIGSTOP'); } catch { }` after.
+  - Dot-folders / plans: the install already had `.agents/` and `.claude/` (created 12:01 by setup, not by update; empty skills dirs) and `docs/plans`; `diff -rq /Users/jorge/code/Videohub/docs /Users/jorge/VideoHubScratch/install/docs` is empty after update. Update copies docs/plans from a git checkout (low impact; note).
   - Hub: `VIDEOHUB_NO_WINDOW=1 bash open.sh --server` -> `VideoHub is available at http://127.0.0.1:7799`; `/api/ping` -> `{"ok":true,"app":"videohub","pid":58781}`.
 - Rollback: restore code from `data/update-backup/TIMESTAMP` (copy back), restart the hub
 
@@ -133,12 +134,36 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Verification: uninstall output and before/after listings recorded
 - Rollback: re-run setup from the Trash-restored folder (not expected)
 
+### S6 — Fix macOS Finder Trash (phase-amend L14)
+
+- Depends on: S4
+- Files:
+  - `server/platform.js` (modify) — the macOS AppleScript in Unix `trashOne`
+  - `server/platform.darwin.test.js` (modify) — Trash script test
+- Change: coerce the target with `POSIX file (item 1 of argv) as alias` before the `tell application "Finder"` block, keep passing the path as argv (no quoting/injection risk), and keep the refusal behavior. The error text should no longer claim the cause is Automation permission unless stderr says so (e.g. -1743 "Not authorized"); otherwise report Finder's message. No hard-delete fallback.
+- Acceptance:
+  - [ ] Darwin test: the script coerces to an alias outside the Finder `tell`, passes the path only as argv, and a failure leaves the source and reports the error
+  - [ ] Real-Finder test on a throwaway folder under `.test-tmp` moves it to the Trash (darwin only; skipped elsewhere and when `osascript` is unavailable)
+- Verification: `node --test server/platform.darwin.test.js` plus the real-Finder test; `pnpm test` → `fail 0`
+- Rollback: `git checkout HEAD -- server/platform.js server/platform.darwin.test.js`
+
+### S7 — Re-update the scratch install and retry the user Trash check
+
+- Depends on: S6
+- Files:
+  - none in the repository
+- Change: rerun `bash update.sh --target "/Users/jorge/VideoHubScratch/install"` from the repo (data must stay identical), make sure the launchd hub restarts on 7799, then the coordinator asks the user to delete `trash-test` in the UI and Put Back from the Finder Trash.
+- Acceptance:
+  - [ ] Delete moves `trash-test` to the Trash; Put Back restores it
+- Verification: user report; `ls /Users/jorge/VideoHubScratch/workspace/films/trash-test`
+- Rollback: none
+
 ## 6. Phase acceptance criteria
 
 - [x] A1 — Update from the repository preserves data, notes, outputs and settings, installs the new code and leaves integrations consistent — verify: S1 snapshots
 - [x] A2 — A real render stopped after update leaves no process behind — verify: S2 log
 - [x] A3 (S3 part) — The LaunchAgent starts the hub — verify: S3 outputs; S4 (3) if done
-- [ ] A4 — A UI deletion goes to the Finder Trash and is restorable — verify: S4 (1)
+- [ ] A4 — A UI deletion goes to the Finder Trash and is restorable — verify: S6 tests and S7 user report (S4 (1) exposed L14)
 - [ ] A5 — A new Claude Code session lists `hub_*` tools — verify: S4 (2)
 - [ ] A6 — Uninstall removes only owned integrations and the scratch folder ends in the Trash — verify: S5
 - [ ] A7 — Suite green and any repository fix checked — verify: `pnpm test` → `fail 0`, or `git status --short` shows no source change
@@ -162,6 +187,8 @@ If a step reveals work outside this phase, report it and continue the approved s
 | Removing the scratch folder | certain | low | Finder Trash only, restorable |
 
 ## 9. Deviations and working notes
+
+**S4 user answers (2026-11-15):** (1) Delete of trash-test failed: "Could not move to Trash. Allow Finder Automation permission and try again. 41:77: execution error: Finder got an error: Can't get POSIX file \"/Users/jorge/VideoHubScratch/workspace/films/trash-test\". (-1728)" — source kept (L14). (2) Claude Code /mcp: not yet answered. (3) Logout skipped; launchd RunAtLoad start (S3) accepted as evidence.
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 
