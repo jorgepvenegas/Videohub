@@ -8,7 +8,7 @@
 - Approved by: pending
 - Approved at: pending
 - Commit: pending
-- Implementation mode: subagent (S1–S3 and any fix steps); S4 is a user walkthrough run by the coordinator, no product code
+- Implementation mode: subagent
 - Implemented by: pending
 - Implemented at: pending
 - Exception approved by: none
@@ -109,7 +109,7 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Change: the coordinator asks the user to: (1) double-click `~/Desktop/VideoHub.command` and report whether Terminal opens, whether macOS shows any Gatekeeper prompt, and whether the hub opens in a Chrome app window; (2) open the example card and play it in live preview (`hub_live`), then leave a note on a frame; (3) Settings → pick a folder with the macOS folder dialog, and cancel once; (4) reveal a file in Finder from the UI. The coordinator verifies the note with `hub_notes` on port 7799 and records each answer verbatim.
 - Acceptance:
   - [ ] Each of (1)–(4) reported working, or reported as a defect with exact symptoms
-- Verification: user reports + `VIDEOHUB_PORT=7799 node server/cli.js hub_notes <example>` shows the note
+- Verification: user reports + `VIDEOHUB_PORT=7799 node server/cli.js hub_notes hello-film` shows the note (example project name from `hub_project`)
 - Rollback: none needed (read-only for the repo)
 
 ## 6. Phase acceptance criteria
@@ -139,6 +139,8 @@ If a step reveals work outside this phase, report it and continue the approved s
 | Other agent sessions may start a hub | low | medium | Every CLI call sets `VIDEOHUB_PORT=7799` |
 
 ## 9. Deviations and working notes
+
+S1–S3 and any fix steps are implemented by a subagent. S4 is a user walkthrough run by the coordinator; it writes no product code.
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 
