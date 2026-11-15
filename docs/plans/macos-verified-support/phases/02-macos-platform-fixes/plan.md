@@ -94,7 +94,7 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Depends on: S1, S2
 - Files:
   - none in the repository (probe script lives in `/private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2-probe.mjs`)
-- Change: read-only probe importing `server/platform.js`: print `gpuNames()` and `TOOLS.node` (a) with the normal PATH (asdf: expect the versioned execPath, because the shim's realpath differs) and (b) with `PATH=<scratch>/bin:$PATH` where `<scratch>/bin/node` is a symlink to `process.execPath` (expect `<scratch>/bin/node`). Set `VIDEOHUB_DATA_DIR` to a scratchpad folder so nothing is written into the repo.
+- Change: read-only probe importing `server/platform.js`: print `gpuNames()` and `TOOLS.node` (a) with the normal PATH (asdf: expect the versioned execPath, because the shim's realpath differs) and (b) with `PATH=/private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2bin:$PATH` where `/private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2bin/node` is a symlink to `process.execPath` (expect `/private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2bin/node`). Set `VIDEOHUB_DATA_DIR` to a scratchpad folder so nothing is written into the repo.
 - Acceptance:
   - [ ] (a) GPU list contains `Apple M2 Max`; (b) `TOOLS.node` is the scratch symlink path
 - Verification: `node /private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2-probe.mjs` output recorded in the closeout; `git status --short` shows no new repo files
