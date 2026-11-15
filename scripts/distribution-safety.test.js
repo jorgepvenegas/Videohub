@@ -5,7 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const LOCAL = new Set(['.git', '.test-tmp', 'node_modules', 'data']);
+// .agents and .claude hold local agent skills, not part of the distribution.
+const LOCAL = new Set(['.git', '.agents', '.claude', '.test-tmp', 'node_modules', 'data']);
 const EXECUTABLE = /\.(exe|dll|com|scr|msi|msp|ocx|sys|cpl|node)$/i;
 
 test('the source distribution contains no compiled executable helpers or application bundles', () => {
