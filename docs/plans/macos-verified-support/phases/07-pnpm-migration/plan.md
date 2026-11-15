@@ -4,9 +4,9 @@
 - Phase: P7
 - Plan version: 1
 - Validated against master version: 15
-- Status: draft
-- Approved by: pending
-- Approved at: pending
+- Status: in_progress
+- Approved by: Jorge Venegas (standing instruction C6)
+- Approved at: 2026-11-14
 - Commit: pending
 - Implementation mode: subagent
 - Implemented by: pending
