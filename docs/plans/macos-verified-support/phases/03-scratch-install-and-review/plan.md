@@ -2,8 +2,8 @@
 
 - Plan ID: `macos-verified-support`
 - Phase: P3
-- Plan version: 1
-- Validated against master version: 18
+- Plan version: 2
+- Validated against master version: 21
 - Status: in_progress
 - Approved by: Jorge Venegas (standing instruction C6)
 - Approved at: 2026-11-15
@@ -32,11 +32,15 @@ Prove on the real Mac that a user can install VideoHub with `bash setup.sh`, ope
 | D2 | Confirms the generated `VideoHub.command` uses the stable Node rule on real disk | A2 |
 | D8 | First real pnpm-based setup on macOS | A1 |
 | D1 | Suite green after any fix | A5 |
+| D3 | Agent guidance on the Mac points at valid paths | A6 |
 
 ## Prior discoveries applied
 
 | Ledger | Discovery | Effect on this phase |
 |---|---|---|
+| L6 | hub_workspace hard-codes `\\` separators | Added S5 and A6 |
+| L7 | Seeded config.json blocks --workspace; port must be set after setup | S1 evidence records the post-setup port edit; no code change |
+| L8 | Real API endpoints and JSON CLI arguments; asdf Node 22.22.3 | Notes only for this phase |
 | L1 | pnpm for development and product | S2 needs pnpm on PATH; setup runs `pnpm install --frozen-lockfile` |
 
 C8 (decision, not a ledger row) sets the agent, launcher and port choices used in S1–S2.
@@ -131,12 +135,25 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Verification: user reports + `VIDEOHUB_PORT=7799 node server/cli.js hub_notes hello-film` shows the note (example project name from `hub_project`)
 - Rollback: none needed (read-only for the repo)
 
+### S5 — Use the platform separator in hub_workspace guidance (phase-amend L6)
+
+- Depends on: S3
+- Files:
+  - `server/tools.js` (modify) — the `New films go in:` line in the workspace tool text
+  - `server/tools.test.js` (create) — no existing test covers the tool texts
+- Change: build both example paths with the platform path separator (`path.join`/`path.sep`) instead of hard-coded `\\`, so macOS/Linux show `/` and Windows keeps `\\`. No other text changes.
+- Acceptance:
+  - [ ] On macOS, `VIDEOHUB_PORT=7799 node server/cli.js hub_workspace '{}'` from the repo shows `/` separators; a test fails if the backslash text returns on a POSIX path module
+- Verification: `node --test server/tools.test.js` and `pnpm test` — expected: `fail 0`
+- Rollback: `git checkout HEAD -- server/tools.js server/tools.test.js`
+
 ## 6. Phase acceptance criteria
 
 - [ ] A1 — `bash setup.sh` installs the scratch copy with pnpm, Claude Code integration only, and the recorded answers — verify: S2 evidence
 - [ ] A2 — The Desktop `VideoHub.command` opens the hub; its Node path follows the stable rule; Gatekeeper behavior is recorded — verify: S2 content + S4 (1)
 - [ ] A3 — The example plays in live preview and a note is saved — verify: S4 (2) + `hub_notes`
 - [ ] A4 — macOS folder dialog and Finder reveal work from the UI — verify: S4 (3), (4)
+- [ ] A6 — hub_workspace guidance uses the platform separator on macOS — verify: S5
 - [ ] A5 — If any repository fix was made, the full suite passes and changed files pass `node --check` — verify: `pnpm test` → `fail 0`, or "no repo change" with `git status --short`
 
 ## 7. Code standards check
