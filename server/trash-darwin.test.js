@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createPlatform } from './platform.js';
 
-const skip = process.platform !== 'darwin' ? 'macOS only' : spawnSync('osascript', ['-e', '1']).status !== 0 ? 'osascript unavailable' : false;
+const skip = process.env.VIDEOHUB_REAL_TRASH_TEST !== '1' ? 'moves a folder to the real Trash; set VIDEOHUB_REAL_TRASH_TEST=1 to run' : process.platform !== 'darwin' ? 'macOS only' : spawnSync('osascript', ['-e', '1']).status !== 0 ? 'osascript unavailable' : false;
 
 test('real Finder moves a throwaway folder to the Trash', { skip }, async () => {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.test-tmp'), dir = path.join(root, 'trash-' + process.pid + '-' + Date.now());

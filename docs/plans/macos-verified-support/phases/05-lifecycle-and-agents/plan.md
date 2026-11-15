@@ -152,6 +152,7 @@ If a step reveals work outside this phase, report it and continue the approved s
   - Revert check: with the old platform.js (git stash) the real-Finder test failed with Finder -1728 "Can't get POSIX file"; restored, passes
   - Real-Finder test lives in new file `server/trash-darwin.test.js` (darwin only, skipped without osascript)
   - `pnpm test`: tests 350, pass 349, skipped 1, fail 0
+  - Opt-in amend: the real-Finder test runs only with `VIDEOHUB_REAL_TRASH_TEST=1` (so default runs never touch the real Trash). With it set: pass 1, fail 0. Default `pnpm test`: tests 350, pass 348, skipped 2, fail 0
 
 ### S7 — Re-update the scratch install and retry the user Trash check
 
