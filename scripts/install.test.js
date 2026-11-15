@@ -42,6 +42,26 @@ test('updater preserves data and backs up code without removing old files', asyn
   assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.js'), 'utf8'), '// fixture hub'); assert.equal(fs.readFileSync(path.join(target, 'server', 'old.js'), 'utf8'), '// old extra'); assert.equal(fs.readFileSync(path.join(target, 'data', 'config.json'), 'utf8'), '{"mine":true}');
   const backups = fs.readdirSync(path.join(target, 'data', 'update-backup')); assert.equal(backups.length, 1); assert.equal(fs.readFileSync(path.join(target, 'data', 'update-backup', backups[0], 'server', 'hub.js'), 'utf8'), '// old hub');
 });
+test('macOS and Linux setup runs pnpm install --frozen-lockfile in the hub folder', async () => {
+  for (const os of ['linux', 'darwin']) {
+    const o = fixture(os), commands = []; fs.rmSync(path.join(o.hub, 'node_modules'), { recursive: true });
+    await runInstaller({ action: 'setup', yes: true, workspace: o.workspace, agents: 'opencode', example: 'no' }, { ...o, platform: { ...o.platform, findTool: n => n === 'pnpm' ? '/usr/bin/pnpm' : null }, run: (file, args, opts) => { commands.push({ file, args, cwd: opts.cwd }); return { status: 0 }; } });
+    assert.deepEqual(commands, [{ file: 'pnpm', args: ['install', '--frozen-lockfile'], cwd: o.hub }]);
+  }
+});
+test('missing pnpm stops setup with the OS hint before any change; dry-run only warns', async () => {
+  for (const [os, hint] of [['darwin', /brew install pnpm/], ['linux', /npm install -g pnpm/]]) {
+    const o = fixture(os); fs.rmSync(path.join(o.hub, 'node_modules'), { recursive: true });
+    await assert.rejects(runInstaller({ action: 'setup', yes: true, workspace: o.workspace, agents: 'opencode' }, o), hint); assert.equal(fs.existsSync(o.workspace), false); assert.equal(fs.existsSync(path.join(o.hub, 'data')), false);
+    const r = await runInstaller({ action: 'setup', yes: true, 'dry-run': true, workspace: o.workspace, agents: 'opencode' }, o); assert.ok(r.warnings.some(s => hint.test(s))); assert.equal(fs.existsSync(o.workspace), false); assert.equal(fs.existsSync(path.join(o.hub, 'data')), false);
+  }
+});
+test('updating an npm-era install installs with pnpm and keeps data', async () => {
+  const o = fixture(), target = path.join(path.dirname(o.hub), 'target'), commands = []; write(path.join(target, 'server', 'hub.js'), '// old hub'); write(path.join(target, 'package-lock.json')); write(path.join(target, 'data', 'config.json'), '{"mine":true}'); write(path.join(o.hub, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n');
+  for (const m of ['@modelcontextprotocol/sdk', 'puppeteer-core']) write(path.join(target, 'node_modules', m, 'package.json'));
+  await runInstaller({ action: 'update', target }, { ...o, platform: { ...o.platform, findTool: n => n === 'pnpm' ? '/usr/bin/pnpm' : null }, env: { ...o.env, VIDEOHUB_DATA_DIR: '' }, request: async () => null, run: (file, args, opts) => { commands.push({ file, args, cwd: opts.cwd }); return { status: 0 }; } });
+  assert.deepEqual(commands, [{ file: 'pnpm', args: ['install', '--frozen-lockfile'], cwd: target }]); assert.equal(fs.readFileSync(path.join(target, 'data', 'config.json'), 'utf8'), '{"mine":true}'); assert.ok(fs.existsSync(path.join(target, 'pnpm-lock.yaml')));
+});
 test('updater refuses active queues and unrelated processes; dry-run does not contact a server', async () => {
   const o = fixture(), target = path.join(path.dirname(o.hub), 'target'); write(path.join(target, 'server', 'hub.js'), '// old');
   const p = { ...o.platform, processList: async () => [{ pid: 123, name: 'node', cmd: 'node ' + path.join(target, 'server', 'hub.js') }] };

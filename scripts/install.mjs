@@ -45,7 +45,7 @@ function copyTree(from, to, { exclusive = false, skip = () => false } = {}) {
     else if (e.isFile()) { if (stat(dst)?.isSymbolicLink()) throw new Error('Refusing to replace a symbolic link: ' + dst); fs.copyFileSync(src, dst, exclusive ? fs.constants.COPYFILE_EXCL : 0); fs.chmodSync(dst, fs.statSync(src).mode); }
   }
 }
-const ITEMS = ['server', 'ui', 'templates', 'skill', 'claude', 'examples', 'engine-hooks', 'docs', 'scripts', 'CLAUDE.md', 'AGENTS.md', 'README.md', 'LICENSE', 'SETUP.cmd', 'UPDATE.cmd', 'UNINSTALL.cmd', 'update.ps1', 'setup.ps1', 'uninstall.ps1', 'open.cmd', 'setup.sh', 'update.sh', 'uninstall.sh', 'open.sh', 'package.json', 'package-lock.json'];
+const ITEMS = ['server', 'ui', 'templates', 'skill', 'claude', 'examples', 'engine-hooks', 'docs', 'scripts', 'CLAUDE.md', 'AGENTS.md', 'README.md', 'LICENSE', 'SETUP.cmd', 'UPDATE.cmd', 'UNINSTALL.cmd', 'update.ps1', 'setup.ps1', 'uninstall.ps1', 'open.cmd', 'setup.sh', 'update.sh', 'uninstall.sh', 'open.sh', 'package.json', 'pnpm-lock.yaml'];
 const casePath = (value, platform) => platform.casePath ? platform.casePath(value) : platform.IS_WIN ? String(value).toLowerCase() : String(value);
 export function validateUpdatePaths(source, target, { platform = platformDefault, realpath = fs.realpathSync } = {}) {
   const sourceReal = realpath(source), targetReal = realpath(target), src = casePath(sourceReal, platform), dst = casePath(targetReal, platform);
@@ -161,8 +161,9 @@ export async function runInstaller(options, { hub = ROOT, platform = platformDef
   const warnRetainedLaunchers = install => { if (LEGACY_LAUNCHERS.some(f => fs.existsSync(path.join(install, f)))) warn('Old launcher files were kept because a shortcut or login entry could still use them. Check that entry in Windows before retiring the files.'); };
   const packageInstall = (install, force = false) => {
     if (!force && fs.existsSync(path.join(install, 'node_modules', '@modelcontextprotocol', 'sdk', 'package.json')) && fs.existsSync(path.join(install, 'node_modules', 'puppeteer-core', 'package.json'))) { say('keep installed Node packages'); return; }
-    say('install Node packages with npm ci');
-    if (!dry) { const p = platform.IS_WIN ? platform.shellCommand('npm ci --no-audit --no-fund') : { file: 'npm', args: ['ci', '--no-audit', '--no-fund'], opts: {} }, r = run(p.file, p.args, { ...p.opts, cwd: install, env }); if (r.status !== 0) throw new Error('npm ci failed; install Node dependencies before continuing'); }
+    say('install Node packages with pnpm install --frozen-lockfile');
+    if (!platform.findTool('pnpm') && !(platform.IS_WIN && platform.findTool('pnpm.cmd'))) { const m = 'pnpm is missing. Install it with: ' + (platform.IS_WIN ? 'winget install -e --id pnpm.pnpm' : platform.IS_MAC ? 'brew install pnpm' : 'npm install -g pnpm (or your distribution package)') + ', then run ' + options.action + ' again.'; if (dry) warn(m); else throw new Error(m); }
+    if (!dry) { const p = platform.IS_WIN ? platform.shellCommand('pnpm install --frozen-lockfile') : { file: 'pnpm', args: ['install', '--frozen-lockfile'], opts: {} }, r = run(p.file, p.args, { ...p.opts, cwd: install, env }); if (r.status !== 0) throw new Error('pnpm install failed; install Node dependencies before continuing'); }
   };
   const settings = install => {
     const f = path.join(env.VIDEOHUB_DATA_DIR || path.join(install, 'data'), 'config.json'); if (!fs.existsSync(f)) return {};
@@ -277,7 +278,7 @@ export async function runInstaller(options, { hub = ROOT, platform = platformDef
       if (stat(path.join(target, 'data'))?.isSymbolicLink() || stat(path.join(target, 'data', 'update-backup'))?.isSymbolicLink()) throw new Error('Update backup folder contains a symbolic link; nothing changed');
       settings(target);
       await stopInstall(target);
-      const lockBefore = fs.existsSync(path.join(target, 'package-lock.json')) ? fs.readFileSync(path.join(target, 'package-lock.json'), 'utf8') : null;
+      const lockBefore = fs.existsSync(path.join(target, 'pnpm-lock.yaml')) ? fs.readFileSync(path.join(target, 'pnpm-lock.yaml'), 'utf8') : null;
       const backup = path.join(target, 'data', 'update-backup', new Date().toISOString().replace(/[:.]/g, '-'));
       say('back up replaced code to ' + backup + ' and copy the new code (data and projects stay)');
       if (!dry) for (const name of ITEMS) {
@@ -286,7 +287,7 @@ export async function runInstaller(options, { hub = ROOT, platform = platformDef
         if (fs.existsSync(dst)) { if (fs.lstatSync(dst).isSymbolicLink()) throw new Error('Update target contains a symbolic link: ' + dst); if (fs.statSync(dst).isDirectory()) copyTree(dst, path.join(backup, name)); else { fs.mkdirSync(path.dirname(path.join(backup, name)), { recursive: true }); fs.copyFileSync(dst, path.join(backup, name)); } }
         if (fs.statSync(src).isDirectory()) copyTree(src, dst, { skip: skipCode }); else { fs.copyFileSync(src, dst); fs.chmodSync(dst, fs.statSync(src).mode); }
       }
-      const lockAfter = fs.existsSync(path.join(target, 'package-lock.json')) ? fs.readFileSync(path.join(target, 'package-lock.json'), 'utf8') : null;
+      const lockAfter = fs.existsSync(path.join(target, 'pnpm-lock.yaml')) ? fs.readFileSync(path.join(target, 'pnpm-lock.yaml'), 'utf8') : null;
       packageInstall(target, lockBefore !== lockAfter);
       if (!options['no-skill']) { const integration = await agents({ action: 'refresh', agents: ['claude', 'opencode'], hub: target, home, env, dryRun: dry }); for (const s of integration.actions) log(s); for (const e of integration.errors) warn(e); }
       if (platform.IS_WIN) {

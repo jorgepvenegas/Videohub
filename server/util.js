@@ -9,7 +9,7 @@ import { spawn, execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 export const HUB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-// VIDEOHUB_DATA_DIR: npm test keeps its config, caches and queue out of the install's own data folder
+// VIDEOHUB_DATA_DIR: pnpm test keeps its config, caches and queue out of the install's own data folder
 export const DATA_DIR = process.env.VIDEOHUB_DATA_DIR ? path.resolve(process.env.VIDEOHUB_DATA_DIR) : path.join(HUB_DIR, 'data');
 export const HOME = dirs.home, DESKTOP = dirs.desktop, DOCUMENTS = dirs.documents, APPDATA = dirs.config, TEMP = dirs.temp;
 fs.mkdirSync(DATA_DIR, { recursive: true });

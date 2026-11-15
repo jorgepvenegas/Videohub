@@ -20,6 +20,7 @@
     "macos",
     "opencode"
   ],
+  "packageManager": "pnpm@11.5.2",
   "type": "module",
   "main": "server/hub.js",
   "os": [

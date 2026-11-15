@@ -1,6 +1,6 @@
 # VideoHub architecture
 
-A local Node 22 server (ES modules, no build step, two npm dependencies plus `puppeteer-core` for render scripts),
+A local Node 22 server (ES modules, no build step, two pnpm-installed dependencies plus `puppeteer-core` for render scripts),
 a vanilla-JS UI, built-in Node render protection and MCP tools for Claude Code or OpenCode. Windows is established; Linux and macOS are new and await real-machine acceptance. There is no compiled helper program.
 What film projects must look like is in [PROJECT-CONTRACT.md](PROJECT-CONTRACT.md).
 
@@ -71,7 +71,7 @@ What film projects must look like is in [PROJECT-CONTRACT.md](PROJECT-CONTRACT.m
   `vhaudio/`, `vh2d/` next to the film.
 
 ## Testing
-- `npm test` runs `node:test` with fake home, temp, config, workspace and data inside `.test-tmp`. `node --check` covers changed source. OS-specific unit tests inject process, filesystem and command dependencies; no real dialogs, Trash or login startup changes are required.
+- `pnpm test` runs `node:test` with fake home, temp, config, workspace and data inside `.test-tmp`. `node --check` covers changed source. OS-specific unit tests inject process, filesystem and command dependencies; no real dialogs, Trash or login startup changes are required.
 - A scratch hub must use `VIDEOHUB_PORT=7799`, `VIDEOHUB_DATA_DIR=<scratch>`, `VIDEOHUB_BASE_DIR=<scratch>`, `VIDEOHUB_GUARD=off`, `VIDEOHUB_JOBS=off`, `VIDEOHUB_NO_WINDOW=1` and, when needed, `VIDEOHUB_IDLE_SEC=600`. Set the same port on every CLI call. Never contact the user's port 7788 in development tests.
 - Shell syntax is checked with `bash -n` when Bash is available, otherwise reported as skipped. CI includes Windows, Linux and macOS with Node 22; real desktop acceptance remains separate. Browser uploads cannot carry `.github/` workflows.
 - Installer tests use dry-run or a fake home and injected agent registration. Never change the real agent configurations while testing.

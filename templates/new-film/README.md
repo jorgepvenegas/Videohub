@@ -19,7 +19,7 @@ Then:
 4. The user leaves notes and presses **Send to Claude**; fix them in code; render (`hub_render({mode: "full"})`) only
    when the user asks for it. Later fixes: `hub_render({mode: "partial", notes: [ids]})` re-renders only those chunks.
 
-`render.js` loads `puppeteer-core` from this folder (`npm install`) or from VideoHub's own `node_modules` (the render
+`render.js` loads `puppeteer-core` from this folder (`pnpm install`) or from VideoHub's own `node_modules` (the render
 queue passes `VIDEOHUB_DIR`), finds Edge or Chrome by itself (`CHROME` env overrides) and needs `ffmpeg` on PATH
 (`FFMPEG` env overrides). Run by hand: `node render.js 2` → `render/<folder>.mp4` with sound.
 

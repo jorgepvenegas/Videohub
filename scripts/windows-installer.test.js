@@ -41,7 +41,7 @@ test('Windows legacy parameter names and documented aliases map to common option
   assert.equal(parseOptions(['setup', '-NoShortcut', '-StartWithWindows', '-Test']).shortcut, 'no'); assert.equal(parseOptions(['setup', '-StartWithWindows']).startup, 'yes'); assert.equal(parseOptions(['setup', '-Test'])['dry-run'], true); assert.equal(parseOptions(['update', '-Target', 'D:\\VideoHub', '-NoSkill'])['no-skill'], true);
   assert.throws(() => parseOptions(['setup', '-Workspace', '-Yes']), /Missing value/);
 });
-test('Windows dry-run plans Node shortcuts and startup without OS writes, npm, or a server', async () => {
+test('Windows dry-run plans Node shortcuts and startup without OS writes, pnpm, or a server', async () => {
   const o = fixture({ packages: false }), workspace = path.join(o.base, 'Work');
   const r = await runInstaller({ action: 'setup', yes: true, 'dry-run': true, workspace, agents: 'opencode', startup: 'yes' }, o);
   assert.ok(r.actions.some(s => /Desktop shortcut/.test(s))); assert.ok(r.actions.some(s => /at login/.test(s))); assert.deepEqual(o.calls, []); assert.equal(fs.existsSync(workspace), false); assert.equal(fs.existsSync(path.join(o.hub, 'data')), false); assert.equal(fs.existsSync(path.join(o.config, 'VideoHub')), false);
@@ -56,8 +56,8 @@ test('Windows setup writes fake-home config and agents, uses redirected Desktop 
 });
 test('Windows runtime package command uses a fixed cmd plan with cwd and environment passed separately', async () => {
   const o = fixture({ packages: false }), commands = [];
-  await runInstaller({ action: 'setup', yes: true, workspace: path.join(o.base, 'Work'), agents: 'opencode', shortcut: 'no', example: 'no' }, { ...o, run: (file, args, options) => { commands.push({ file, args, options }); return { status: 0 }; } });
-  assert.equal(commands.length, 1); assert.equal(commands[0].file, 'cmd.exe'); assert.deepEqual(commands[0].args, ['/d', '/s', '/c', '"npm ci --no-audit --no-fund"']); assert.equal(commands[0].options.cwd, o.hub); assert.equal(commands[0].options.env, o.env); assert.equal(commands[0].options.windowsVerbatimArguments, true);
+  await runInstaller({ action: 'setup', yes: true, workspace: path.join(o.base, 'Work'), agents: 'opencode', shortcut: 'no', example: 'no' }, { ...o, platform: { ...o.platform, findTool: n => n === 'pnpm.cmd' ? 'C:\\pnpm\\pnpm.cmd' : null }, run: (file, args, options) => { commands.push({ file, args, options }); return { status: 0 }; } });
+  assert.equal(commands.length, 1); assert.equal(commands[0].file, 'cmd.exe'); assert.deepEqual(commands[0].args, ['/d', '/s', '/c', '"pnpm install --frozen-lockfile"']); assert.equal(commands[0].options.cwd, o.hub); assert.equal(commands[0].options.env, o.env); assert.equal(commands[0].options.windowsVerbatimArguments, true);
 });
 test('Windows update discovers the installed shortcut, keeps data, and migrates only target-owned integrations', async () => {
   const o = fixture(); o.state.shortcut = o.target; o.state.startup = o.target;

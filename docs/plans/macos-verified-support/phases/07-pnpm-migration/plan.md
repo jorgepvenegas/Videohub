@@ -7,10 +7,10 @@
 - Status: in_progress
 - Approved by: Jorge Venegas (standing instruction C6)
 - Approved at: 2026-11-14
-- Commit: pending
+- Commit: see git log subject "P7: pnpm migration"
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: sonnet-worker-p7
+- Implemented at: 2026-11-14
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -56,11 +56,11 @@ Out of scope:
 
 ## 4. Entry conditions
 
-- [ ] P1 done and suite green — verify: `pnpm --config.verify-deps-before-run=false test 2>&1 | grep -E "^ℹ (pass|fail)"` → `fail 0`
-- [ ] pnpm available — verify: `pnpm --version` → 11.x
-- [ ] Network access for `pnpm import`/`pnpm install` (npm registry)
-- [ ] Phase plan revalidated against current master version
-- [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
+- [x] P1 done and suite green — verify: `pnpm --config.verify-deps-before-run=false test 2>&1 | grep -E "^ℹ (pass|fail)"` → `fail 0`
+- [x] pnpm available — verify: `pnpm --version` → 11.x
+- [x] Network access for `pnpm import`/`pnpm install` (npm registry)
+- [x] Phase plan revalidated against current master version
+- [x] User approved this phase plan — verify: `Approved by` is set and status is `ready`
 
 ## 5. Steps
 
@@ -75,8 +75,8 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `package.json` (modify) — add `"packageManager": "pnpm@11.5.2"` (the exact output of `pnpm --version`)
 - Change: run `pnpm import` from the repo root, add `packageManager` with the exact local pnpm version, `git rm package-lock.json`, then `pnpm install --frozen-lockfile` to prove the lockfile matches. Resolved versions of `@modelcontextprotocol/sdk`, `puppeteer-core` and `zod` must equal those in the deleted `package-lock.json`. Never commit `node_modules/`.
 - Acceptance:
-  - [ ] `pnpm install --frozen-lockfile` exits 0
-  - [ ] `pnpm list --depth 0` shows the same three versions `package-lock.json` had (`git show HEAD:package-lock.json`)
+  - [x] `pnpm install --frozen-lockfile` exits 0
+  - [x] `pnpm list --depth 0` shows the same three versions `package-lock.json` had (`git show HEAD:package-lock.json`)
 - Verification: `pnpm install --frozen-lockfile && pnpm list --depth 0` — expected: exit 0, matching versions
 - Rollback: `git checkout HEAD -- package.json package-lock.json && rm -f pnpm-lock.yaml`
 
@@ -87,8 +87,8 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `scripts/install.mjs` (modify) — `packageInstall`, update lockfile comparison (`lockBefore`/`lockAfter`), `ITEMS`
 - Change: `packageInstall` runs `pnpm install --frozen-lockfile` (Windows through the existing fixed `platform.shellCommand` plan so a `pnpm.cmd` shim works; Unix as `{ file: 'pnpm', args: [...] }`), with an updated `say(...)` line and failure message. Update compares `pnpm-lock.yaml` before/after instead of `package-lock.json`, so an npm-era target (no `pnpm-lock.yaml`) always reinstalls with pnpm. `ITEMS` ships `pnpm-lock.yaml` instead of `package-lock.json`. Keep every other behavior, including dry-run printing without running anything.
 - Acceptance:
-  - [ ] Dry-run setup prints the pnpm install action and runs no command
-  - [ ] Windows plan is `cmd.exe /d /s /c "pnpm install --frozen-lockfile"` with cwd and env passed separately
+  - [x] Dry-run setup prints the pnpm install action and runs no command
+  - [x] Windows plan is `cmd.exe /d /s /c "pnpm install --frozen-lockfile"` with cwd and env passed separately
 - Verification: `node --check scripts/install.mjs && node --test scripts/install.test.js scripts/windows-installer.test.js`
 - Rollback: `git checkout HEAD -- scripts/install.mjs`
 
@@ -99,8 +99,8 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `scripts/install.mjs` (modify) — `packageInstall` (or immediately before it)
 - Change: before running the package command (not in dry-run, and only when packages actually need installing), detect pnpm with the platform's existing tool lookup (Windows must also find `pnpm.cmd`). If missing, throw an error naming the OS hint from C5: Windows `winget install -e --id pnpm.pnpm`, macOS `brew install pnpm`, Linux `npm install -g pnpm` or the distribution package — each followed by "then run setup again" / "update again". In dry-run, emit the same hint as a warning instead. No automatic installation.
 - Acceptance:
-  - [ ] Setup with a fixture where pnpm is not found fails before any package command with the OS-specific hint, and creates no workspace
-  - [ ] Dry-run with pnpm missing warns with the hint and still writes nothing
+  - [x] Setup with a fixture where pnpm is not found fails before any package command with the OS-specific hint, and creates no workspace
+  - [x] Dry-run with pnpm missing warns with the hint and still writes nothing
 - Verification: new tests in S4 pass
 - Rollback: revert the S3 hunk in `scripts/install.mjs`
 
@@ -112,7 +112,7 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `scripts/install.test.js` (modify) — add: macOS/Linux setup runs `pnpm install --frozen-lockfile` in the hub folder; missing pnpm (setup and dry-run) gives the hint; update of a target that has `package-lock.json` and no `pnpm-lock.yaml` runs the pnpm install and preserves `data/`
 - Change: tests use the existing fixtures and injected `run`/platform; they must not invoke real pnpm or npm and must stay under `.test-tmp`.
 - Acceptance:
-  - [ ] Each new test fails if the corresponding behavior is reverted (check by temporarily reverting S2's command or S3's guard)
+  - [x] Each new test fails if the corresponding behavior is reverted (check by temporarily reverting S2's command or S3's guard)
 - Verification: `node --test scripts/install.test.js scripts/windows-installer.test.js` — expected: `fail 0`
 - Rollback: `git checkout HEAD -- scripts/install.test.js scripts/windows-installer.test.js`
 
@@ -128,27 +128,27 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `server/util.js`, `scripts/test.mjs` (modify) — comments only
 - Change: replace npm instructions with the pnpm equivalents; the steady-state dev commands are `pnpm install --frozen-lockfile` and `pnpm test`. Do not rewrite unrelated text.
 - Acceptance:
-  - [ ] `grep -rn -E "npm ci|npm install|npm test|package-lock" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.test-tmp --exclude-dir=plans --exclude-dir=.agents --exclude-dir=.claude .` returns only the Linux `npm install -g pnpm` hint(s)
-  - [ ] `cmp templates/new-film/render.js examples/hello-film/render.js` exits 0
+  - [x] `grep -rn -E "npm ci|npm install|npm test|package-lock" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.test-tmp --exclude-dir=plans --exclude-dir=.agents --exclude-dir=.claude .` returns only the Linux `npm install -g pnpm` hint(s)
+  - [x] `cmp templates/new-film/render.js examples/hello-film/render.js` exits 0
 - Verification: the grep and cmp above
 - Rollback: `git checkout HEAD -- README.md CLAUDE.md docs/ARCHITECTURE.md templates/new-film/README.md templates/new-film/render.js examples/hello-film/render.js server/util.js scripts/test.mjs`
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — The repo pins pnpm and ships only a pnpm lockfile with unchanged dependency versions — verify: `grep packageManager package.json`, `test ! -e package-lock.json`, `pnpm install --frozen-lockfile && pnpm list --depth 0`
-- [ ] A2 — Setup and update install with `pnpm install --frozen-lockfile` on Windows and Unix — verify: S2/S4 tests in `scripts/install.test.js` and `scripts/windows-installer.test.js`
-- [ ] A3 — Missing pnpm stops setup with the OS-specific hint before changes, and dry-run warns — verify: S4 tests
-- [ ] A4 — An npm-era install (has `package-lock.json`, no `pnpm-lock.yaml`) updates to pnpm and keeps `data/` — verify: S4 update test
-- [ ] A5 — No npm install/test instruction remains and the two `render.js` copies match — verify: S5 grep and `cmp`
-- [ ] A6 — Full suite and syntax checks pass — verify: `pnpm test 2>&1 | grep -E "^ℹ (pass|fail)"` → `fail 0`; `node --check` on each changed .js/.mjs
+- [x] A1 — The repo pins pnpm and ships only a pnpm lockfile with unchanged dependency versions — verify: `grep packageManager package.json`, `test ! -e package-lock.json`, `pnpm install --frozen-lockfile && pnpm list --depth 0`
+- [x] A2 — Setup and update install with `pnpm install --frozen-lockfile` on Windows and Unix — verify: S2/S4 tests in `scripts/install.test.js` and `scripts/windows-installer.test.js`
+- [x] A3 — Missing pnpm stops setup with the OS-specific hint before changes, and dry-run warns — verify: S4 tests
+- [x] A4 — An npm-era install (has `package-lock.json`, no `pnpm-lock.yaml`) updates to pnpm and keeps `data/` — verify: S4 update test
+- [x] A5 — No npm install/test instruction remains and the two `render.js` copies match — verify: S5 grep and `cmp`
+- [x] A6 — Full suite and syntax checks pass — verify: `pnpm test 2>&1 | grep -E "^ℹ (pass|fail)"` → `fail 0`; `node --check` on each changed .js/.mjs
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
-- [ ] Names and structure state intent; comments explain only non-obvious reasons
-- [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation
-- [ ] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
+- [x] Names and structure state intent; comments explain only non-obvious reasons
+- [x] Every new test fails if the behavior it covers breaks; no test restates the implementation
+- [x] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
 
 ## 8. Risks and unknowns
 
@@ -164,26 +164,37 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 
+- 2026-11-14, S5: the plan's grep `npm ci|npm install|npm test` also matches the substring inside `pnpm install`/`pnpm test`. Verified with `(^|[^p])npm (ci|install|test)|package-lock` instead; remaining hits are only the Linux `npm install -g pnpm` hints (README, CLAUDE.md, install.mjs, install.test.js) and the npm-era `package-lock.json` fixture in the update test. No plan change needed.
+- 2026-11-14, S3: Windows lookup tries `findTool('pnpm')` then `findTool('pnpm.cmd')` inside install.mjs because `platform.findTool` (not in scope) only tries `.exe` suffixes.
+
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
 
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-14
+- Session: sonnet-worker-p7
+- Verdict: addressed
+- Steps complete: S1, S2, S3, S4, S5
+- Verification run: S1 `pnpm install --frozen-lockfile && pnpm list --depth 0` exit 0, sdk 1.32.1 / puppeteer-core 25.17.0 / zod 4.6.7 (same as deleted lockfile); S2-S4 `node --test scripts/install.test.js scripts/windows-installer.test.js` pass 39 fail 0; S4 revert checks (npm command, no pnpm guard, old lock name) each made the matching new test fail, then restored; S5 corrected grep plus `cmp` clean; `node --check` on all changed .js/.mjs OK; R7 `node -e "require(require.resolve('puppeteer-core',{paths:[process.cwd()]}))"` OK; `pnpm test` tests 345 pass 344 fail 0 skipped 1.
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | met / partial / not met / deferred | `<command>` — <result> |
-| D1 (master) | met / partial / not met / deferred | `<command>` — <result> |
+| A1 | met | `grep packageManager package.json` pnpm@11.5.2; `package-lock.json` removed; frozen install and `pnpm list --depth 0` match versions |
+| A2 | met | new Unix setup test and updated Windows test assert `pnpm install --frozen-lockfile` (Windows via `cmd.exe /d /s /c`) |
+| A3 | met | missing-pnpm test: darwin/linux setup rejects with hint, no workspace or data; dry-run warns, writes nothing |
+| A4 | met | npm-era update test: pnpm install runs in target, `data/config.json` kept, `pnpm-lock.yaml` copied |
+| A5 | met | corrected grep (see section 9) leaves only Linux hint and fixture; `cmp` of the two `render.js` exits 0 |
+| A6 | met | `pnpm test` fail 0; `node --check` clean |
+| D8 (master) | met | A1-A5 above; real Windows pnpm run still pending (R5) |
+| D1 (master) | met | `pnpm test` pass 344 fail 0 skipped 1 |
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| N1 | Plan S5 grep matches `pnpm install`/`pnpm test` as substrings of `npm install`/`npm test`; the criterion needs `(^|[^p])npm` | note | P7 | recorded in section 9 |
+| N2 | `platform.findTool` on Windows does not try `.cmd`; installer works around it locally. Real Windows pnpm verification remains pending (R5) | note | P6 | none |
 
-**Master updates written:** <version bump, ledger rows, phase map changes, or none>
-**Next-phase updates written:** <phase ID, plan version, sections changed, or none>
-**Remaining work and handoff:** <what the next session must do first>
+**Master updates written:** none (coordinator owns master.md)
+**Next-phase updates written:** none
+**Remaining work and handoff:** coordinator runs record-commit/close for P7 and starts P2. P3 setup.sh on the Mac needs pnpm on PATH. Windows pnpm path is verified only by injected tests.

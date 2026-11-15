@@ -45,13 +45,13 @@ Built into the Node server, with no compiled helper:
 ![Renders](docs/screenshots/renders.png)
 
 ## Requirements
-All platforms need Node.js 22+, ffmpeg on PATH, a native Chrome/Chromium/Edge browser for headless rendering, and Claude Code or OpenCode for making and fixing films. No native modules or compiled render-protection helper are required.
+All platforms need Node.js 22+, ffmpeg on PATH, a native Chrome/Chromium/Edge browser for headless rendering, pnpm (setup installs dependencies with `pnpm install --frozen-lockfile` and only prints these hints when it is missing), and Claude Code or OpenCode for making and fixing films. No native modules or compiled render-protection helper are required.
 
 | Platform | Install missing tools | Notes |
 |---|---|---|
-| Windows 10/11 | `winget install -e --id OpenJS.NodeJS.LTS`; `winget install -e --id Gyan.FFmpeg` | Edge or Chrome; setup retains the existing Windows paths |
-| Linux desktop | Your distribution's Node 22+ package; `sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, or `sudo pacman -S ffmpeg` | Install a native browser; Snap/Flatpak browser wrappers are unsupported. Optional `taskset`, `zenity`/`kdialog`, `notify-send` |
-| macOS | With Homebrew: `brew install node ffmpeg`; `brew install --cask google-chrome`, or Chrome from its download page | Chrome / Edge / Chromium in `/Applications` or `~/Applications`; Apple Silicon and Intel code paths need hardware verification |
+| Windows 10/11 | `winget install -e --id OpenJS.NodeJS.LTS`; `winget install -e --id Gyan.FFmpeg`; `winget install -e --id pnpm.pnpm` | Edge or Chrome; setup retains the existing Windows paths |
+| Linux desktop | Your distribution's Node 22+ package; `sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, or `sudo pacman -S ffmpeg`; `npm install -g pnpm` or your distribution's pnpm package | Install a native browser; Snap/Flatpak browser wrappers are unsupported. Optional `taskset`, `zenity`/`kdialog`, `notify-send` |
+| macOS | With Homebrew: `brew install node ffmpeg pnpm`; `brew install --cask google-chrome`, or Chrome from its download page | Chrome / Edge / Chromium in `/Applications` or `~/Applications`; Apple Silicon and Intel code paths need hardware verification |
 
 A graphical desktop session is needed for windows, folder dialogs, desktop notifications and file-manager actions. A compatible graphics encoder is optional.
 
@@ -155,13 +155,13 @@ Only integrations owned by this install are removed: MCP entry, skill, managed r
 - **Partial renders refused** — the render script is not chunked (family A) or the film length is unknown:
   `hub_project({set:{render:{env:{DUR:"…"}}}})`.
 - **Renders fail at once** — ffmpeg or a native Chrome/Chromium/Edge browser missing (Settings → Tools), or `puppeteer-core` missing for a
-  film's render script (VideoHub ships one; run `npm install` in VideoHub's folder).
+  film's render script (VideoHub ships one; run `pnpm install --frozen-lockfile` in VideoHub's folder).
 - **Port 7788 is taken** — set `"port"` in `data\config.json`.
 - **A warning names `RenderGuard.exe` / `VideoHubAgent.exe`** — these names belonged to the retired compiled render-protection helper. Current source neither builds nor ships it. Update retires a recognized helper belonging to the target install without launching that executable. Classify the exact warning using the distinctions above; its filename alone does not establish a false positive.
 - **Coming from an older (Turkish) build** — see [docs/MIGRATING.md](docs/MIGRATING.md).
 
 ## Development
-`npm test` runs the suites; see [CLAUDE.md](CLAUDE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+`pnpm test` runs the suites; see [CLAUDE.md](CLAUDE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## License
 [MIT](LICENSE) © 2026 VideoHub contributors.
