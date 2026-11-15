@@ -164,6 +164,12 @@ If a step reveals work outside this phase, report it and continue the approved s
   - [ ] Delete moves `trash-test` to the Trash; Put Back restores it
 - Verification: user report; `ls /Users/jorge/VideoHubScratch/workspace/films/trash-test`
 - Rollback: none
+- Evidence (2026-11-15, worker, automated part; the user delete/Put Back is still pending):
+  - Before: no render active (`/api/renders` renders `[]`; jobs all done/cancelled). Snapshot of config.json, setup-answers.json, hello-film notes.json, both hello-film output mp4s (and render chunks, outputs copies), `~/Desktop/VideoHub.command`, LaunchAgent plist, `claude mcp list` (one `videohub`, Connected), `ls -la ~/.config/opencode`.
+  - `bash update.sh --target ... --dry-run` exit 0 (no warnings); real update exit 0 (redirected to a log, `echo $?`): `stop this install's server (pid 60158)`, backup to `data/update-backup/2026-11-15T20-44-31-336Z`, skill copied, `Update complete`.
+  - `grep -n "as alias" install/server/platform.js` -> `400:      const script = 'on run argv\nset f to POSIX file (item 1 of argv) as alias\ntell application "Finder" to delete f\nend run';`
+  - Hub: after update launchd showed `state = not running`; `launchctl kickstart -k gui/501/com.videohub.hub` -> `state = running`, hub pid 68548, parent pid 1 (launchd), `/api/ping` ok on 7799. No window opened.
+  - After snapshot: `diff` before/after is empty (all checksums identical, opencode dir and `claude mcp list` unchanged). `trash-test/hello-film_v2.mp4` still present (1732470 bytes); POST /api/scan then `/api/projects` lists `trash-test`.
 
 ## 6. Phase acceptance criteria
 
@@ -202,6 +208,7 @@ Append during implementation. One line per deviation: date, step, what changed, 
 - 2026-11-15 S1-S3 worker: S4 test item prepared: `/Users/jorge/VideoHubScratch/workspace/films/trash-test/hello-film_v2.mp4` (copy), `POST /api/scan` then `/api/projects` lists `trash-test` (id 66197c13084a, status review). S4 user actions and S5 not done. Type: note.
 - 2026-11-15 S1 note: update from a git checkout leaves `.agents/`, `.claude/` and `docs/plans` in the install (they were already there from setup). Type: note.
 - 2026-11-15 S2 note: my capture script lost the pre-Stop pid list (heredoc expanded `$(treepids)`); orphan search by pattern at +5 s and +15 s is clean and per-pid `ps -p` run later is clean. Type: note.
+- 2026-11-15 S7 note: after `update.sh` stopped the hub, the LaunchAgent did not bring it back (`state = not running`); a manual `launchctl kickstart -k` was needed. Type: note.
 
 ## 10. Closeout
 
