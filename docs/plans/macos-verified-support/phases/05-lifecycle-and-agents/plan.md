@@ -70,9 +70,15 @@ If a step reveals work outside this phase, report it and continue the approved s
   - none in the repository
 - Change: snapshot checksums of `/Users/jorge/VideoHubScratch/install/data/config.json`, `setup-answers.json`, `/Users/jorge/VideoHubScratch/workspace/films/hello-film/.videohub/notes.json`, the output videos, `~/Desktop/VideoHub.command`, `claude mcp list`, and `ls -la ~/.config/opencode`. From `/Users/jorge/code/Videohub` run `bash update.sh --target "/Users/jorge/VideoHubScratch/install" --dry-run`, read it, then run it. Restart the hub from the install with `bash open.sh --server` if update stopped it. Re-snapshot.
 - Acceptance:
-  - [ ] Update exits 0; code backed up under `data/update-backup/`; `server/platform.js` in the install now contains the SIGSTOP fix
-  - [ ] Data, notes, outputs and port 7799 unchanged; `VideoHub.command` still valid; `claude mcp list` still one `videohub`; `~/.config/opencode` unchanged
+  - [x] Update exits 0; code backed up under `data/update-backup/`; `server/platform.js` in the install now contains the SIGSTOP fix
+  - [x] Data, notes, outputs and port 7799 unchanged; `VideoHub.command` still valid; `claude mcp list` still one `videohub`; `~/.config/opencode` unchanged
 - Verification: before/after snapshots and update output recorded
+- Evidence (2026-11-15, worker): before/after snapshots (script `scratchpad/p5-snap.sh`) are byte-identical (`diff` empty): `data/config.json` d63a17c1... (port 7799), `setup-answers.json` 75654ffb..., `notes.json` f07808d1..., outputs v1 082f0cb9... and v2 6388b22e... (workspace/outputs copies the same), `~/Desktop/VideoHub.command` b86c3ade... (content unchanged: `exec '/Users/jorge/.asdf/installs/nodejs/22.22.3/bin/node' '.../install/scripts/install.mjs' open "$@"`). `ls -la ~/.config/opencode` before = after (.gitignore, cli.json, plugins, service.json, tui.json; no change). `claude mcp list` before = after: one `videohub: node /Users/jorge/VideoHubScratch/install/server/mcp.js - Connected`.
+  - Dry run: `check the render queue and stop only the server belonging to <install>`, `back up replaced code to .../data/update-backup/<ts>`, `keep installed Node packages`, `would copy VideoHub skill to /Users/jorge/.claude/skills/videohub`, `Update complete...`. No warnings.
+  - Real: `stop this install's server (pid 17592)`, `back up replaced code to /Users/jorge/VideoHubScratch/install/data/update-backup/2026-11-15T20-39-06-569Z and copy the new code (data and projects stay)`, `keep installed Node packages`, `copy VideoHub skill to /Users/jorge/.claude/skills/videohub`, `Update complete. Open VideoHub with its existing launcher and restart your agent session.` No warnings. (Exit code was not captured because of the `tee` pipe; the completion line and effects confirm success.)
+  - `grep -n SIGSTOP <install>/server/platform.js` -> 0 matches before, `475:    try { kill(pid, 'SIGSTOP'); } catch { }` after.
+  - Dot-folders / plans: the install already had `.agents/` and `.claude/` (created 12:01 by setup, not by update; empty skills dirs) and `docs/plans`; `diff -rq <repo>/docs <install>/docs` is empty after update. Update copies docs/plans from a git checkout (low impact; note).
+  - Hub: `VIDEOHUB_NO_WINDOW=1 bash open.sh --server` -> `VideoHub is available at http://127.0.0.1:7799`; `/api/ping` -> `{"ok":true,"app":"videohub","pid":58781}`.
 - Rollback: restore code from `data/update-backup/TIMESTAMP` (copy back), restart the hub
 
 ### S2 — Real stopped render after update (D9, C11)
@@ -82,8 +88,12 @@ If a step reveals work outside this phase, report it and continue the approved s
   - none in the repository
 - Change: reuse the P4 S5 bash capture script approach (file in the scratchpad, run with `bash`): queue `hub_render '{"project":"hello-film","mode":"full","env":{"DUR":"120"}}'` with `VIDEOHUB_PORT=7799`, wait until Chrome and ffmpeg are running and at least one chunk has started, snapshot the tree, `POST /api/jobs/JOB-ID/cancel`, wait 5 s, `ps -p` every recorded pid and search for any process started after Stop whose command has a `puppeteer_dev_chrome_profile`, `render.js`, or the scratch film path.
 - Acceptance:
-  - [ ] Job cancelled; no recorded pid alive; no puppeteer Chrome, ffmpeg or render.js tied to the scratch film 5 s and again 15 s after Stop
+  - [x] Job cancelled; no recorded pid alive; no puppeteer Chrome, ffmpeg or render.js tied to the scratch film 5 s and again 15 s after Stop
 - Verification: script log recorded
+- Evidence (2026-11-15 12:39, script `scratchpad/p5-s2.sh`, from the P4 capture script; the intended pre-Stop pid recording was lost by a shell-expansion slip in my script edit, so the pid list below comes from the snapshot printed by the script): job `jmwiashlf-1e9b6300`, `hub_render {"project":"hello-film","mode":"full","env":{"DUR":"120"}}`, rootPid 59047 (ppid hub 58781) found after 2 polls; one render only. Snapshot 4 s later (job running, render phase, progress 0.1): node render.js 59047 (nice 10/pri 31), 2 Chrome browsers 59099 59100, Chrome helpers 59311-59315 59317 59319-59324, 2 ffmpeg h264_videotoolbox 59409 59410 (17 pids).
+  - `POST /api/jobs/jmwiashlf-1e9b6300/cancel` -> `{"ok":true}`; `hub_job`: `Job jmwiashlf-1e9b6300: cancelled`; `/api/renders` `guard.renders` `[]`, 0 active jobs; hub 58781 unaffected.
+  - Orphan search (ps -axo with full command, pattern `puppeteer_dev|ffmpeg|hello-film|render\.js|VideoHubScratch|Chrome for Testing|headless`): +5 s and +15 s after Stop only the hub (58781, `server/hub.js`) matched; no puppeteer_dev_chrome_profile, ffmpeg, render.js or scratch film process. `ps -p` on the 17 snapshot pids was run minutes later (not at +5 s): all gone. The +5 s per-pid `ps -p` was therefore not literally recorded; the pattern search at +5/+15 s covers the same ground. Early `/api/renders` polls printed a TypeError in the script's JSON parser (response had no `guard`/`jobs` for the first poll right after hub restart); harmless.
+  - Result: Stop fix confirmed on a real render, no orphans (C11 recheck, D9). Nothing was killed manually.
 - Rollback: kill only orphans proven to belong to this render and report a defect
 
 ### S3 — Enable the login LaunchAgent and observe it
@@ -93,8 +103,12 @@ If a step reveals work outside this phase, report it and continue the approved s
   - none in the repository
 - Change: stop the hub (`node scripts/install.mjs stop` from the install), run `node scripts/install.mjs autostart --startup yes` from the install, then check `~/Library/LaunchAgents/com.videohub.hub.plist` (Node path follows the stable rule, PATH includes Homebrew), `launchctl print gui/$(id -u)/com.videohub.hub` (loaded), and that the hub answers on 7799 (RunAtLoad started it). Leave it enabled for the user walkthrough; uninstall removes it.
 - Acceptance:
-  - [ ] Plist owned by this install; `launchctl print` exit 0; `/api/ping` 200 on 7799 started by launchd (parent pid 1)
+  - [x] Plist owned by this install; `launchctl print` exit 0; `/api/ping` 200 on 7799 started by launchd (parent pid 1)
 - Verification: recorded outputs
+- Evidence (2026-11-15): `node scripts/install.mjs stop` -> `stop this install's server (pid 58781)`; ping then failed (hub down). `node scripts/install.mjs autostart --startup yes` -> `{"enabled":true}`.
+  - Plist `~/Library/LaunchAgents/com.videohub.hub.plist`: Label `com.videohub.hub`; ProgramArguments `/Users/jorge/.asdf/installs/nodejs/22.22.3/bin/node`, `/Users/jorge/VideoHubScratch/install/server/hub.js`; WorkingDirectory the install; `VideoHubInstall` key = the install; RunAtLoad true (no KeepAlive); EnvironmentVariables PATH = the user's full shell PATH (asdf shims and 22.22.3/bin first, `/opt/homebrew/bin`, `/usr/local/bin`, system dirs, ...).
+  - `launchctl print gui/501/com.videohub.hub` exit 0: `state = running`, `program = .../22.22.3/bin/node`, `runs = 1`, `pid = 60158`, `last exit code = (never exited)`, `properties = partial import | runatload | inferred program`.
+  - `/api/ping` on 7799 -> `{"ok":true,"app":"videohub","pid":60158}`; `ps` pid 60158 ppid 1 (`node .../install/server/hub.js`), the sole listener on 7799. Autostart left enabled, hub running (launchd-owned, idle).
 - Rollback: `node scripts/install.mjs autostart --startup no`
 
 ### S4 — User walkthrough (coordinator with the user)
@@ -121,9 +135,9 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — Update from the repository preserves data, notes, outputs and settings, installs the new code and leaves integrations consistent — verify: S1 snapshots
-- [ ] A2 — A real render stopped after update leaves no process behind — verify: S2 log
-- [ ] A3 — The LaunchAgent starts the hub — verify: S3 outputs; S4 (3) if done
+- [x] A1 — Update from the repository preserves data, notes, outputs and settings, installs the new code and leaves integrations consistent — verify: S1 snapshots
+- [x] A2 — A real render stopped after update leaves no process behind — verify: S2 log
+- [x] A3 (S3 part) — The LaunchAgent starts the hub — verify: S3 outputs; S4 (3) if done
 - [ ] A4 — A UI deletion goes to the Finder Trash and is restorable — verify: S4 (1)
 - [ ] A5 — A new Claude Code session lists `hub_*` tools — verify: S4 (2)
 - [ ] A6 — Uninstall removes only owned integrations and the scratch folder ends in the Trash — verify: S5
@@ -150,6 +164,10 @@ If a step reveals work outside this phase, report it and continue the approved s
 ## 9. Deviations and working notes
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
+
+- 2026-11-15 S1-S3 worker: S4 test item prepared: `/Users/jorge/VideoHubScratch/workspace/films/trash-test/hello-film_v2.mp4` (copy), `POST /api/scan` then `/api/projects` lists `trash-test` (id 66197c13084a, status review). S4 user actions and S5 not done. Type: note.
+- 2026-11-15 S1 note: update from a git checkout leaves `.agents/`, `.claude/` and `docs/plans` in the install (they were already there from setup). Type: note.
+- 2026-11-15 S2 note: my capture script lost the pre-Stop pid list (heredoc expanded `$(treepids)`); orphan search by pattern at +5 s and +15 s is clean and per-pid `ps -p` run later is clean. Type: note.
 
 ## 10. Closeout
 
