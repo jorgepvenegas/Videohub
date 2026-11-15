@@ -72,7 +72,7 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Files:
   - `pnpm-lock.yaml` (create) — via `pnpm import`
   - `package-lock.json` (delete)
-  - `package.json` (modify) — add `"packageManager": "pnpm@<exact installed version>"`
+  - `package.json` (modify) — add `"packageManager": "pnpm@11.5.2"` (the exact output of `pnpm --version`)
 - Change: run `pnpm import` from the repo root, add `packageManager` with the exact local pnpm version, `git rm package-lock.json`, then `pnpm install --frozen-lockfile` to prove the lockfile matches. Resolved versions of `@modelcontextprotocol/sdk`, `puppeteer-core` and `zod` must equal those in the deleted `package-lock.json`. Never commit `node_modules/`.
 - Acceptance:
   - [ ] `pnpm install --frozen-lockfile` exits 0
@@ -131,7 +131,7 @@ If a step reveals work outside this phase, report it and continue the approved s
   - [ ] `grep -rn -E "npm ci|npm install|npm test|package-lock" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.test-tmp --exclude-dir=plans --exclude-dir=.agents --exclude-dir=.claude .` returns only the Linux `npm install -g pnpm` hint(s)
   - [ ] `cmp templates/new-film/render.js examples/hello-film/render.js` exits 0
 - Verification: the grep and cmp above
-- Rollback: `git checkout HEAD -- <the listed files>`
+- Rollback: `git checkout HEAD -- README.md CLAUDE.md docs/ARCHITECTURE.md templates/new-film/README.md templates/new-film/render.js examples/hello-film/render.js server/util.js scripts/test.mjs`
 
 ## 6. Phase acceptance criteria
 
