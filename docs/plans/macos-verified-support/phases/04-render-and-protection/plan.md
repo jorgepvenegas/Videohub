@@ -81,7 +81,7 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Acceptance:
   - [ ] Job finishes successfully; output has video and audio, about 10 s; log shows a VideoToolbox encoder
   - [ ] Slow mode raises niceness to 19 and lowers `pri` across the tree; restore is recorded (may stay lowered without privileges)
-- Verification: `hub_job` final state; `ffprobe -v error -show_entries stream=codec_type,codec_name -show_entries format=duration <output>`; captured `ps` snapshots
+- Verification: `hub_job` final state; `ffprobe -v error -show_entries stream=codec_type,codec_name -show_entries format=duration` on the output file named by `hub_job`; captured `ps` snapshots
 - Rollback: none (output stays in the scratch workspace; P5 uninstall leaves outputs, scratch folder removed at P5 end)
 
 ### S3 — Start a second render and Stop it
@@ -91,7 +91,7 @@ If a step reveals work outside this phase, report it and continue the approved s
   - none in the repository
 - Change: queue the same render again; after about 10 s, record the full process tree (root pid, pgid, children including ffmpeg and Chrome), press Stop through the same API the Renders page uses (`/api/renders/cmd` or the documented route), wait 5 s, and check that no process from the recorded tree survives.
 - Acceptance:
-  - [ ] Job ends as stopped/cancelled; `ps -p <each recorded pid>` finds none; no orphan headless Chrome or ffmpeg from that render
+  - [ ] Job ends as stopped/cancelled; `ps -p` on every pid recorded before Stop finds none; no orphan headless Chrome or ffmpeg from that render
 - Verification: before/after `ps` captures recorded
 - Rollback: if processes survive, record their pids and stop them with `kill` (scratch render only), then report as a defect
 
@@ -113,7 +113,7 @@ If a step reveals work outside this phase, report it and continue the approved s
 - [ ] A3 — RAM protection reads free memory consistent with `vm_stat` and CPU affinity is reported unavailable — verify: S1
 - [ ] A4 — Stop ends the whole render tree — verify: S3 before/after `ps`
 - [ ] A5 — Renders page hides CPU-core controls with the explanation — verify: S4 (1)
-- [ ] A6 — If a repository fix was made, `pnpm test` → `fail 0` and `node --check` on changed files; otherwise `git status --short` shows no source change
+- [ ] A6 — Suite stays green and any repository fix passes checks — verify: `pnpm test` → `fail 0`, `node --check` on changed files, or `git status --short` shows no source change
 
 ## 7. Code standards check
 
