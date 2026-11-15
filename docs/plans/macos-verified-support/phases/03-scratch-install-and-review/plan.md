@@ -143,7 +143,8 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `server/tools.test.js` (create) — no existing test covers the tool texts
 - Change: build both example paths with the platform path separator (`path.join`/`path.sep`) instead of hard-coded `\\`, so macOS/Linux show `/` and Windows keeps `\\`. No other text changes.
 - Acceptance:
-  - [ ] On macOS, `VIDEOHUB_PORT=7799 node server/cli.js hub_workspace '{}'` from the repo shows `/` separators; a test fails if the backslash text returns on a POSIX path module
+  - [x] On macOS, `VIDEOHUB_PORT=7799 node server/cli.js hub_workspace '{}'` from the repo shows `/` separators; a test fails if the backslash text returns on a POSIX path module
+  - Evidence (2026-11-15): `node --test server/tools.test.js` → pass 1, fail 0; with `server/tools.js` reverted to the backslash text → fail 1 (restored); `pnpm test` → tests 348, pass 347, fail 0. Checked through the unit test against a fake hub, not the hub on 7799.
 - Verification: `node --test server/tools.test.js` and `pnpm test` — expected: `fail 0`
 - Rollback: `git checkout HEAD -- server/tools.js server/tools.test.js`
 
