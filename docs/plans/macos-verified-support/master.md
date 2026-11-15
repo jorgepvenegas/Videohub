@@ -1,7 +1,7 @@
 # Master Plan — macOS verified support
 
 - Plan ID: `macos-verified-support`
-- Master version: 15
+- Master version: 17
 - Status: active
 - Created: 2026-11-14
 - Source: user request (2026-11-14): "I need to create a macOS compatible version of this project. create a plan to achieve this"
@@ -48,7 +48,7 @@ flowchart LR
 ## 3. Definition of done
 
 - [ ] D1 — The full test suite passes on this Mac with zero failures — verify: `pnpm test` → `fail 0`
-- [ ] D2 — Platform calls return Mac-correct data on real hardware: storage volumes exclude system/simulator mounts, the GPU is named, and launchers survive a Node version-manager or Homebrew upgrade path — verify: darwin unit tests in `server/platform.darwin.test.js` plus a read-only probe script run on this Mac
+- [ ] D2 — Platform calls return Mac-correct data on real hardware: the GPU is named in the encoder result, and the Desktop launcher and LaunchAgent use a stable Node path that survives a Homebrew Node upgrade (version-manager installs keep the versioned path; re-running setup refreshes it) — verify: darwin unit tests in `server/platform.darwin.test.js` plus a read-only probe script run on this Mac
 - [ ] D3 — A scratch install made with `bash setup.sh` on the real account opens the hub from `VideoHub.command` (Gatekeeper first-launch documented), shows the example film in live preview, saves a note, and the folder picker and Finder reveal work — verify: user observation recorded in P3 closeout + `node server/cli.js hub_workspace` on the scratch port
 - [ ] D4 — One reviewed render of a scratch example completes through the queue with sound and VideoToolbox, Stop terminates the whole process tree, background QoS/niceness and RAM protection apply, CPU sliders are hidden with the explanation — verify: `ffprobe` on the output, `ps -o pid,ppid,nice,command` during render, UI observation
 - [ ] D5 — Finder Trash cleanup is restorable (Automation prompt handled, no hard delete), the LaunchAgent starts the hub at login, update preserves data/notes, and uninstall removes only owned integrations — verify: restore from Finder, `launchctl print gui/$(id -u)/com.videohub.hub`, data diff before/after update, uninstall dry-run then run
@@ -64,8 +64,8 @@ flowchart LR
 | Format | none (no formatter configured; match the compact ES module style of surrounding code) |
 | Lint | none |
 | Type check | `node --check` on every changed .js/.mjs file |
-| Tests | `pnpm test` (runs `node scripts/test.mjs`; isolates home/temp/data under `.test-tmp`) |
-| Dependencies | `pnpm install --frozen-lockfile` (after P7; never `npm install`/`npm ci`). Until P7 adds `pnpm-lock.yaml`, run tests with `pnpm --config.verify-deps-before-run=false test` (L2) |
+| Tests | `pnpm test` (runs `node scripts/test.mjs`; isolates home/temp/data under `.test-tmp`); baseline after P7: 345 tests, 344 pass, 0 fail, 1 skipped |
+| Dependencies | `pnpm install --frozen-lockfile`; never `npm install`/`npm ci`. Since P7 the lockfile exists, so plain `pnpm test` is the test command (L2 workaround retired) |
 | Project rules | OS selection stays in `server/platform.js` with injectable deps; preserve Windows behavior and exported names/return shapes; read old stored values through `legacy.js`; UI never imports `server/`; test hubs use `VIDEOHUB_PORT=7799`, `VIDEOHUB_DATA_DIR`/`VIDEOHUB_BASE_DIR` scratch, `VIDEOHUB_GUARD=off`, `VIDEOHUB_JOBS=off`, `VIDEOHUB_NO_WINDOW=1` (guard/jobs on only in P4); keep `templates/new-film/render.js` equal to `examples/hello-film/render.js`; inspect staged diff for private paths, identities and tokens before commit |
 
 ## 5. Non-goals
@@ -101,8 +101,8 @@ flowchart LR
 | ID | Phase | Outcome | Depends on | Status | Plan |
 |---|---|---|---|---|---|
 | P1 | Green baseline | pnpm test passes with zero failures on this Mac | none | done | [plan](phases/01-green-baseline/plan.md) |
-| P7 | pnpm migration | Installer, update, lockfile, docs and film templates use pnpm on every OS; npm-era installs migrate on update | P1 | in_progress | [plan](phases/07-pnpm-migration/plan.md) |
-| P2 | macOS platform fixes | Volumes, GPU names and launcher Node path are correct on real macOS, with darwin tests | P7 | planned | pending |
+| P7 | pnpm migration | Installer, update, lockfile, docs and film templates use pnpm on every OS; npm-era installs migrate on update | P1 | done | [plan](phases/07-pnpm-migration/plan.md) |
+| P2 | macOS platform fixes | GPU name and stable launcher Node path are correct on real macOS, with darwin tests | P7 | planned | pending |
 | P3 | Scratch install and review | Scratch setup.sh install opens from VideoHub.command; live preview, notes, folder picker and Finder reveal work | P2 | planned | pending |
 | P4 | Render and protection | One reviewed VideoToolbox render with sound; Stop, QoS/niceness, RAM protection and hidden CPU sliders verified | P3 | planned | pending |
 | P5 | Lifecycle and agents | Finder Trash restore, LaunchAgent login start, data-preserving update, clean uninstall, Claude Code hub_* tools | P4 | planned | pending |
@@ -138,6 +138,8 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L1 | 2026-11-14 | P1 | all | User requires pnpm instead of npm for development and the shipped installer; installer (scripts/install.mjs:164-165 npm ci, :280-289 package-lock.json), README, CLAUDE.md, ARCHITECTURE.md and film templates reference npm | scope-change | Confirmed with user (dev + product). Added D8 and phase P7 pnpm migration before P2; plan/dev commands switched to pnpm | applied |
 | L2 | 2026-11-14 | P1 | P1,P7 | pnpm 11 auto-installs before 'pnpm test' when node_modules is missing or stale, creating node_modules/ and pnpm-lock.yaml from package.json (seen 2026-11-14 during refinement; artifacts removed). '--config.verify-deps-before-run=false' runs the script without installing | phase-amend | P1 runs 'pnpm --config.verify-deps-before-run=false test' and must leave no pnpm-lock.yaml/node_modules; P7 owns creating the lockfile and decides the steady-state test command | applied |
 | L3 | 2026-11-14 | P1 | P7 | R6 checked in scratchpad: after npm ci, 'pnpm import' converted package-lock.json to pnpm-lock.yaml and 'pnpm install --frozen-lockfile </dev/null' replaced the npm node_modules non-interactively (exit 0, pnpm 11.5.2) | next-phase-amend | P7 generates pnpm-lock.yaml with 'pnpm import' to keep resolved versions; keep an npm→pnpm update test but no purge flag is needed | applied |
+| L4 | 2026-11-14 | P2 | P2 | volumes() has no consumer on macOS: its only caller is the Linux freedesktop Trash fallback in trashOne (server/platform.js:413); macOS trashes through Finder. The 19-mount output is not user-visible. gpuNames() is user-visible via ui/app.js:186 encoder note; system_profiler SPDisplaysDataType -json reports _name 'Apple M2 Max'. Launcher rule: use a PATH node only when its realpath equals process.execPath (Homebrew /opt/homebrew/bin/node qualifies; asdf shims do not) | master-amend | D2 drops volume filtering; P2 covers GPU name and stable launcher Node path only | applied |
+| L5 | 2026-11-14 | P7 | P6 | Windows platform.findTool does not try .cmd, so install.mjs looks up pnpm.cmd itself; Windows pnpm install is covered only by injected tests (R5) | note | P6 docs mark Windows pnpm install as verified by tests only, real Windows pending | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
@@ -161,6 +163,7 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 | Phase | Date | Verdict | Criteria met | Commit | Report |
 |---|---|---|---|---|---|
 | P1 | 2026-11-14 | addressed | A1, A2, A3, A4 | 23de366 | [report](phases/01-green-baseline/plan.md) |
+| P7 | 2026-11-14 | addressed | A1, A2, A3, A4, A5, A6 | 94b012e | [report](phases/07-pnpm-migration/plan.md) |
 
 ## 12. Resume brief
 

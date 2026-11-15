@@ -3,11 +3,11 @@
 - Plan ID: `macos-verified-support`
 - Phase: P7
 - Plan version: 1
-- Validated against master version: 15
-- Status: in_progress
+- Validated against master version: 17
+- Status: done
 - Approved by: Jorge Venegas (standing instruction C6)
 - Approved at: 2026-11-14
-- Commit: see git log subject "P7: pnpm migration"
+- Commit: 94b012e
 - Implementation mode: subagent
 - Implemented by: sonnet-worker-p7
 - Implemented at: 2026-11-14
@@ -37,6 +37,7 @@ Move VideoHub from npm to pnpm end to end (C4, C5): the repository carries `pnpm
 |---|---|---|
 | L1 | User requires pnpm for development and the product; npm references at `scripts/install.mjs:164-165,280-289`, README, CLAUDE.md, ARCHITECTURE.md and film templates | Defines S2–S5 and the file list |
 | L2 | `pnpm test` auto-installs on pnpm 11 | Until S1 lands, run tests with `pnpm --config.verify-deps-before-run=false test`; after S1 the lockfile exists and plain `pnpm test` (after `pnpm install --frozen-lockfile`) is the steady-state command written into docs (S5) |
+| L4 | volumes()/GPU/launcher findings for P2 (Affects P2 only) | Not applicable to P7; listed after master revalidation |
 | L3 | `pnpm import` converts `package-lock.json` keeping resolved versions; pnpm replaces an npm `node_modules` non-interactively | S1 generates the lockfile with `pnpm import`; S3 adds no purge flag; A4 tests the npm→pnpm update path |
 
 ## 3. Scope
