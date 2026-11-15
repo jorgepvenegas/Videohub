@@ -1,8 +1,8 @@
 # Master Plan — macOS verified support
 
 - Plan ID: `macos-verified-support`
-- Master version: 12
-- Status: draft
+- Master version: 14
+- Status: active
 - Created: 2026-11-14
 - Source: user request (2026-11-14): "I need to create a macOS compatible version of this project. create a plan to achieve this"
 - Size: large
@@ -63,7 +63,7 @@ flowchart LR
 | Source of truth | `CLAUDE.md` (Development rules), `docs/ARCHITECTURE.md`, `docs/PLATFORMS.md` |
 | Format | none (no formatter configured; match the compact ES module style of surrounding code) |
 | Lint | none |
-| Type check | `node --check <each changed .js/.mjs file>` |
+| Type check | `node --check` on every changed .js/.mjs file |
 | Tests | `pnpm test` (runs `node scripts/test.mjs`; isolates home/temp/data under `.test-tmp`) |
 | Dependencies | `pnpm install --frozen-lockfile` (after P7; never `npm install`/`npm ci`). Until P7 adds `pnpm-lock.yaml`, run tests with `pnpm --config.verify-deps-before-run=false test` (L2) |
 | Project rules | OS selection stays in `server/platform.js` with injectable deps; preserve Windows behavior and exported names/return shapes; read old stored values through `legacy.js`; UI never imports `server/`; test hubs use `VIDEOHUB_PORT=7799`, `VIDEOHUB_DATA_DIR`/`VIDEOHUB_BASE_DIR` scratch, `VIDEOHUB_GUARD=off`, `VIDEOHUB_JOBS=off`, `VIDEOHUB_NO_WINDOW=1` (guard/jobs on only in P4); keep `templates/new-film/render.js` equal to `examples/hello-film/render.js`; inspect staged diff for private paths, identities and tokens before commit |
@@ -100,7 +100,7 @@ flowchart LR
 
 | ID | Phase | Outcome | Depends on | Status | Plan |
 |---|---|---|---|---|---|
-| P1 | Green baseline | pnpm test passes with zero failures on this Mac | none | planned | [plan](phases/01-green-baseline/plan.md) |
+| P1 | Green baseline | pnpm test passes with zero failures on this Mac | none | in_progress | [plan](phases/01-green-baseline/plan.md) |
 | P7 | pnpm migration | Installer, update, lockfile, docs and film templates use pnpm on every OS; npm-era installs migrate on update | P1 | planned | pending |
 | P2 | macOS platform fixes | Volumes, GPU names and launcher Node path are correct on real macOS, with darwin tests | P7 | planned | pending |
 | P3 | Scratch install and review | Scratch setup.sh install opens from VideoHub.command; live preview, notes, folder picker and Finder reveal work | P2 | planned | pending |
@@ -126,6 +126,8 @@ Append-only. Supersede a decision with a new row; never delete history.
 | C3 | 2026-11-14 | Probes and tests on this Mac put a real Node binary first on PATH (asdf shims depend on the real HOME) | Baseline: `setup.sh` exited 126 under a fake HOME | all |
 | C4 | 2026-11-14 | Use pnpm everywhere: plan/dev commands (pnpm test, pnpm install) and the product (installer, update, lockfile, docs, film templates) on every OS | User requirement 2026-11-14 ('we must use pnpm'), scope confirmed as dev + product migration | all |
 | C5 | 2026-11-14 | Setup and update check for pnpm and print OS install hints when missing (brew install pnpm / winget install -e --id pnpm.pnpm / npm install -g pnpm); they never install it; package.json pins the version with packageManager | CLAUDE.md: setup only prints instructions for system tools; a pinned version keeps the lockfile format stable | P7,P3,P5,P6 |
+| C6 | 2026-11-14 | Standing review instruction: the user approved P1 and asked to continue until the entire plan is complete without per-phase review stops; each later phase plan is still written just in time, checked, committed, and approved under this recorded instruction. Stops remain where CLAUDE.md or C2 require the user: live-preview review before any render, OS permission prompts, and registration on the real agent profile | User instruction 2026-11-14: 'approve P1 and continue until the entire plan has been completed' | all |
+| C7 | 2026-11-14 | Implementation subagents run on the Sonnet 5.5 model (Agent tool model: sonnet) | User instruction 2026-11-14 | all |
 
 ## 9. Discovery ledger
 
@@ -164,5 +166,5 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 - Last verdict: none
 - Next action: re-present refined P1 (v2) for approval, then delegate to a worker subagent
 - Open decisions: R2, R3
-- PR: none
+- PR: declined (2026-11-14)
 - Last updated: 2026-11-14

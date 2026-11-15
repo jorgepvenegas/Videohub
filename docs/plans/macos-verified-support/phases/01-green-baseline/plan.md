@@ -3,10 +3,10 @@
 - Plan ID: `macos-verified-support`
 - Phase: P1
 - Plan version: 2
-- Validated against master version: 12
-- Status: draft
-- Approved by: pending
-- Approved at: pending
+- Validated against master version: 14
+- Status: in_progress
+- Approved by: Jorge Venegas
+- Approved at: 2026-11-14
 - Commit: pending
 - Implementation mode: subagent
 - Implemented by: pending
