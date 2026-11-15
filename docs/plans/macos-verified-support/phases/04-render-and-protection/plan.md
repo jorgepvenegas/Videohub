@@ -68,8 +68,9 @@ If a step reveals work outside this phase, report it and continue the approved s
   - none in the repository
 - Change: record `/api/guard/settings` (capabilities, `cpuAffinity: false`, `cpuLimitReason`, pause/critical MB, free RAM) and compare the reported free RAM with `vm_stat` (free + inactive + speculative pages × page size) taken at the same moment.
 - Acceptance:
-  - [ ] Guard reports macOS capabilities with CPU affinity unavailable and the explanation; free RAM within 10% of the `vm_stat` calculation
+  - [x] Guard reports macOS capabilities with CPU affinity unavailable and the explanation; free RAM within 10% of the `vm_stat` calculation
 - Verification: `curl -s 127.0.0.1:7799/api/guard/settings` and `vm_stat` outputs recorded
+- Evidence (2026-11-15): `/api/guard/settings` -> `{"CapActive":90,"CapIdle":100,"IdleMin":2,"PauseMB":700,"CriticalMB":500,"SlowCapPct":5,"LowPrio":1,"builtIn":true,"capabilities":{"platform":"darwin","cpuAffinity":false,"cpuLimitReason":"macOS does not provide a CPU-core affinity limit; priority and background QoS protect responsiveness.","trashLabel":"Trash","fileManager":"Finder","browserWarning":null},"ramTotalMB":65536,"cores":12,"temp":null}`. `/api/renders` guard block: `ramAvailMB` 29025. `vm_stat` (page 16384 B): free 47092 + inactive 1660097 + speculative 150288 = 1857477 pages = 29023 MB. Difference 2 MB (0.007%).
 - Rollback: none (read-only)
 
 ### S2 — Render once to completion and watch priority and QoS
@@ -79,9 +80,12 @@ If a step reveals work outside this phase, report it and continue the approved s
   - none in the repository
 - Change: from `/Users/jorge/VideoHubScratch/install` queue the render with `VIDEOHUB_PORT=7799 node server/cli.js hub_render '{"project":"hello-film"}'` (adjust to the tool's real JSON schema). While it runs, capture the render tree with `ps -axo pid,ppid,pgid,nice,pri,command` at least twice; switch the render to slow mode through the documented guard control (`/api/guard/temp` or the Renders page action found in `server/hub.js`), capture `nice`/`pri` again (expect nice 19 and background priority), then restore and capture once more (restoration is best effort per docs). Poll `hub_job` until done. Then `ffprobe` the output: video stream, audio stream, duration about 10 s; read the job log for the encoder actually used (`h264_videotoolbox` or `hevc_videotoolbox`).
 - Acceptance:
-  - [ ] Job finishes successfully; output has video and audio, about 10 s; log shows a VideoToolbox encoder
-  - [ ] Slow mode raises niceness to 19 and lowers `pri` across the tree; restore is recorded (may stay lowered without privileges)
+  - [x] Job finishes successfully; output has video and audio, about 10 s; log shows a VideoToolbox encoder
+  - [ ] Slow mode raises niceness to 19 and lowers `pri` across the tree; restore is recorded (may stay lowered without privileges) - NOT OBSERVED, see evidence
 - Verification: `hub_job` final state; `ffprobe -v error -show_entries stream=codec_type,codec_name -show_entries format=duration` on the output file named by `hub_job`; captured `ps` snapshots
+- Evidence (2026-11-15): `hub_render '{"project":"hello-film","mode":"full"}'` -> job `jmwia9ztc-8d89f493`, state `done`, "took 5 s", 5/5 chunks, 2 workers, 300 frames in 3.9 s (76.9 fps). Output `/Users/jorge/VideoHubScratch/workspace/films/hello-film/hello-film_v1.mp4` (copy in workspace/outputs/2026-11-15/). Log: `encoder: videotoolbox (h264_videotoolbox)`; final mux `-c:v copy -c:a aac -b:a 320k` from `audio/mix.wav`. ffprobe: stream 0 h264 video, stream 1 aac audio, duration 10.000000. Log also contains `Truncating packet of size 8294400 to 65514` lines (stderr from ffmpeg while piping raw frames; output is valid, 10 s, 300 frames). An osascript `display notification` process (pid 36255, "Render finished: Hello, VideoHub v1 ...") was seen right after the render, so the notification was requested.
+- Process/priority snapshots: NOT captured. The whole render finished in 5 s; my first `ps` came after the job was already `done` (only the osascript notification process remained). No slow-mode request was possible during this render.
+- Second job (S3 attempt) also ran to `done` (see S3), where slow/normal requests were POSTed to `/api/renders/cmd` (`{"action":"slow"}` then `{"action":"normal"}`, both `{"ok":true,"note":null}`) but with no tracked render (`/api/renders` guard.renders was `[]`), so no nice/pri change was observable. Guard settings after: unchanged (CapActive 90, LowPrio 1, temp null); `/api/guard/temp` not used.
 - Rollback: none (output stays in the scratch workspace; P5 uninstall leaves outputs, scratch folder removed at P5 end)
 
 ### S3 — Start a second render and Stop it
@@ -91,8 +95,9 @@ If a step reveals work outside this phase, report it and continue the approved s
   - none in the repository
 - Change: queue the same render again; after about 10 s, record the full process tree (root pid, pgid, children including ffmpeg and Chrome), press Stop through the same API the Renders page uses (`/api/renders/cmd` or the documented route), wait 5 s, and check that no process from the recorded tree survives.
 - Acceptance:
-  - [ ] Job ends as stopped/cancelled; `ps -p` on every pid recorded before Stop finds none; no orphan headless Chrome or ffmpeg from that render
+  - [ ] Job ends as stopped/cancelled; `ps -p` on every pid recorded before Stop finds none; no orphan headless Chrome or ffmpeg from that render - NOT VERIFIED, see evidence
 - Verification: before/after `ps` captures recorded
+- Evidence (2026-11-15): second render `jmwiaak5h-9db892b1` queued and ran to `done` (5 s, output `hello-film_v2.mp4`, `encoder: videotoolbox (h264_videotoolbox)`) before Stop could be applied. Cause 1: a defect in my capture script (the `ps` command was held in a shell variable that zsh did not word-split, so every snapshot printed "command not found" and no pids were recorded). Cause 2 (plan flaw): the film renders in about 5 s, so "stop after about 10 s" can never apply; even a correct script would have had a ~5 s window. Stop request sent `POST /api/jobs/jmwiaak5h-9db892b1/cancel` -> `{"ok":false}` (job already done/not cancellable). The Stop route the Renders page uses is `/api/jobs/:id/cancel` for queued jobs and `cmd kill rootPid` (`/api/renders/cmd`) only when there is no job (ui/app.js:538). After the job: `ps` for hello-film/render.js/ffmpeg/Chrome for Testing/headless showed nothing, no orphans. Both permitted renders (C9) are now used; whole-tree Stop is untested (A4 open).
 - Rollback: if processes survive, record their pids and stop them with `kill` (scratch render only), then report as a defect
 
 ### S4 — User checks on the Renders page
@@ -137,6 +142,10 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 
+- 2026-11-15 S2/S3: the hello-film full render takes about 5 s (VideoToolbox, 2 workers), so priority/QoS sampling and a mid-render Stop need either a longer render or a faster-reacting capture. Both C9 renders were consumed: render 1 completed (S2 A1 met, A2 not observed); render 2 completed before Stop (A4 not verified) because my capture script failed (zsh did not split a `ps` command stored in a variable). Needs a coordinator fix step and a new render approval (C9 amendment), for example a longer render via `env`/DUR through `hub_render` without changing film code, with a correct capture script. Type: phase-amend.
+- 2026-11-15 note: the render stderr contains `Truncating packet of size 8294400 to 65514` from ffmpeg; output verified valid. Type: note.
+- 2026-11-15 note: the slow/normal commands apply only to a tracked render, so they must be sent while the render runs.
+
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
@@ -159,4 +168,4 @@ Fill at the end of every implementation session. Do not mark the phase done unti
 
 **Master updates written:** <version bump, ledger rows, phase map changes, or none>
 **Next-phase updates written:** <phase ID, plan version, sections changed, or none>
-**Remaining work and handoff:** <what the next session must do first>
+**Remaining work and handoff:** Closeout pending S4 (coordinator with user). Also open: S2 priority/QoS snapshots (A2) and S3 whole-tree Stop (A4), which need a longer render and a new render approval.
