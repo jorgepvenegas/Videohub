@@ -9,8 +9,8 @@
 - Approved at: 2026-11-14
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: sonnet-worker-p2
+- Implemented at: 2026-11-14
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -53,10 +53,10 @@ Out of scope:
 
 ## 4. Entry conditions
 
-- [ ] P7 done, suite green — verify: `pnpm test 2>&1 | grep -E "^ℹ (pass|fail)"` → `fail 0`
-- [ ] Real Mac available — verify: `uname -sm` → `Darwin arm64`
-- [ ] Phase plan revalidated against current master version
-- [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
+- [x] P7 done, suite green — verify: `pnpm test 2>&1 | grep -E "^ℹ (pass|fail)"` → `fail 0`
+- [x] Real Mac available — verify: `uname -sm` → `Darwin arm64`
+- [x] Phase plan revalidated against current master version
+- [x] User approved this phase plan — verify: `Approved by` is set (standing instruction C6; status in_progress)
 
 ## 5. Steps
 
@@ -70,8 +70,9 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `server/platform.darwin.test.js` (modify) — GPU test
 - Change: on macOS run `system_profiler SPDisplaysDataType -json` through the injected `run` and return the `_name` of each `SPDisplaysDataType` entry; return `[]` on a non-zero exit or unparsable output. Linux behavior unchanged. Return shape stays an array of strings.
 - Acceptance:
-  - [ ] darwin test: a fixture JSON with one GPU returns `["Apple M2 Max"]`; a failing command or bad JSON returns `[]`
+  - [x] darwin test: a fixture JSON with one GPU returns `["Apple M2 Max"]`; a failing command or bad JSON returns `[]`
 - Verification: `node --test server/platform.darwin.test.js` — expected: `fail 0`
+- Evidence: `node --test server/platform.darwin.test.js scripts/install.test.js` — pass 39, fail 0 (S1 and S2 together)
 - Rollback: `git checkout HEAD -- server/platform.js server/platform.darwin.test.js`
 
 ### S2 — Use a stable Node path for macOS launchers
@@ -84,9 +85,10 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `scripts/install.test.js` (modify) — `.command` uses the platform's Node path
 - Change: in the Unix platform, `TOOLS.node` is the first `node` found on the existing `toolDirs` whose `fs.realpathSync` equals `fs.realpathSync(nodePath)`; otherwise `nodePath`. A version-manager shim (realpath differs) is therefore never chosen. The LaunchAgent already uses `TOOLS.node`; the `.command` switches to it. Handle a missing `realpathSync` or errors by falling back to `nodePath`.
 - Acceptance:
-  - [ ] darwin test: PATH `node` symlinked to the running binary → that PATH path; a shim with a different realpath → `nodePath`; LaunchAgent `ProgramArguments` uses the chosen path
-  - [ ] installer test: macOS `VideoHub.command` execs the platform's `TOOLS.node`
+  - [x] darwin test: PATH `node` symlinked to the running binary → that PATH path; a shim with a different realpath → `nodePath`; LaunchAgent `ProgramArguments` uses the chosen path
+  - [x] installer test: macOS `VideoHub.command` execs the platform's `TOOLS.node`
 - Verification: `node --test server/platform.darwin.test.js scripts/install.test.js` — expected: `fail 0`
+- Evidence: pass 39, fail 0; with platform.js and install.mjs reverted to HEAD the same command gives fail 3 (GPU, stable-node, installer tests), then restored
 - Rollback: `git checkout HEAD -- server/platform.js scripts/install.mjs server/platform.darwin.test.js scripts/install.test.js`
 
 ### S3 — Probe on the real Mac
@@ -96,25 +98,26 @@ If a step reveals work outside this phase, report it and continue the approved s
   - none in the repository (probe script lives in `/private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2-probe.mjs`)
 - Change: read-only probe importing `server/platform.js`: print `gpuNames()` and `TOOLS.node` (a) with the normal PATH (asdf: expect the versioned execPath, because the shim's realpath differs) and (b) with `PATH=/private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2bin:$PATH` where `/private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2bin/node` is a symlink to `process.execPath` (expect `/private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2bin/node`). Set `VIDEOHUB_DATA_DIR` to a scratchpad folder so nothing is written into the repo.
 - Acceptance:
-  - [ ] (a) GPU list contains `Apple M2 Max`; (b) `TOOLS.node` is the scratch symlink path
+  - [x] (a) GPU list contains `Apple M2 Max`; (b) `TOOLS.node` is the scratch symlink path
 - Verification: `node /private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2-probe.mjs` output recorded in the closeout; `git status --short` shows no new repo files
+- Evidence: see closeout; `git status --short` shows only the tracked edits plus pre-existing `.test-tmp/` and `node_modules/`
 - Rollback: delete the probe script
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — macOS `gpuNames()` returns the GPU names from `system_profiler`, `[]` on failure — verify: S1 darwin tests
-- [ ] A2 — Unix `TOOLS.node` prefers a PATH Node with the same realpath, never a shim — verify: S2 darwin tests
-- [ ] A3 — macOS `VideoHub.command` and LaunchAgent use that path — verify: S2 installer and darwin tests
-- [ ] A4 — Real Mac shows `Apple M2 Max` and the stable-path rule — verify: S3 probe output
-- [ ] A5 — Full suite and syntax pass — verify: `pnpm test` → `fail 0`; `node --check` on changed files
+- [x] A1 — macOS `gpuNames()` returns the GPU names from `system_profiler`, `[]` on failure — verify: S1 darwin tests
+- [x] A2 — Unix `TOOLS.node` prefers a PATH Node with the same realpath, never a shim — verify: S2 darwin tests
+- [x] A3 — macOS `VideoHub.command` and LaunchAgent use that path — verify: S2 installer and darwin tests
+- [x] A4 — Real Mac shows `Apple M2 Max` and the stable-path rule — verify: S3 probe output
+- [x] A5 — Full suite and syntax pass — verify: `pnpm test` → `fail 0`; `node --check` on changed files
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
-- [ ] Names and structure state intent; comments explain only non-obvious reasons
-- [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation
-- [ ] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
+- [x] Names and structure state intent; comments explain only non-obvious reasons
+- [x] Every new test fails if the behavior it covers breaks; no test restates the implementation
+- [x] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
 
 ## 8. Risks and unknowns
 
@@ -133,22 +136,34 @@ Append during implementation. One line per deviation: date, step, what changed, 
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
 
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-14
+- Session: sonnet-worker-p2
+- Verdict: addressed
+- Steps complete: S1, S2, S3
+- Verification run: `node --test server/platform.darwin.test.js scripts/install.test.js` (pass 39, fail 0); `node --check` on the four changed files (clean); `pnpm test` (347 tests, 346 pass, 0 fail, 1 skipped); probe (a)/(b) below
+
+Probe output (real Mac, real node binary, `VIDEOHUB_DATA_DIR` in scratchpad):
+- (a) normal PATH: `{"gpus":["Apple M2 Max"],"node":"/Users/jorge/.asdf/installs/nodejs/24.16.0/bin/node"}` (asdf shim rejected, versioned execPath kept)
+- (b) `p2bin` first on PATH: `{"gpus":["Apple M2 Max"],"node":"<scratchpad>/p2bin/node"}` (symlink to execPath chosen)
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | met / partial / not met / deferred | `<command>` — <result> |
-| D1 (master) | met / partial / not met / deferred | `<command>` — <result> |
+| A1 | met | darwin test `macOS names GPUs from system_profiler...` — `["Apple M2 Max"]`, `[]` on exit 1 and bad JSON; fails when reverted |
+| A2 | met | darwin test `macOS launchers use a PATH node only when...` — same realpath chosen, shim and missing PATH node give `nodePath` |
+| A3 | met | installer test asserts `exec '/opt/homebrew/bin/node'` in `VideoHub.command`; darwin test asserts LaunchAgent `ProgramArguments` uses the PATH node |
+| A4 | met | probe (a) and (b) above |
+| A5 | met | `pnpm test` fail 0; `node --check` clean |
+| D2 (master) | met | A1-A4; darwin unit tests plus real-Mac probe |
+| D1 (master) | met | `pnpm test` — 346 pass, 0 fail, 1 skipped |
+
+Five-question sweep: (1) did a step contradict reality? no. (2) New constraint on later phases? Launchers now use PATH node on Homebrew, so P3 should check the generated `VideoHub.command` content. (3) Missing prerequisite? no. (4) Out-of-scope defects seen? none new. (5) Plan wording wrong? no.
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| none | No new discoveries | note | n/a | none |
 
-**Master updates written:** <version bump, ledger rows, phase map changes, or none>
-**Next-phase updates written:** <phase ID, plan version, sections changed, or none>
-**Remaining work and handoff:** <what the next session must do first>
+**Master updates written:** none
+**Next-phase updates written:** none
+**Remaining work and handoff:** P3 starts with the scratch `setup.sh` install; inspect the generated `VideoHub.command` Node path. asdf installs keep the versioned path (by design); Homebrew Node was not installed here, so the stable-path case was simulated with a symlink.

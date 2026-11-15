@@ -342,6 +342,8 @@ function createUnixPlatform({ osName: OS, env, home, temp, fs, os, path, spawn, 
       return true;
     } catch { return false; }
   }
+  // A PATH node is used only when it is the running binary, so version-manager shims (different realpath) are never baked into launchers.
+  const stableNode = () => { try { const onPath = findTool('node'); return onPath && fs.realpathSync(onPath) === fs.realpathSync(nodePath) ? onPath : nodePath; } catch { return nodePath; } };
   const nativeBrowser = names => names.map(findTool).find(nativeExecutable) || null;
   function findBrowser() {
     const app = name => ['/Applications', path.join(home, 'Applications')].map(dir => path.join(dir, name + '.app', 'Contents', 'MacOS', name)).find(nativeExecutable) || null;
@@ -350,7 +352,7 @@ function createUnixPlatform({ osName: OS, env, home, temp, fs, os, path, spawn, 
     return { edge, chrome, chromium, path: nativeExecutable(override) ? override : edge || chrome || chromium };
   }
   const browser = findBrowser();
-  const TOOLS = { ffmpeg: findTool('ffmpeg') || 'ffmpeg', ffprobe: findTool('ffprobe') || 'ffprobe', node: nodePath, ...browser };
+  const TOOLS = { ffmpeg: findTool('ffmpeg') || 'ffmpeg', ffprobe: findTool('ffprobe') || 'ffprobe', node: stableNode(), ...browser };
   function launch(file, args) {
     if (env.VIDEOHUB_NO_WINDOW) return Promise.resolve();
     return new Promise((resolve, reject) => { try { const c = spawn(file, args, { detached: true, stdio: 'ignore' }); c.once('error', reject); c.once('spawn', () => { c.unref(); resolve(); }); } catch (e) { reject(e); } });
@@ -531,7 +533,7 @@ function createUnixPlatform({ osName: OS, env, home, temp, fs, os, path, spawn, 
   const cleanupLegacyAutostart = async () => {};
   const shellCommand = cmd => ({ file: '/bin/sh', args: ['-c', cmd], opts: {} });
   const renderSpawnOptions = { detached: true };
-  async function gpuNames() { if (IS_MAC) return []; const tool = findTool('lspci'); if (!tool) return []; const r = await run(tool, []); return r.code === 0 ? r.stdout.split(/\r?\n/).filter(s => /VGA|3D controller|Display controller/i.test(s)) : []; }
+  async function gpuNames() { if (IS_MAC) { const r = await run('system_profiler', ['SPDisplaysDataType', '-json']); if (r.code !== 0) return []; try { return (JSON.parse(r.stdout).SPDisplaysDataType || []).map(g => g._name).filter(Boolean); } catch { return []; } } const tool = findTool('lspci'); if (!tool) return []; const r = await run(tool, []); return r.code === 0 ? r.stdout.split(/\r?\n/).filter(s => /VGA|3D controller|Display controller/i.test(s)) : []; }
   const capabilities = () => ({ platform: OS, cpuAffinity: !IS_MAC && !!findTool('taskset'), cpuLimitReason: IS_MAC ? 'macOS does not provide a CPU-core affinity limit; priority and background QoS protect responsiveness.' : findTool('taskset') ? null : 'CPU limit not available on this system (taskset is missing).', trashLabel: 'Trash', fileManager: IS_MAC ? 'Finder' : 'file manager', browserWarning: IS_MAC ? null : 'Snap and Flatpak browsers are not supported for rendering; install a native Chrome or Chromium package.' });
   const casePath = value => String(value), pathKey = value => path.resolve(value);
   let memoryCache = null;

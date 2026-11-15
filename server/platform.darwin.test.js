@@ -4,7 +4,7 @@ import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { createPlatform } from './platform.js';
 
-function harness({ files: initial = {}, env = {}, answer, sync, uid = 501, hubDir = '/opt/VideoHub', priorityError = false } = {}) {
+function harness({ files: initial = {}, env = {}, answer, sync, uid = 501, hubDir = '/opt/VideoHub', priorityError = false, nodePath } = {}) {
   const files = new Map(Object.entries(initial)), calls = [], syncCalls = [], spawned = [], priorities = [], signals = [], delays = [];
   let time = 1000, loaded = false;
   for (const name of ['/Users/me', '/Users/me/Films']) files.set(name, { dir: true });
@@ -13,7 +13,7 @@ function harness({ files: initial = {}, env = {}, answer, sync, uid = 501, hubDi
   const fs = { constants: { X_OK: 1 }, existsSync: f => files.has(f), statSync: f => ({ size: meta(f).text?.length || 0, isDirectory: () => !!meta(f).dir, isFile: () => !meta(f).dir }), accessSync: f => { meta(f); }, realpathSync: f => meta(f).link || f,
     readFileSync: f => meta(f).text || '', mkdirSync: f => files.set(f, { dir: true }), writeFileSync: (f, text) => files.set(f, { text }),
     readdirSync: () => { throw new Error('macOS must not scan /proc'); } };
-  const platform = createPlatform({ osName: 'darwin', env: { PATH: '', ...env }, home: '/Users/me', temp: '/tmp', hubDir, path: path.posix, fs, uid: () => uid, now: () => time,
+  const platform = createPlatform({ osName: 'darwin', env: { PATH: '', ...env }, home: '/Users/me', temp: '/tmp', hubDir, nodePath, path: path.posix, fs, uid: () => uid, now: () => time,
     os: { cpus: () => Array(8), freemem: () => 1024, totalmem: () => 16 * 2 ** 30, setPriority: (...args) => { priorities.push(args); if (priorityError) throw new Error('EPERM'); } },
     run: async (file, args, opts) => {
       calls.push({ file, args, opts }); if (answer) return answer(file, args, opts);
@@ -41,6 +41,24 @@ test('macOS folders and browser discovery use system and user Applications indep
   assert.equal(h.findBrowser().chrome, chrome); assert.equal(h.findBrowser().path, edge);
   assert.equal(h.capabilities().cpuAffinity, false); assert.equal(h.capabilities().fileManager, 'Finder'); assert.match(h.capabilities().cpuLimitReason, /macOS.*CPU-core/);
   assert.deepEqual(await h.gpuNames(), []);
+});
+
+test('macOS names GPUs from system_profiler and returns none on failure or bad output', async () => {
+  const json = JSON.stringify({ SPDisplaysDataType: [{ _name: 'Apple M2 Max', sppci_model: 'Apple M2 Max' }] });
+  const h = harness({ answer: () => ({ code: 0, stdout: json, stderr: '' }) });
+  assert.deepEqual(await h.gpuNames(), ['Apple M2 Max']); assert.deepEqual(h.calls[0].args, ['SPDisplaysDataType', '-json']);
+  assert.deepEqual(await harness({ answer: () => ({ code: 1, stdout: json, stderr: '' }) }).gpuNames(), []);
+  assert.deepEqual(await harness({ answer: () => ({ code: 0, stdout: 'not json', stderr: '' }) }).gpuNames(), []);
+});
+
+test('macOS launchers use a PATH node only when it is the running binary, never a version-manager shim', async () => {
+  const real = '/Users/me/.asdf/installs/nodejs/24/bin/node';
+  const same = harness({ nodePath: real, env: { PATH: '/opt/homebrew/bin' }, files: { [real]: 'binary', '/opt/homebrew/bin/node': { text: 'binary', link: real } } });
+  assert.equal(same.TOOLS.node, '/opt/homebrew/bin/node'); await same.setAutostart(true);
+  assert.match(same.files.get('/Users/me/Library/LaunchAgents/com.videohub.hub.plist').text, /<array><string>\/opt\/homebrew\/bin\/node<\/string>/);
+  const shim = harness({ nodePath: real, env: { PATH: '/Users/me/.asdf/shims' }, files: { [real]: 'binary', '/Users/me/.asdf/shims/node': { text: 'shim', link: '/Users/me/.asdf/lib/shim' } } });
+  assert.equal(shim.TOOLS.node, real);
+  assert.equal(harness({ nodePath: real, env: { PATH: '/opt/homebrew/bin' }, files: { '/opt/homebrew/bin/node': 'binary' } }).TOOLS.node, real);
 });
 
 test('macOS login services find Homebrew media tools with a minimal PATH', async () => {
