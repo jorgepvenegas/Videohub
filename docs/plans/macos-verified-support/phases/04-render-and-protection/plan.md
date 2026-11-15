@@ -3,14 +3,14 @@
 - Plan ID: `macos-verified-support`
 - Phase: P4
 - Plan version: 1
-- Validated against master version: 28
-- Status: in_progress
+- Validated against master version: 29
+- Status: done
 - Approved by: Jorge Venegas (standing instruction C6; render approved C9)
 - Approved at: 2026-11-15
-- Commit: pending
+- Commit: a37040d
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: sonnet-worker-p4-s6
+- Implemented at: 2026-11-15
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -39,6 +39,7 @@ Prove on the real Mac that VideoHub's protected render queue works (D4): the rev
 | L10 | 10 s render takes about 5 s; second render ran to completion; Stop uses `/api/jobs/:id/cancel` | Added S5 with a 120 s render (C10); A2/A4 verified by S5 |
 | L11 | Stop orphans relaunched Chrome (own process group) | Added S6 fix + real-process test; A4 reworded; real-render recheck moves to P5 (C11) |
 | L12 | Two Chrome helpers keep nice 10 in slow mode; nice stays 19 after normal | Note; A2 judged on the render tree as documented best effort |
+| L13 | D4 split; real stopped render becomes D9 for P5 | Closeout judges D4 as amended |
 | L8 | Real endpoints are `/api/config`, `/api/encoders`; CLI takes JSON; asdf Node 22.22.3 in the install | S1–S3 use JSON CLI arguments and real endpoints only; discover render/guard endpoints from `server/hub.js` (`/api/renders`, `/api/renders/cmd`, `/api/guard/settings`, `/api/guard/temp`) |
 
 ## 3. Scope
@@ -54,11 +55,11 @@ Out of scope:
 
 ## 4. Entry conditions
 
-- [ ] P3 done; scratch hub listening on 7799 with jobs and guard enabled — verify: `lsof -nP -iTCP:7799 -sTCP:LISTEN`; `curl -s 127.0.0.1:7799/api/guard/settings`
-- [ ] No render running — verify: `curl -s 127.0.0.1:7799/api/renders`
-- [ ] User approved rendering after preview review (C9)
-- [ ] Phase plan revalidated against current master version
-- [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
+- [x] P3 done; scratch hub listening on 7799 with jobs and guard enabled — verify: `lsof -nP -iTCP:7799 -sTCP:LISTEN`; `curl -s 127.0.0.1:7799/api/guard/settings`
+- [x] No render running — verify: `curl -s 127.0.0.1:7799/api/renders`
+- [x] User approved rendering after preview review (C9)
+- [x] Phase plan revalidated against current master version
+- [x] User approved this phase plan — verify: `Approved by` is set and status is `ready`
 
 ## 5. Steps
 
@@ -149,24 +150,24 @@ If a step reveals work outside this phase, report it and continue the approved s
   - [x] Real-process test (under `.test-tmp`): a node "render" that ignores SIGTERM and, whenever its child dies, spawns a detached replacement child in a new process group; after `killTree(root)` neither the root nor any child (original or replacement) is alive. The test fails against the old `killTree`
 - Verification: `node --test server/killtree-unix.test.js server/platform.darwin.test.js server/platform.linux.test.js`; `pnpm test` → `fail 0`
 - Rollback: `git checkout HEAD -- server/platform.js server/platform.darwin.test.js server/platform.linux.test.js && rm server/killtree-unix.test.js`
-- Evidence (2026-11-15): `node --check server/platform.js` ok; `node --test server/killtree-unix.test.js server/platform.darwin.test.js server/platform.linux.test.js` -> pass 33, fail 0 (about 1 s); revert check: with `server/platform.js` stashed to the old killTree the real-process test failed ("alive after Stop: <replacement child pid>"), restored and it passes; `pnpm test` -> tests 349, pass 348, fail 0 (1 skipped); no leftover test processes in `ps`, no `killtree-*` dir left in `.test-tmp`. New sequence: SIGSTOP root, read tree, SIGTERM group and descendants, 3 s grace, SIGKILL surviving descendants (and group), SIGKILL root last.
+- Evidence (2026-11-15): `node --check server/platform.js` ok; `node --test server/killtree-unix.test.js server/platform.darwin.test.js server/platform.linux.test.js` -> pass 33, fail 0 (about 1 s); revert check: with `server/platform.js` stashed to the old killTree the real-process test failed ("alive after Stop: REPLACEMENT-PID"), restored and it passes; `pnpm test` -> tests 349, pass 348, fail 0 (1 skipped); no leftover test processes in `ps`, no `killtree-*` dir left in `.test-tmp`. New sequence: SIGSTOP root, read tree, SIGTERM group and descendants, 3 s grace, SIGKILL surviving descendants (and group), SIGKILL root last.
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — One render completes through the queue with video and audio using VideoToolbox — verify: S2 `hub_job`, `ffprobe`, job log
-- [ ] A2 — Render niceness and background QoS apply in slow mode and restoration is recorded — verify: S5 snapshots
-- [ ] A3 — RAM protection reads free memory consistent with `vm_stat` and CPU affinity is reported unavailable — verify: S1
-- [ ] A4 — Stop ends the whole render tree, including Chrome relaunched during Stop — verify: S6 real-process test; S5 showed the defect; real-render reconfirmation after update is owed to P5 (C11)
-- [ ] A5 — Renders page hides CPU-core controls with the explanation — verify: S4 (1)
-- [ ] A6 — Suite stays green and any repository fix passes checks — verify: `pnpm test` → `fail 0`, `node --check` on changed files, or `git status --short` shows no source change
+- [x] A1 — One render completes through the queue with video and audio using VideoToolbox — verify: S2 `hub_job`, `ffprobe`, job log
+- [x] A2 — Render niceness and background QoS apply in slow mode and restoration is recorded — verify: S5 snapshots
+- [x] A3 — RAM protection reads free memory consistent with `vm_stat` and CPU affinity is reported unavailable — verify: S1
+- [x] A4 — Stop ends the whole render tree, including Chrome relaunched during Stop — verify: S6 real-process test; S5 showed the defect; real-render reconfirmation after update is owed to P5 (C11)
+- [x] A5 — Renders page hides CPU-core controls with the explanation — verify: S4 (1)
+- [x] A6 — Suite stays green and any repository fix passes checks — verify: `pnpm test` → `fail 0`, `node --check` on changed files, or `git status --short` shows no source change
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
-- [ ] Names and structure state intent; comments explain only non-obvious reasons
-- [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation
-- [ ] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
+- [x] Names and structure state intent; comments explain only non-obvious reasons
+- [x] Every new test fails if the behavior it covers breaks; no test restates the implementation
+- [x] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
 
 ## 8. Risks and unknowns
 
@@ -191,24 +192,33 @@ Append during implementation. One line per deviation: date, step, what changed, 
 
 ## 10. Closeout
 
-Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
-
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-15
+- Session: coordinator + Sonnet 5.5 workers (WIP 5ebfc15, cb09a90; fix a37040d); S4 answers from Jorge Venegas
+- Verdict: addressed
+- Steps complete: S1, S2, S4, S5, S6 (S3 superseded by S5: the 10 s render finished before Stop)
+- Verification run: `/api/guard/settings` vs `vm_stat`; job `jmwia9ztc-8d89f493` log + `ffprobe`; S5 script `p4-s5.sh` snapshots; `POST /api/jobs/<id>/cancel`; `ps -p` after Stop; S6 `node --test server/killtree-unix.test.js server/platform.darwin.test.js server/platform.linux.test.js` (33 pass); `pnpm test` → 349 tests, 348 pass, 0 fail, 1 skipped
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | met / partial / not met / deferred | `<command>` — <result> |
-| D1 (master) | met / partial / not met / deferred | `<command>` — <result> |
+| A1 | met | Job `jmwia9ztc-8d89f493` done in 5 s; log `encoder: videotoolbox (h264_videotoolbox)`; `ffprobe` h264 + aac, duration 10.000000; user: plays with sound |
+| A2 | met | S5 snapshots: normal nice 10 → slow nice 19 / pri 4 on root, Chrome, helpers and ffmpeg (two Chrome helpers stayed nice 10, L12) → normal: pri restored, nice stays 19 (documented best effort) |
+| A3 | met | Guard `ramAvailMB` 29025 vs `vm_stat` 29023 MB; `cpuAffinity: false` with the macOS reason |
+| A4 | met | S5 exposed orphaned relaunched Chrome (L11); S6 `killTree` fix; real-process test fails on old code, passes on new; real-render recheck owed to P5 (C11) |
+| A5 | met | User: Renders page hides CPU-core sliders and shows the macOS note |
+| A6 | met | `pnpm test` 348 pass, 0 fail; `node --check` on changed files |
+| D4 (master) | met | Render, VideoToolbox, sound, QoS/niceness, RAM protection, hidden CPU controls verified on hardware; whole-tree Stop fixed and proven by the real-process test (D4 split per L13; the stopped real render after update is D9, owned by P5) |
+| D1 (master) | met | `pnpm test` fail 0 |
+
+**Discovery sweep:** (1) Wrong assumption: a 10 s film renders slowly enough to observe (L10). (2) New constraint: puppeteer keeps render scripts alive on SIGTERM and starts Chrome in its own process group (L11). (3) Unplanned work: S6 `killTree` fix. (4) For P5: update the scratch install, then run the C11 stopped render; existing films keep their own `render.js`, the fix is in `killTree` so they benefit. (5) Suspect evidence: none of P1–P3; Linux shares the old Stop defect, now fixed by the same code (Linux unverified on hardware).
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| L10 | 10 s render too fast; second render completed | plan-defect | P4 | S5 with DUR=120 (C10) |
+| L11 | Stop orphaned relaunched Chrome | phase-amend | P4, P5, P6 | S6 fix; P5 recheck; P6 docs |
+| L12 | Slow mode misses two Chrome helpers; nice not restored | note | P6 | P6 docs |
 
-**Master updates written:** <version bump, ledger rows, phase map changes, or none>
-**Next-phase updates written:** <phase ID, plan version, sections changed, or none>
-**Remaining work and handoff:** Closeout pending S4 (coordinator with user). Also open: S2 priority/QoS snapshots (A2) and S3 whole-tree Stop (A4), which need a longer render and a new render approval.
+**Master updates written:** L10–L12, C10, C11
+**Next-phase updates written:** P5 plan will include the C11 stopped-render recheck after update
+**Remaining work and handoff:** D4 Stop recheck on a real render in P5 after updating the scratch install.

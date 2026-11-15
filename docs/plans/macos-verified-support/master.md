@@ -1,7 +1,7 @@
 # Master Plan — macOS verified support
 
 - Plan ID: `macos-verified-support`
-- Master version: 28
+- Master version: 29
 - Status: active
 - Created: 2026-11-14
 - Source: user request (2026-11-14): "I need to create a macOS compatible version of this project. create a plan to achieve this"
@@ -50,11 +50,12 @@ flowchart LR
 - [ ] D1 — The full test suite passes on this Mac with zero failures — verify: `pnpm test` → `fail 0`
 - [ ] D2 — Platform calls return Mac-correct data on real hardware: the GPU is named in the encoder result, and the Desktop launcher and LaunchAgent use a stable Node path that survives a Homebrew Node upgrade (version-manager installs keep the versioned path; re-running setup refreshes it) — verify: darwin unit tests in `server/platform.darwin.test.js` plus a read-only probe script run on this Mac
 - [ ] D3 — A scratch install made with `bash setup.sh` on the real account opens the hub from `VideoHub.command` (Gatekeeper first-launch documented), shows the example film in live preview, saves a note, and the folder picker and Finder reveal work — verify: user observation recorded in P3 closeout + `node server/cli.js hub_workspace` on the scratch port
-- [ ] D4 — One reviewed render of a scratch example completes through the queue with sound and VideoToolbox, Stop terminates the whole process tree, background QoS/niceness and RAM protection apply, CPU sliders are hidden with the explanation — verify: `ffprobe` on the output, `ps -o pid,ppid,nice,command` during render, UI observation
+- [ ] D4 — One reviewed render of a scratch example completes through the queue with sound and VideoToolbox, background QoS/niceness and RAM protection apply, CPU sliders are hidden with the explanation, and Stop's whole-tree termination (including Chrome relaunched during Stop) is fixed and proven with real processes — verify: `ffprobe` on the output, `ps -o pid,ppid,nice,pri,command` during render, UI observation, `node --test server/killtree-unix.test.js`
 - [ ] D5 — Finder Trash cleanup is restorable (Automation prompt handled, no hard delete), the LaunchAgent starts the hub at login, update preserves data/notes, and uninstall removes only owned integrations — verify: restore from Finder, `launchctl print gui/$(id -u)/com.videohub.hub`, data diff before/after update, uninstall dry-run then run
 - [ ] D6 — A new Claude Code session exposes the `hub_*` tools from the scratch install (OpenCode checked if the user agrees) — verify: tool list in a fresh agent session
 - [ ] D7 — `docs/PLATFORMS.md`, `README.md` and `CLAUDE.md` state macOS Apple Silicon as verified on real hardware, Intel as pending, list pnpm as a requirement, and record any new macOS limits found — verify: `grep -n "macOS\|pnpm" docs/PLATFORMS.md README.md CLAUDE.md`
 - [ ] D8 — VideoHub uses pnpm end to end: `pnpm-lock.yaml` replaces `package-lock.json` and `package.json` pins `packageManager`; setup/update install dependencies with `pnpm install --frozen-lockfile` on every OS and print install hints when pnpm is missing; an npm-era install updates to pnpm without losing data; docs and film templates say pnpm; no `npm ci`/`npm install`/`npm test` instruction remains outside retired-history notes — verify: `pnpm test`, installer dry-run output under `.test-tmp`, `grep -rn "npm ci\|npm install\|npm test\|package-lock" --exclude-dir=node_modules --exclude-dir=.git .`
+- [ ] D9 — After the scratch install is updated with the Stop fix, a real scratch render stopped partway leaves no render, Chrome or ffmpeg process behind — verify: `ps -p` on the recorded tree and an orphan search 5 s after `POST /api/jobs/JOB-ID/cancel`
 
 ## 4. Code standards
 
@@ -104,11 +105,11 @@ flowchart LR
 | P7 | pnpm migration | Installer, update, lockfile, docs and film templates use pnpm on every OS; npm-era installs migrate on update | P1 | done | [plan](phases/07-pnpm-migration/plan.md) |
 | P2 | macOS platform fixes | GPU name and stable launcher Node path are correct on real macOS, with darwin tests | P7 | done | [plan](phases/02-macos-platform-fixes/plan.md) |
 | P3 | Scratch install and review | Scratch setup.sh install opens from VideoHub.command; live preview, notes, folder picker and Finder reveal work | P2 | done | [plan](phases/03-scratch-install-and-review/plan.md) |
-| P4 | Render and protection | One reviewed VideoToolbox render with sound; Stop, QoS/niceness, RAM protection and hidden CPU sliders verified | P3 | in_progress | [plan](phases/04-render-and-protection/plan.md) |
+| P4 | Render and protection | One reviewed VideoToolbox render with sound; Stop, QoS/niceness, RAM protection and hidden CPU sliders verified | P3 | done | [plan](phases/04-render-and-protection/plan.md) |
 | P5 | Lifecycle and agents | Finder Trash restore, LaunchAgent login start, data-preserving update, clean uninstall, Claude Code hub_* tools | P4 | planned | pending |
 | P6 | Docs verified status | PLATFORMS/README/CLAUDE docs mark macOS Apple Silicon verified and record new limits | P5 | planned | pending |
 
-Exit criteria per phase: P1 → D1; P7 → D8 and D1 still green; P2 → D2 and D1 still green; P3 → D3; P4 → D4; P5 → D5, D6; P6 → D7 and a final `pnpm test`. Each of P3–P5 fixes the macOS defects it finds inside its own scope; a defect that needs more than a targeted fix becomes a new phase.
+Exit criteria per phase: P1 → D1; P7 → D8 and D1 still green; P2 → D2 and D1 still green; P3 → D3; P4 → D4; P5 → D5, D6, D9; P6 → D7 and a final `pnpm test`. Each of P3–P5 fixes the macOS defects it finds inside its own scope; a defect that needs more than a targeted fix becomes a new phase.
 
 Status: `planned`, `ready`, `in_progress`, `done`, `blocked`, `needs_replan`, `superseded`.
 `ready` means the user has explicitly approved that phase plan. A written plan is not `ready` until it passes the approval gate. Later phases may stay as outlines; add them with `add-phase --outline`, then write the plan with `write-plan` just before the phase starts and stop for approval.
@@ -151,6 +152,7 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L10 | 2026-11-15 | P4 | P4 | The 10 s example renders in about 5 s, too fast to snapshot priority/QoS or press Stop after ~10 s; the second permitted render ran to completion (hello-film_v2.mp4) because the worker's zsh capture script failed. Renders-page Stop for a queued job uses POST /api/jobs/JOB-ID/cancel; slow/normal commands act only on a tracked running render | plan-defect | Missed fact: render duration. User approved one extra scratch render with env DUR=120 (C10); added S5 for A2/A4 via /api/jobs/:id/cancel | applied |
 | L11 | 2026-11-15 | P4 | P4,P5,P6 | Stop leaves orphan headless Chrome on Unix: killTree SIGTERMs the tree, puppeteer's SIGTERM handler keeps node render.js alive, its chunk-retry restart() relaunches Chrome, puppeteer starts Chrome in its own process group, so the later group SIGKILL misses it and it is reparented to pid 1 (2 browsers, 14 pids observed; coordinator killed them after confirming puppeteer profiles) | phase-amend | Added P4 S6: Unix killTree freezes the root (SIGSTOP) before terminating, re-reads the tree, TERM then KILL children, KILL root; real-process test reproduces the relaunch. Real stopped-render confirmation in P5 after update (C11). P6 documents the fix | applied |
 | L12 | 2026-11-15 | P4 | P6 | Slow mode set nice 19 / pri 4 on the render tree except two Chrome 'Aperitif Renderer' helpers (stayed nice 10); after normal, pri returned but nice stayed 19 (unprivileged niceness cannot be lowered, as documented best effort) | note | P6 mentions that some Chrome helper processes may keep normal priority in slow mode | open |
+| L13 | 2026-11-15 | P4 | P4,P5 | D4 bundled a real-render Stop check that P4 could only prove with a real-process test after fixing killTree; the real stopped render needs the scratch install updated first (P5) | master-amend | Split D4: D4 keeps render/encoder/QoS/RAM/CPU controls and the proven Stop fix; new D9 (P5) = a stopped real render after update leaves no orphans | applied |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
@@ -177,6 +179,7 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 | P7 | 2026-11-14 | addressed | A1, A2, A3, A4, A5, A6 | 94b012e | [report](phases/07-pnpm-migration/plan.md) |
 | P2 | 2026-11-15 | addressed | A1, A2, A3, A4, A5 | 020e394 | [report](phases/02-macos-platform-fixes/plan.md) |
 | P3 | 2026-11-15 | addressed | A1, A2, A3, A4, A5, A6 | 6abc3fb | [report](phases/03-scratch-install-and-review/plan.md) |
+| P4 | 2026-11-15 | addressed | A1, A2, A3, A4, A5, A6 | a37040d | [report](phases/04-render-and-protection/plan.md) |
 
 ## 12. Resume brief
 
