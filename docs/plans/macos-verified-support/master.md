@@ -1,7 +1,7 @@
 # Master Plan — macOS verified support
 
 - Plan ID: `macos-verified-support`
-- Master version: 17
+- Master version: 18
 - Status: active
 - Created: 2026-11-14
 - Source: user request (2026-11-14): "I need to create a macOS compatible version of this project. create a plan to achieve this"
@@ -102,7 +102,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | P1 | Green baseline | pnpm test passes with zero failures on this Mac | none | done | [plan](phases/01-green-baseline/plan.md) |
 | P7 | pnpm migration | Installer, update, lockfile, docs and film templates use pnpm on every OS; npm-era installs migrate on update | P1 | done | [plan](phases/07-pnpm-migration/plan.md) |
-| P2 | macOS platform fixes | GPU name and stable launcher Node path are correct on real macOS, with darwin tests | P7 | in_progress | [plan](phases/02-macos-platform-fixes/plan.md) |
+| P2 | macOS platform fixes | GPU name and stable launcher Node path are correct on real macOS, with darwin tests | P7 | done | [plan](phases/02-macos-platform-fixes/plan.md) |
 | P3 | Scratch install and review | Scratch setup.sh install opens from VideoHub.command; live preview, notes, folder picker and Finder reveal work | P2 | planned | pending |
 | P4 | Render and protection | One reviewed VideoToolbox render with sound; Stop, QoS/niceness, RAM protection and hidden CPU sliders verified | P3 | planned | pending |
 | P5 | Lifecycle and agents | Finder Trash restore, LaunchAgent login start, data-preserving update, clean uninstall, Claude Code hub_* tools | P4 | planned | pending |
@@ -128,6 +128,7 @@ Append-only. Supersede a decision with a new row; never delete history.
 | C5 | 2026-11-14 | Setup and update check for pnpm and print OS install hints when missing (brew install pnpm / winget install -e --id pnpm.pnpm / npm install -g pnpm); they never install it; package.json pins the version with packageManager | CLAUDE.md: setup only prints instructions for system tools; a pinned version keeps the lockfile format stable | P7,P3,P5,P6 |
 | C6 | 2026-11-14 | Standing review instruction: the user approved P1 and asked to continue until the entire plan is complete without per-phase review stops; each later phase plan is still written just in time, checked, committed, and approved under this recorded instruction. Stops remain where CLAUDE.md or C2 require the user: live-preview review before any render, OS permission prompts, and registration on the real agent profile | User instruction 2026-11-14: 'approve P1 and continue until the entire plan has been completed' | all |
 | C7 | 2026-11-14 | Implementation subagents run on the Sonnet 5.5 model (Agent tool model: sonnet) | User instruction 2026-11-14 | all |
+| C8 | 2026-11-15 | Scratch install on the real account (answered 2026-11-15): setup registers Claude Code only (MCP + skill), no global rule block in ~/.claude/CLAUDE.md, no OpenCode; it creates the Desktop VideoHub.command and P5 enables the login LaunchAgent; P5 uninstall removes all of them. The scratch install's own data/config.json pins port 7799. No other VideoHub install exists on the account (checked: no ~/Documents/VideoHub, Desktop command, LaunchAgent, or listener on 7788/7799) | User answers to the R3/launcher questions; CLAUDE.md requires asking before touching the real agent profile | P3,P4,P5,P6 |
 
 ## 9. Discovery ledger
 
@@ -164,6 +165,7 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 |---|---|---|---|---|---|
 | P1 | 2026-11-14 | addressed | A1, A2, A3, A4 | 23de366 | [report](phases/01-green-baseline/plan.md) |
 | P7 | 2026-11-14 | addressed | A1, A2, A3, A4, A5, A6 | 94b012e | [report](phases/07-pnpm-migration/plan.md) |
+| P2 | 2026-11-15 | addressed | A1, A2, A3, A4, A5 | 020e394 | [report](phases/02-macos-platform-fixes/plan.md) |
 
 ## 12. Resume brief
 
