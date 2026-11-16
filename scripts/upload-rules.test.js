@@ -23,6 +23,7 @@ test('no file VideoHub needs starts with a dot (GitHub\'s browser upload would d
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
       const r = rel ? rel + '/' + e.name : e.name;
       if (!rel && (LOCAL.has(e.name) || ALLOWED_DOT_FILES.has(e.name))) continue;
+      if (e.name === '.DS_Store') continue;   // Finder creates these; untracked, and make-upload ships tracked files only.
       if (e.isDirectory() && (e.name === 'node_modules' || e.name === 'render')) continue;
       if (droppedByBrowser(r)) { bad.push(r); continue; }
       if (e.isDirectory()) walk(path.join(d, e.name), r);

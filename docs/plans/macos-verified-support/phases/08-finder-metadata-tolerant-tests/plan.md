@@ -9,8 +9,8 @@
 - Approved at: 2026-11-15
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: sonnet-worker-p8
+- Implemented at: 2026-11-15
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -47,9 +47,9 @@ Out of scope:
 
 ## 4. Entry conditions
 
-- [ ] P6 done; suite green without `.DS_Store` — verify: `pnpm test` → `fail 0`
-- [ ] Phase plan revalidated against current master version
-- [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
+- [x] P6 done; suite green without `.DS_Store` — verify: `pnpm test` → `fail 0` (confirmed before the edit via git status clean of probes; final run fail 0)
+- [x] Phase plan revalidated against current master version (34)
+- [x] User approved this phase plan — `Approved by` set (standing instruction C6); status in_progress
 
 ## 5. Steps
 
@@ -62,22 +62,23 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `scripts/upload-rules.test.js` (modify) — the walk in "no file VideoHub needs starts with a dot"
 - Change: skip entries named `.DS_Store` at any depth, with a short comment that Finder creates them, they are untracked, and `make-upload` ships tracked files only.
 - Acceptance:
-  - [ ] With a `.DS_Store` at the repo root and in `docs/`, the test passes; with `server/.probe`, it still fails; temporary files removed afterwards
+  - [x] With a `.DS_Store` at the repo root and in `docs/`, the test passes; with `server/.probe`, it still fails; temporary files removed afterwards
 - Verification: `node --test scripts/upload-rules.test.js` in each case; `git status --short` clean of probes
+- Evidence: root and `docs/` `.DS_Store` present: `node --test scripts/upload-rules.test.js` pass 3 fail 0. `server/.probe` present: test fails, actual `['server/.probe']`. Change reverted with root and docs `.DS_Store` present: test fails, actual `['.DS_Store','docs/.DS_Store']`. All probes removed; `git status --short` shows only the test file plus pre-existing untracked `.test-tmp/`, `node_modules/`.
 - Rollback: `git checkout HEAD -- scripts/upload-rules.test.js`
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — `.DS_Store` files no longer fail the suite — verify: S1 positive case and `pnpm test` → `fail 0` with a root `.DS_Store` present
-- [ ] A2 — Other dot names still fail the test — verify: S1 negative case
+- [x] A1 — `.DS_Store` files no longer fail the suite — verify: S1 positive case and `pnpm test` → `fail 0` with a root `.DS_Store` present
+- [x] A2 — Other dot names still fail the test — verify: S1 negative case
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
-- [ ] Names and structure state intent; comments explain only non-obvious reasons
-- [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation
-- [ ] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
+- [x] Names and structure state intent; comments explain only non-obvious reasons
+- [x] Every new test fails if the behavior it covers breaks; no test restates the implementation
+- [x] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
 
 ## 8. Risks and unknowns
 
@@ -93,22 +94,24 @@ Append during implementation. One line per deviation: date, step, what changed, 
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
 
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-15
+- Session: sonnet-worker-p8
+- Verdict: done
+- Steps complete: S1
+- Verification run: `node --check scripts/upload-rules.test.js` ok; S1 positive, negative and revert cases as above; `pnpm test` with root and `docs/` `.DS_Store` present: tests 350, pass 348, fail 0, skipped 2
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | met / partial / not met / deferred | `<command>` — <result> |
-| D1 (master) | met / partial / not met / deferred | `<command>` — <result> |
+| A1 | met | `pnpm test` with root and docs `.DS_Store` — fail 0; upload-rules test pass 3 |
+| A2 | met | `server/.probe` present — upload-rules test fails with actual `['server/.probe']`; revert case also fails on `.DS_Store` |
+| D1 (master) | met | `pnpm test` fail 0 with Finder metadata present |
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| none | Five-question sweep (new work, changed assumptions, contradicted ledger rows, missing prerequisites, out-of-scope findings) found nothing new; no `._*` AppleDouble files seen | none | none | none |
 
-**Master updates written:** <version bump, ledger rows, phase map changes, or none>
-**Next-phase updates written:** <phase ID, plan version, sections changed, or none>
-**Remaining work and handoff:** <what the next session must do first>
+**Master updates written:** none (L17 left for the record step)
+**Next-phase updates written:** none
+**Remaining work and handoff:** none for P8; run record-commit and close, and mark ledger L17 resolved.
