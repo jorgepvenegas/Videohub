@@ -32,7 +32,7 @@ function load(name, near) {
 }
 function loadPuppeteer() {
   const p = load('puppeteer-core'); if (p) return p;
-  console.error('puppeteer-core not found: run "npm install" in this folder (or render through VideoHub, which ships it).');
+  console.error('puppeteer-core not found: run "pnpm install" in this folder (or render through VideoHub, which ships it).');
   process.exit(2);
 }
 // the browser: CHROME env (the film's own choice), else the hub's browser (VIDEOHUB_BROWSER), else Edge/Chrome/Chromium

@@ -18,7 +18,7 @@ function fixture(os = 'linux', installName = 'install') {
   write(path.join(hub, 'examples', 'hello-film', 'index.html'), '<canvas></canvas>'); write(path.join(hub, 'examples', 'hello-film', 'videohub-project.json'), '{"title":"Example"}');
   const env = { PATH: '', XDG_CONFIG_HOME: path.join(home, '.config'), XDG_DATA_HOME: path.join(home, '.local', 'share'), VIDEOHUB_DATA_DIR: path.join(hub, 'data'), VIDEOHUB_PORT: '7799', VIDEOHUB_NO_WINDOW: '1' };
   const calls = [], platform = { OS: 'linux', IS_WIN: false, IS_MAC: false, IS_LINUX: true, dirs: { home, config: path.join(home, '.config', 'videohub'), desktop: path.join(home, 'Desktop') }, findTool: () => null, findBrowser: () => ({ path: null }), desktopEntry: () => '[Desktop Entry]\nName=VideoHub\nExec="/home/me/VideoHub/open.sh"\n', pathKey: p => path.resolve(p), processList: async () => [], getAutostart: async () => false, setAutostart: async on => { calls.push(['startup', on]); return { code: 0 }; }, trash: async a => { calls.push(['trash', a]); return a.map(p => ({ path: p, ok: true })); }, openUrlWindow: u => calls.push(['open', u]) };
-  if (os === 'darwin') { platform.OS = 'darwin'; platform.IS_MAC = true; platform.IS_LINUX = false; platform.dirs.config = path.join(home, 'Library', 'Application Support', 'VideoHub'); platform.desktopEntry = () => { throw new Error('macOS must not create a desktop entry'); }; }
+  if (os === 'darwin') { platform.OS = 'darwin'; platform.IS_MAC = true; platform.TOOLS = { node: '/opt/homebrew/bin/node' }; platform.IS_LINUX = false; platform.dirs.config = path.join(home, 'Library', 'Application Support', 'VideoHub'); platform.desktopEntry = () => { throw new Error('macOS must not create a desktop entry'); }; }
   return { hub, home, workspace, env, platform, calls, log: () => {}, launch: false, discover: () => [], run: () => { throw new Error('No package or external command may run in this test'); } };
 }
 test('shell options accept every guided answer and reject typos before changes', () => {
@@ -41,6 +41,26 @@ test('updater preserves data and backs up code without removing old files', asyn
   await runInstaller({ action: 'update', target }, { ...o, env: { ...o.env, VIDEOHUB_DATA_DIR: '' }, request: async () => null });
   assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.js'), 'utf8'), '// fixture hub'); assert.equal(fs.readFileSync(path.join(target, 'server', 'old.js'), 'utf8'), '// old extra'); assert.equal(fs.readFileSync(path.join(target, 'data', 'config.json'), 'utf8'), '{"mine":true}');
   const backups = fs.readdirSync(path.join(target, 'data', 'update-backup')); assert.equal(backups.length, 1); assert.equal(fs.readFileSync(path.join(target, 'data', 'update-backup', backups[0], 'server', 'hub.js'), 'utf8'), '// old hub');
+});
+test('macOS and Linux setup runs pnpm install --frozen-lockfile in the hub folder', async () => {
+  for (const os of ['linux', 'darwin']) {
+    const o = fixture(os), commands = []; fs.rmSync(path.join(o.hub, 'node_modules'), { recursive: true });
+    await runInstaller({ action: 'setup', yes: true, workspace: o.workspace, agents: 'opencode', example: 'no' }, { ...o, platform: { ...o.platform, findTool: n => n === 'pnpm' ? '/usr/bin/pnpm' : null }, run: (file, args, opts) => { commands.push({ file, args, cwd: opts.cwd }); return { status: 0 }; } });
+    assert.deepEqual(commands, [{ file: 'pnpm', args: ['install', '--frozen-lockfile'], cwd: o.hub }]);
+  }
+});
+test('missing pnpm stops setup with the OS hint before any change; dry-run only warns', async () => {
+  for (const [os, hint] of [['darwin', /brew install pnpm/], ['linux', /npm install -g pnpm/]]) {
+    const o = fixture(os); fs.rmSync(path.join(o.hub, 'node_modules'), { recursive: true });
+    await assert.rejects(runInstaller({ action: 'setup', yes: true, workspace: o.workspace, agents: 'opencode' }, o), hint); assert.equal(fs.existsSync(o.workspace), false); assert.equal(fs.existsSync(path.join(o.hub, 'data')), false);
+    const r = await runInstaller({ action: 'setup', yes: true, 'dry-run': true, workspace: o.workspace, agents: 'opencode' }, o); assert.ok(r.warnings.some(s => hint.test(s))); assert.equal(fs.existsSync(o.workspace), false); assert.equal(fs.existsSync(path.join(o.hub, 'data')), false);
+  }
+});
+test('updating an npm-era install installs with pnpm and keeps data', async () => {
+  const o = fixture(), target = path.join(path.dirname(o.hub), 'target'), commands = []; write(path.join(target, 'server', 'hub.js'), '// old hub'); write(path.join(target, 'package-lock.json')); write(path.join(target, 'data', 'config.json'), '{"mine":true}'); write(path.join(o.hub, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n');
+  for (const m of ['@modelcontextprotocol/sdk', 'puppeteer-core']) write(path.join(target, 'node_modules', m, 'package.json'));
+  await runInstaller({ action: 'update', target }, { ...o, platform: { ...o.platform, findTool: n => n === 'pnpm' ? '/usr/bin/pnpm' : null }, env: { ...o.env, VIDEOHUB_DATA_DIR: '' }, request: async () => null, run: (file, args, opts) => { commands.push({ file, args, cwd: opts.cwd }); return { status: 0 }; } });
+  assert.deepEqual(commands, [{ file: 'pnpm', args: ['install', '--frozen-lockfile'], cwd: target }]); assert.equal(fs.readFileSync(path.join(target, 'data', 'config.json'), 'utf8'), '{"mine":true}'); assert.ok(fs.existsSync(path.join(target, 'pnpm-lock.yaml')));
 });
 test('updater refuses active queues and unrelated processes; dry-run does not contact a server', async () => {
   const o = fixture(), target = path.join(path.dirname(o.hub), 'target'); write(path.join(target, 'server', 'hub.js'), '// old');
@@ -68,7 +88,7 @@ test('macOS dry-run gives Homebrew hints and writes no Desktop command or Librar
 });
 test('macOS setup creates a quoted executable Desktop command and Library installation record', async () => {
   const o = fixture('darwin', "VideoHub's copy"); await runInstaller({ action: 'setup', yes: true, workspace: o.workspace, agents: 'opencode' }, o);
-  const command = path.join(o.home, 'Desktop', 'VideoHub.command'), text = fs.readFileSync(command, 'utf8'); assert.ok(text.startsWith('#!/bin/bash\n')); assert.ok(text.includes('# VideoHub install: ' + o.hub + '\n')); assert.ok(text.includes('/opt/homebrew/bin:/usr/local/bin:$PATH')); assert.ok(text.includes("exec '" + process.execPath.replaceAll("'", "'\\''") + "' '" + path.join(o.hub, 'scripts', 'install.mjs').replaceAll("'", "'\\''") + "' open \"$@\""));
+  const command = path.join(o.home, 'Desktop', 'VideoHub.command'), text = fs.readFileSync(command, 'utf8'); assert.ok(text.startsWith('#!/bin/bash\n')); assert.ok(text.includes('# VideoHub install: ' + o.hub + '\n')); assert.ok(text.includes('/opt/homebrew/bin:/usr/local/bin:$PATH')); assert.ok(text.includes("exec '/opt/homebrew/bin/node' '" + path.join(o.hub, 'scripts', 'install.mjs').replaceAll("'", "'\\''") + "' open \"$@\""));
   if (!IS_WIN) assert.ok(fs.statSync(command).mode & 0o111);
   assert.ok(fs.existsSync(path.join(o.home, 'Library', 'Application Support', 'VideoHub', 'install.json'))); assert.equal(fs.existsSync(path.join(o.home, '.local', 'share', 'applications')), false);
   o.calls.length = 0; await runInstaller({ action: 'uninstall' }, { ...o, request: async () => null }); assert.ok(o.calls.some(c => c[0] === 'startup' && c[1] === false)); assert.ok(o.calls.some(c => c[0] === 'trash' && c[1].includes(command))); assert.ok(fs.existsSync(path.join(o.workspace, 'films', 'hello-film', 'index.html')));

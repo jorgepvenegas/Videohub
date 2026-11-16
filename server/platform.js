@@ -342,6 +342,8 @@ function createUnixPlatform({ osName: OS, env, home, temp, fs, os, path, spawn, 
       return true;
     } catch { return false; }
   }
+  // A PATH node is used only when it is the running binary, so version-manager shims (different realpath) are never baked into launchers.
+  const stableNode = () => { try { const onPath = findTool('node'); return onPath && fs.realpathSync(onPath) === fs.realpathSync(nodePath) ? onPath : nodePath; } catch { return nodePath; } };
   const nativeBrowser = names => names.map(findTool).find(nativeExecutable) || null;
   function findBrowser() {
     const app = name => ['/Applications', path.join(home, 'Applications')].map(dir => path.join(dir, name + '.app', 'Contents', 'MacOS', name)).find(nativeExecutable) || null;
@@ -350,7 +352,7 @@ function createUnixPlatform({ osName: OS, env, home, temp, fs, os, path, spawn, 
     return { edge, chrome, chromium, path: nativeExecutable(override) ? override : edge || chrome || chromium };
   }
   const browser = findBrowser();
-  const TOOLS = { ffmpeg: findTool('ffmpeg') || 'ffmpeg', ffprobe: findTool('ffprobe') || 'ffprobe', node: nodePath, ...browser };
+  const TOOLS = { ffmpeg: findTool('ffmpeg') || 'ffmpeg', ffprobe: findTool('ffprobe') || 'ffprobe', node: stableNode(), ...browser };
   function launch(file, args) {
     if (env.VIDEOHUB_NO_WINDOW) return Promise.resolve();
     return new Promise((resolve, reject) => { try { const c = spawn(file, args, { detached: true, stdio: 'ignore' }); c.once('error', reject); c.once('spawn', () => { c.unref(); resolve(); }); } catch (e) { reject(e); } });
@@ -395,9 +397,9 @@ function createUnixPlatform({ osName: OS, env, home, temp, fs, os, path, spawn, 
     if (target === path.parse(target).root || target === home) throw new Error('Refusing to trash a filesystem root or home folder.');
     if (IS_MAC) {
       // Passing data as argv avoids AppleScript quoting and command-injection hazards for unusual filenames.
-      const script = 'on run argv\ntell application "Finder" to delete (POSIX file (item 1 of argv))\nend run';
+      const script = 'on run argv\nset f to POSIX file (item 1 of argv) as alias\ntell application "Finder" to delete f\nend run';
       const r = await run('osascript', ['-e', script, '--', target]);
-      if (r.code !== 0) throw new Error('Could not move to Trash. Allow Finder Automation permission and try again. ' + (r.stderr || '').trim().slice(0, 200));
+      if (r.code !== 0) { const msg = (r.stderr || '').trim(); throw new Error(/-1743|not authorized|not allowed/i.test(msg) ? 'Could not move to Trash. Allow Finder Automation permission and try again. ' + msg.slice(0, 200) : 'Could not move to Trash: ' + msg.slice(0, 200)); }
       return;
     }
     for (const [name, args] of [['gio', ['trash', '--', target]], ['trash-put', ['--', target]]]) {
@@ -469,7 +471,9 @@ function createUnixPlatform({ osName: OS, env, home, temp, fs, os, path, spawn, 
   function tree(rows, root) { const ids = new Set([root]); let n; do { n = ids.size; for (const p of rows || []) if (ids.has(p.ppid)) ids.add(p.pid); } while (ids.size > n); return [...ids]; }
   async function killTree(pid) {
     pid = +pid; if (!Number.isSafeInteger(pid) || pid <= 1 || pid === process.pid) return;
-    const before = await processList(), ids = tree(before, pid), starts = new Map((before || []).map(p => [p.pid, p.start]));
+    // Freeze the root first: render.js ignores SIGTERM and relaunches Chrome (own process group) when a child dies.
+    try { kill(pid, 'SIGSTOP'); } catch { }
+    const before = await processList(), ids = tree(before, pid).filter(id => id !== pid), starts = new Map((before || []).map(p => [p.pid, p.start]));
     try { kill(-pid, 'SIGTERM'); } catch { }
     for (const id of ids.reverse()) try { kill(id, 'SIGTERM'); } catch { }
     await delay(3000);
@@ -478,6 +482,7 @@ function createUnixPlatform({ osName: OS, env, home, temp, fs, os, path, spawn, 
     const surviving = ids.filter(same), root = after?.find(p => p.pid === pid);
     if (surviving.length && (!root || same(pid))) try { kill(-pid, 'SIGKILL'); } catch { }
     for (const id of surviving) try { kill(id, 'SIGKILL'); } catch { }
+    if (!after || same(pid)) try { kill(pid, 'SIGKILL'); } catch { }
   }
   const affinity = new Map();
   async function setTreePriority(rootPid, level, cores) {
@@ -531,7 +536,7 @@ function createUnixPlatform({ osName: OS, env, home, temp, fs, os, path, spawn, 
   const cleanupLegacyAutostart = async () => {};
   const shellCommand = cmd => ({ file: '/bin/sh', args: ['-c', cmd], opts: {} });
   const renderSpawnOptions = { detached: true };
-  async function gpuNames() { if (IS_MAC) return []; const tool = findTool('lspci'); if (!tool) return []; const r = await run(tool, []); return r.code === 0 ? r.stdout.split(/\r?\n/).filter(s => /VGA|3D controller|Display controller/i.test(s)) : []; }
+  async function gpuNames() { if (IS_MAC) { const r = await run('system_profiler', ['SPDisplaysDataType', '-json']); if (r.code !== 0) return []; try { return (JSON.parse(r.stdout).SPDisplaysDataType || []).map(g => g._name).filter(Boolean); } catch { return []; } } const tool = findTool('lspci'); if (!tool) return []; const r = await run(tool, []); return r.code === 0 ? r.stdout.split(/\r?\n/).filter(s => /VGA|3D controller|Display controller/i.test(s)) : []; }
   const capabilities = () => ({ platform: OS, cpuAffinity: !IS_MAC && !!findTool('taskset'), cpuLimitReason: IS_MAC ? 'macOS does not provide a CPU-core affinity limit; priority and background QoS protect responsiveness.' : findTool('taskset') ? null : 'CPU limit not available on this system (taskset is missing).', trashLabel: 'Trash', fileManager: IS_MAC ? 'Finder' : 'file manager', browserWarning: IS_MAC ? null : 'Snap and Flatpak browsers are not supported for rendering; install a native Chrome or Chromium package.' });
   const casePath = value => String(value), pathKey = value => path.resolve(value);
   let memoryCache = null;

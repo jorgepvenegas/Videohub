@@ -4,7 +4,7 @@ import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { createPlatform } from './platform.js';
 
-function harness({ files: initial = {}, env = {}, answer, sync, uid = 501, hubDir = '/opt/VideoHub', priorityError = false } = {}) {
+function harness({ files: initial = {}, env = {}, answer, sync, uid = 501, hubDir = '/opt/VideoHub', priorityError = false, nodePath } = {}) {
   const files = new Map(Object.entries(initial)), calls = [], syncCalls = [], spawned = [], priorities = [], signals = [], delays = [];
   let time = 1000, loaded = false;
   for (const name of ['/Users/me', '/Users/me/Films']) files.set(name, { dir: true });
@@ -13,7 +13,7 @@ function harness({ files: initial = {}, env = {}, answer, sync, uid = 501, hubDi
   const fs = { constants: { X_OK: 1 }, existsSync: f => files.has(f), statSync: f => ({ size: meta(f).text?.length || 0, isDirectory: () => !!meta(f).dir, isFile: () => !meta(f).dir }), accessSync: f => { meta(f); }, realpathSync: f => meta(f).link || f,
     readFileSync: f => meta(f).text || '', mkdirSync: f => files.set(f, { dir: true }), writeFileSync: (f, text) => files.set(f, { text }),
     readdirSync: () => { throw new Error('macOS must not scan /proc'); } };
-  const platform = createPlatform({ osName: 'darwin', env: { PATH: '', ...env }, home: '/Users/me', temp: '/tmp', hubDir, path: path.posix, fs, uid: () => uid, now: () => time,
+  const platform = createPlatform({ osName: 'darwin', env: { PATH: '', ...env }, home: '/Users/me', temp: '/tmp', hubDir, nodePath, path: path.posix, fs, uid: () => uid, now: () => time,
     os: { cpus: () => Array(8), freemem: () => 1024, totalmem: () => 16 * 2 ** 30, setPriority: (...args) => { priorities.push(args); if (priorityError) throw new Error('EPERM'); } },
     run: async (file, args, opts) => {
       calls.push({ file, args, opts }); if (answer) return answer(file, args, opts);
@@ -41,6 +41,24 @@ test('macOS folders and browser discovery use system and user Applications indep
   assert.equal(h.findBrowser().chrome, chrome); assert.equal(h.findBrowser().path, edge);
   assert.equal(h.capabilities().cpuAffinity, false); assert.equal(h.capabilities().fileManager, 'Finder'); assert.match(h.capabilities().cpuLimitReason, /macOS.*CPU-core/);
   assert.deepEqual(await h.gpuNames(), []);
+});
+
+test('macOS names GPUs from system_profiler and returns none on failure or bad output', async () => {
+  const json = JSON.stringify({ SPDisplaysDataType: [{ _name: 'Apple M2 Max', sppci_model: 'Apple M2 Max' }] });
+  const h = harness({ answer: () => ({ code: 0, stdout: json, stderr: '' }) });
+  assert.deepEqual(await h.gpuNames(), ['Apple M2 Max']); assert.deepEqual(h.calls[0].args, ['SPDisplaysDataType', '-json']);
+  assert.deepEqual(await harness({ answer: () => ({ code: 1, stdout: json, stderr: '' }) }).gpuNames(), []);
+  assert.deepEqual(await harness({ answer: () => ({ code: 0, stdout: 'not json', stderr: '' }) }).gpuNames(), []);
+});
+
+test('macOS launchers use a PATH node only when it is the running binary, never a version-manager shim', async () => {
+  const real = '/Users/me/.asdf/installs/nodejs/24/bin/node';
+  const same = harness({ nodePath: real, env: { PATH: '/opt/homebrew/bin' }, files: { [real]: 'binary', '/opt/homebrew/bin/node': { text: 'binary', link: real } } });
+  assert.equal(same.TOOLS.node, '/opt/homebrew/bin/node'); await same.setAutostart(true);
+  assert.match(same.files.get('/Users/me/Library/LaunchAgents/com.videohub.hub.plist').text, /<array><string>\/opt\/homebrew\/bin\/node<\/string>/);
+  const shim = harness({ nodePath: real, env: { PATH: '/Users/me/.asdf/shims' }, files: { [real]: 'binary', '/Users/me/.asdf/shims/node': { text: 'shim', link: '/Users/me/.asdf/lib/shim' } } });
+  assert.equal(shim.TOOLS.node, real);
+  assert.equal(harness({ nodePath: real, env: { PATH: '/opt/homebrew/bin' }, files: { '/opt/homebrew/bin/node': 'binary' } }).TOOLS.node, real);
 });
 
 test('macOS login services find Homebrew media tools with a minimal PATH', async () => {
@@ -72,9 +90,11 @@ test('macOS Finder Trash passes unusual filenames as data and refuses failures w
   const target = '/Users/me/Films/a "quote" \\ ü; shell.mp4', h = harness({ files: { [target]: 'film' } });
   assert.equal((await h.trash([target]))[0].ok, true);
   assert.equal(h.calls[0].file, 'osascript'); assert.deepEqual(h.calls[0].args.slice(2), ['--', target]);
-  assert.equal(h.calls[0].args[1].includes(target), false); assert.match(h.calls[0].args[1], /tell application "Finder" to delete/);
+  assert.equal(h.calls[0].args[1].includes(target), false); assert.match(h.calls[0].args[1], /set f to POSIX file \(item 1 of argv\) as alias\ntell application "Finder" to delete f/);
   const failed = harness({ files: { [target]: 'film' }, answer: () => ({ code: 1, stdout: '', stderr: 'Not authorized to send Apple events' }) });
   const [r] = await failed.trash([target]); assert.equal(r.ok, false); assert.match(r.error, /Automation permission/); assert.equal(failed.files.has(target), true);
+  const other = harness({ files: { [target]: 'film' }, answer: () => ({ code: 1, stdout: '', stderr: "Finder got an error: Can't get POSIX file. (-1728)" }) });
+  const [o] = await other.trash([target]); assert.equal(o.ok, false); assert.match(o.error, /^Could not move to Trash: Finder got an error/); assert.doesNotMatch(o.error, /Automation/); assert.equal(other.files.has(target), true);
   assert.equal((await h.trash(['/']))[0].ok, false); assert.equal((await h.trash(['/Users/me']))[0].ok, false);
 });
 
@@ -122,7 +142,7 @@ test('macOS available memory includes inactive and speculative pages and caches 
 test('macOS disk information shares df byte conversion and Stop handles the full process group', async () => {
   const h = harness({ answer: (file, args) => ({ code: 0, stdout: file === 'df' ? 'Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/disk1s1 10000 1000 9000 10% /Volumes/Film disk\n' : args.at(-1).includes('lstart') ? '100 7 2048 Fri Nov 13 10:20:30 2026 node\n101 100 300 Fri Nov 13 10:20:31 2026 ffmpeg\n' : '100 node render.js\n101 ffmpeg\n', stderr: '' }) });
   assert.deepEqual(await h.volumes(), [{ mount: '/Volumes/Film disk', freeBytes: 9000 * 1024, totalBytes: 10000 * 1024 }]);
-  await h.killTree(100); assert.deepEqual(h.delays, [3000]); assert.deepEqual(h.signals, [[-100, 'SIGTERM'], [101, 'SIGTERM'], [100, 'SIGTERM'], [-100, 'SIGKILL'], [101, 'SIGKILL'], [100, 'SIGKILL']]);
+  await h.killTree(100); assert.deepEqual(h.delays, [3000]); assert.deepEqual(h.signals, [[100, 'SIGSTOP'], [-100, 'SIGTERM'], [101, 'SIGTERM'], [-100, 'SIGKILL'], [101, 'SIGKILL'], [100, 'SIGKILL']]);
 });
 
 test('macOS LaunchAgent autostart requires an owned plist and loaded service and disables by bootout plus Trash', async () => {

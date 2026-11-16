@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "skills": {
+    "plan-resume": {
+      "source": "jorgepvenegas/progressive-plan",
+      "sourceType": "github",
+      "skillPath": "skills/plan-resume/SKILL.md",
+      "computedHash": "3de9dce854c057b659ba70ee4199add0bcf67bdfab7380a265cd196808a2c0fb"
+    },
+    "progressive-plan": {
+      "source": "jorgepvenegas/progressive-plan",
+      "sourceType": "github",
+      "skillPath": "skills/progressive-plan/SKILL.md",
+      "computedHash": "02552c15855824e46b11f3291416255d63bb4ddabd285de93be43c98b5fc7fb2"
+    },
+    "refine-phase": {
+      "source": "jorgepvenegas/progressive-plan",
+      "sourceType": "github",
+      "skillPath": "skills/refine-phase/SKILL.md",
+      "computedHash": "3876b7eb9990133f7bcb2bf22171a32c65d834795eb11cc47a9a5139d04672c2"
+    }
+  }
+}

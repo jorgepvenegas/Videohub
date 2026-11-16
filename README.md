@@ -3,7 +3,7 @@
 **A local review studio and render queue for videos that Claude Code or OpenCode writes as code.**
 Ask your agent for a video. It builds a film as a web page that draws every frame in code. VideoHub plays the film straight from its code, so you can watch it, step through frames, draw and leave notes before rendering. Send the notes back to your agent, review the fixes in the reloading preview, then render when you are ready. The queue keeps the computer usable and can re-render only the seconds that changed.
 
-> **Windows 10/11, Linux and macOS; Claude Code or OpenCode. Linux and macOS are new, not yet tested on real machines.** See [platform support](docs/PLATFORMS.md) for feature limits and the remaining hardware checks.
+> **Windows 10/11, Linux and macOS; Claude Code or OpenCode. macOS on Apple Silicon is verified on real hardware; Linux and Intel macOS are new, not yet tested on real machines.** See [platform support](docs/PLATFORMS.md) for feature limits and the remaining hardware checks.
 
 ![Live preview with a note on a frame](docs/screenshots/review-live-preview.png)
 
@@ -40,18 +40,18 @@ Built into the Node server, with no compiled helper:
 - **RAM slow mode** — when available RAM crosses a threshold, the newest render slows down; at critical RAM, every render slows down. Windows/Linux with affinity also reduce the allowed cores. macOS counts free, inactive and speculative memory through `vm_stat`.
 - **Slow down / Normal speed / Stop** per render, or for all renders at once. On Unix, restoring a numerically lower nice value can require privileges, so a slowed render may retain its lower priority until it ends. VideoHub does not request elevated privileges; a new render starts with its configured priority.
 - **One render at a time**, partial re-renders, workers / encoder / fps controls, and a list of other programs holding RAM (VideoHub never closes them).
-- **Hardware encoders** — Windows: NVENC / AMF / QSV; Linux: NVENC / VAAPI / QSV; macOS: VideoToolbox; x264 is the processor fallback. A short encode probe determines what works with the installed ffmpeg. See [render speed](docs/RENDER-SPEED.md) for the existing Windows measurements; Linux and macOS performance is unverified.
+- **Hardware encoders** — Windows: NVENC / AMF / QSV; Linux: NVENC / VAAPI / QSV; macOS: VideoToolbox; x264 is the processor fallback. A short encode probe determines what works with the installed ffmpeg. See [render speed](docs/RENDER-SPEED.md) for the existing Windows measurements; VideoToolbox is measured on Apple Silicon (M2 Max); Linux and other macOS hardware are unmeasured.
 
 ![Renders](docs/screenshots/renders.png)
 
 ## Requirements
-All platforms need Node.js 22+, ffmpeg on PATH, a native Chrome/Chromium/Edge browser for headless rendering, and Claude Code or OpenCode for making and fixing films. No native modules or compiled render-protection helper are required.
+All platforms need Node.js 22+, ffmpeg on PATH, a native Chrome/Chromium/Edge browser for headless rendering, pnpm (setup installs dependencies with `pnpm install --frozen-lockfile` and only prints these hints when it is missing), and Claude Code or OpenCode for making and fixing films. No native modules or compiled render-protection helper are required.
 
 | Platform | Install missing tools | Notes |
 |---|---|---|
-| Windows 10/11 | `winget install -e --id OpenJS.NodeJS.LTS`; `winget install -e --id Gyan.FFmpeg` | Edge or Chrome; setup retains the existing Windows paths |
-| Linux desktop | Your distribution's Node 22+ package; `sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, or `sudo pacman -S ffmpeg` | Install a native browser; Snap/Flatpak browser wrappers are unsupported. Optional `taskset`, `zenity`/`kdialog`, `notify-send` |
-| macOS | With Homebrew: `brew install node ffmpeg`; `brew install --cask google-chrome`, or Chrome from its download page | Chrome / Edge / Chromium in `/Applications` or `~/Applications`; Apple Silicon and Intel code paths need hardware verification |
+| Windows 10/11 | `winget install -e --id OpenJS.NodeJS.LTS`; `winget install -e --id Gyan.FFmpeg`; `winget install -e --id pnpm.pnpm` | Edge or Chrome; setup retains the existing Windows paths |
+| Linux desktop | Your distribution's Node 22+ package; `sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, or `sudo pacman -S ffmpeg`; `npm install -g pnpm` or your distribution's pnpm package | Install a native browser; Snap/Flatpak browser wrappers are unsupported. Optional `taskset`, `zenity`/`kdialog`, `notify-send` |
+| macOS | With Homebrew: `brew install node ffmpeg pnpm`; `brew install --cask google-chrome`, or Chrome from its download page | Chrome / Edge / Chromium in `/Applications` or `~/Applications`; Verified on Apple Silicon (macOS 26.6); Intel unverified |
 
 A graphical desktop session is needed for windows, folder dialogs, desktop notifications and file-manager actions. A compatible graphics encoder is optional.
 
@@ -70,7 +70,7 @@ Run `chmod +x setup.sh update.sh uninstall.sh open.sh`, then `./setup.sh`. Previ
 
 Flags: `--yes`, `--workspace PATH`, `--agents claude,opencode`, and `--watch-found`, `--gpu-encoder`, `--global-rule`, `--shortcut`, `--startup`, `--example` with `yes` or `no`. Launch with `./open.sh`. Linux also installs an application desktop entry and can add a Desktop copy.
 
-On macOS the optional Desktop launcher is **VideoHub.command**, which briefly opens Terminal. There is no unsigned `.app` bundle. If macOS blocks the downloaded launcher, attempt to open it, then go to **System Settings → Privacy & Security → Open Anyway**, confirm, and open it again. You can also launch with `./open.sh` from the installed folder.
+On macOS the optional Desktop launcher is **VideoHub.command**, which briefly opens Terminal. There is no unsigned `.app` bundle. The launcher is created locally by setup and normally opens without a prompt. Only if macOS blocks it, attempt to open it, then go to **System Settings → Privacy & Security → Open Anyway**, confirm, and open it again. You can also launch with `./open.sh` from the installed folder.
 
 ### Claude Code and OpenCode
 Setup detects the installed agents. Select one or both with `--agents claude,opencode` on every platform; legacy Windows `-Agents` spelling remains accepted. Each receives its own local MCP registration, the shared skill and the optional marked review rule. Restart the selected agent after setup.
@@ -138,9 +138,10 @@ Windows: from the installed folder run `node scripts/install.mjs uninstall --dry
 Only integrations owned by this install are removed: MCP entry, skill, managed rule block, shortcut and login startup. Reversible removals use Trash / Recycle Bin. Films, notes, outputs, settings and the program folder remain.
 
 ## Troubleshooting
-- **macOS Trash permission** — Finder may ask for Automation permission the first time VideoHub moves a file to Trash. Allow it in System Settings → Privacy & Security → Automation for the requesting terminal/process. If denied, VideoHub refuses the operation and keeps the source; it never falls back to permanent deletion.
-- **macOS launcher blocked** — use Privacy & Security → Open Anyway after the first blocked launch of `VideoHub.command`, or run `./open.sh`. No `.app` bundle is shipped.
-- **macOS Render power is missing** — macOS has no supported CPU-core limit. Low priority, background QoS and RAM protection remain available; the Renders page explains the limitation.
+- **macOS Trash permission** — Finder may ask for Automation permission the first time VideoHub moves a file to Trash. If macOS reports missing permission, allow it in System Settings → Privacy & Security → Automation for the requesting terminal/process; other Finder errors are shown as Finder returned them. If refused, VideoHub refuses the operation and keeps the source; it never falls back to permanent deletion.
+- **macOS launcher blocked** — normally not needed. If macOS does block `VideoHub.command`, use Privacy & Security → Open Anyway, or run `./open.sh`. No `.app` bundle is shipped.
+- **macOS hub not running after an update** — with login startup, an update stops the hub without restarting it. Open VideoHub or log in again.
+- **macOS Render power is missing** — macOS has no supported CPU-core limit. Low priority, background QoS and RAM protection remain available; the Renders page explains the limitation. In slow mode a couple of Chrome helper processes may keep normal priority.
 - **Linux folder picker is unavailable** — install `zenity`/`kdialog`, or enter the path in the text field.
 - **Linux CPU limit unavailable** — install `taskset` (util-linux). Low priority and RAM watching still work. Raising Unix priority after slowing down may require privileges; a fresh render starts with its configured priority.
 - **Linux browser not found** — use a native browser package. Snap/Flatpak browser wrappers cannot reliably be driven by Puppeteer; `VIDEOHUB_BROWSER` can select a native executable.
@@ -155,13 +156,13 @@ Only integrations owned by this install are removed: MCP entry, skill, managed r
 - **Partial renders refused** — the render script is not chunked (family A) or the film length is unknown:
   `hub_project({set:{render:{env:{DUR:"…"}}}})`.
 - **Renders fail at once** — ffmpeg or a native Chrome/Chromium/Edge browser missing (Settings → Tools), or `puppeteer-core` missing for a
-  film's render script (VideoHub ships one; run `npm install` in VideoHub's folder).
+  film's render script (VideoHub ships one; run `pnpm install --frozen-lockfile` in VideoHub's folder).
 - **Port 7788 is taken** — set `"port"` in `data\config.json`.
 - **A warning names `RenderGuard.exe` / `VideoHubAgent.exe`** — these names belonged to the retired compiled render-protection helper. Current source neither builds nor ships it. Update retires a recognized helper belonging to the target install without launching that executable. Classify the exact warning using the distinctions above; its filename alone does not establish a false positive.
 - **Coming from an older (Turkish) build** — see [docs/MIGRATING.md](docs/MIGRATING.md).
 
 ## Development
-`npm test` runs the suites; see [CLAUDE.md](CLAUDE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+`pnpm test` runs the suites; see [CLAUDE.md](CLAUDE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## License
 [MIT](LICENSE) © 2026 VideoHub contributors.
