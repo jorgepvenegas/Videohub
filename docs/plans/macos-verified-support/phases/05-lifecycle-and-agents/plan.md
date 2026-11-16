@@ -131,8 +131,12 @@ If a step reveals work outside this phase, report it and continue the approved s
   - none in the repository
 - Change: from the install run `bash uninstall.sh --dry-run`, then `bash uninstall.sh`. Verify removed: Desktop `VideoHub.command`, LaunchAgent plist and launchd job, `claude mcp list` `videohub`, `~/.claude/skills/videohub`; verify kept: install program files, data, workspace films/outputs/notes. Verify the hub on 7799 is stopped. Then move `/Users/jorge/VideoHubScratch` to the Finder Trash (osascript Finder delete, never `rm`) per C2, and confirm `claude mcp list` and `~/.config/opencode` match the pre-P3 state.
 - Acceptance:
-  - [ ] Owned integrations gone; kept items present before the Trash move; nothing listens on 7799; real profile back to the pre-P3 state
+  - [x] Owned integrations gone; kept items present before the Trash move; nothing listens on 7799; real profile back to the pre-P3 state
 - Verification: uninstall output and before/after listings recorded
+- Evidence (2026-11-15): before: `claude mcp list` had `videohub` (node .../VideoHubScratch/install/server/mcp.js), skills improve/rex/synced/videohub, Desktop `VideoHub.command` and LaunchAgent plist present, `launchctl print` exit 0, hub pid 68548 on 7799 (7788 free), no render (no ffmpeg), `~/.claude/CLAUDE.md` absent, `~/.config/opencode` listed (cli.json, service.json, tui.json, plugins, .gitignore).
+  - `bash uninstall.sh --dry-run` exit 0 (would stop server, remove MCP, Trash skill, disable autostart, Trash launcher, Trash install record); `bash uninstall.sh` exit 0 (stopped hub pid 68548, removed MCP `videohub`, skill folder to Trash, autostart disabled, launcher to Trash, record to Trash; "Your films, notes, outputs, settings and the program folder remain").
+  - After: `videohub` gone from `claude mcp list`; skills improve/rex/synced; no Desktop command; no plist; `launchctl print` exit 113; nothing listening on 7788/7799; `~/.claude/CLAUDE.md` absent; `~/.config/opencode` listing identical (dates and files unchanged). Kept: install program files, `install/data` (config.json, setup-answers.json, jobs, index), workspace outputs (3 mp4), `films/trash-test/hello-film_v2.mp4`. `films/hello-film` (and its notes.json) was not present: the janitor log shows it was recycled to the Finder Trash (ok:true) at 2026-11-16T01:13Z during the S7 UI test, before uninstall, so it is not an uninstall defect.
+  - Finder `delete` of `/Users/jorge/VideoHubScratch` returned exit 0 ("folder VideoHubScratch of item .Trash"); original path no longer exists. Final state matches the pre-P3 baseline: MCP list (Claude Docs, context7, DaVinci Resolve), skills (improve, rex, synced), no Desktop command, no LaunchAgent plist, no ~/.claude/CLAUDE.md, nothing on 7788/7799; opencode dir unchanged.
 - Rollback: re-run setup from the Trash-restored folder (not expected)
 
 ### S6 — Fix macOS Finder Trash (phase-amend L14)
@@ -212,6 +216,7 @@ Append during implementation. One line per deviation: date, step, what changed, 
 - 2026-11-15 S1 note: update from a git checkout leaves `.agents/`, `.claude/` and `docs/plans` in the install (they were already there from setup). Type: note.
 - 2026-11-15 S2 note: my capture script lost the pre-Stop pid list (heredoc expanded `$(treepids)`); orphan search by pattern at +5 s and +15 s is clean and per-pid `ps -p` run later is clean. Type: note.
 - 2026-11-15 S7 note: after `update.sh` stopped the hub, the LaunchAgent did not bring it back (`state = not running`); a manual `launchctl kickstart -k` was needed. Type: note.
+- 2026-11-15 S5 note: `films/hello-film` had been recycled during the S7 UI test, so notes.json for it could not be checked as kept after uninstall; its Finder Trash copy was not inspected (~/.Trash is not readable from the shell). Type: note.
 
 ## 10. Closeout
 
