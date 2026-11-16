@@ -107,7 +107,7 @@ flowchart LR
 | P3 | Scratch install and review | Scratch setup.sh install opens from VideoHub.command; live preview, notes, folder picker and Finder reveal work | P2 | done | [plan](phases/03-scratch-install-and-review/plan.md) |
 | P4 | Render and protection | One reviewed VideoToolbox render with sound; Stop, QoS/niceness, RAM protection and hidden CPU sliders verified | P3 | done | [plan](phases/04-render-and-protection/plan.md) |
 | P5 | Lifecycle and agents | Data-preserving update, real stopped render without orphans, LaunchAgent, Finder Trash restore, Claude Code hub_* tools, clean uninstall | P4 | done | [plan](phases/05-lifecycle-and-agents/plan.md) |
-| P6 | Docs verified status | PLATFORMS/README/CLAUDE docs mark macOS Apple Silicon verified and record new limits | P5 | planned | pending |
+| P6 | Docs verified status | PLATFORMS/README/CLAUDE docs mark macOS Apple Silicon verified and record new limits | P5 | planned | [plan](phases/06-docs-verified-status/plan.md) |
 
 Exit criteria per phase: P1 → D1; P7 → D8 and D1 still green; P2 → D2 and D1 still green; P3 → D3; P4 → D4; P5 → D5, D6, D9; P6 → D7 and a final `pnpm test`. Each of P3–P5 fixes the macOS defects it finds inside its own scope; a defect that needs more than a targeted fix becomes a new phase.
 
