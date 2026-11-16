@@ -3,11 +3,11 @@
 - Plan ID: `macos-verified-support`
 - Phase: P6
 - Plan version: 1
-- Validated against master version: 32
-- Status: in_progress
+- Validated against master version: 34
+- Status: done
 - Approved by: Jorge Venegas (standing instruction C6)
 - Approved at: 2026-11-15
-- Commit: pending
+- Commit: 9282c6b
 - Implementation mode: subagent
 - Implemented by: sonnet-worker-p6
 - Implemented at: 2026-11-15
@@ -35,6 +35,7 @@ Make the documentation tell the truth established by P1–P5 (D7): macOS on Appl
 
 | Ledger | Discovery | Effect on this phase |
 |---|---|---|
+| L17 | Finder `.DS_Store` fails the upload-rules test | Not applicable to P6 docs; new phase P8 |
 | L1 | pnpm for development and product | Requirement rows already say pnpm (P7); A3 re-checks |
 | L5 | Windows pnpm install covered only by injected tests | PLATFORMS states Windows pnpm install is test-verified, real Windows check pending |
 | L7 | Setup ignores `--workspace` with a pre-existing config; writes port 7788 | Not applicable to docs beyond the existing README "Port 7788 is taken → set port in config" line, which already matches; no change |
@@ -166,8 +167,8 @@ Fill at the end of every implementation session. Do not mark the phase done unti
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
-| L16 | Finder creates an ignored `.DS_Store` in the repo root; `upload-rules.test.js` walks the root and fails on it, so `pnpm test` is red on a Mac after browsing the folder | note | later sessions on macOS | Moved the file out of the repo to get green; test left unchanged (out of scope) |
+| W1 (= master L17) | Finder creates an ignored `.DS_Store` in the repo root; `upload-rules.test.js` walks the root and fails on it, so `pnpm test` is red on a Mac after browsing the folder | note | later sessions on macOS | Moved the file out of the repo to get green; test left unchanged (out of scope) |
 
-**Master updates written:** none (coordinator to add L16 and record the commit)
+**Master updates written:** coordinator added L17 and P8; commit 9282c6b recorded
 **Next-phase updates written:** none
 **Remaining work and handoff:** Coordinator records the commit and closes P6. Linux, Intel macOS, other macOS versions, a real OpenCode session and real Windows pnpm install remain unverified and are stated as such in the docs.

@@ -1,7 +1,7 @@
 # Master Plan — macOS verified support
 
 - Plan ID: `macos-verified-support`
-- Master version: 32
+- Master version: 34
 - Status: active
 - Created: 2026-11-14
 - Source: user request (2026-11-14): "I need to create a macOS compatible version of this project. create a plan to achieve this"
@@ -107,7 +107,8 @@ flowchart LR
 | P3 | Scratch install and review | Scratch setup.sh install opens from VideoHub.command; live preview, notes, folder picker and Finder reveal work | P2 | done | [plan](phases/03-scratch-install-and-review/plan.md) |
 | P4 | Render and protection | One reviewed VideoToolbox render with sound; Stop, QoS/niceness, RAM protection and hidden CPU sliders verified | P3 | done | [plan](phases/04-render-and-protection/plan.md) |
 | P5 | Lifecycle and agents | Data-preserving update, real stopped render without orphans, LaunchAgent, Finder Trash restore, Claude Code hub_* tools, clean uninstall | P4 | done | [plan](phases/05-lifecycle-and-agents/plan.md) |
-| P6 | Docs verified status | PLATFORMS/README/CLAUDE docs mark macOS Apple Silicon verified and record new limits | P5 | in_progress | [plan](phases/06-docs-verified-status/plan.md) |
+| P6 | Docs verified status | PLATFORMS/README/CLAUDE docs mark macOS Apple Silicon verified and record new limits | P5 | done | [plan](phases/06-docs-verified-status/plan.md) |
+| P8 | Finder metadata tolerant tests | Finder .DS_Store files in the repo no longer fail the distribution tests on macOS | P6 | planned | pending |
 
 Exit criteria per phase: P1 → D1; P7 → D8 and D1 still green; P2 → D2 and D1 still green; P3 → D3; P4 → D4; P5 → D5, D6, D9; P6 → D7 and a final `pnpm test`. Each of P3–P5 fixes the macOS defects it finds inside its own scope; a defect that needs more than a targeted fix becomes a new phase.
 
@@ -156,6 +157,7 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L14 | 2026-11-15 | P5 | P5,P6 | macOS Trash always fails: trashOne's AppleScript evaluates POSIX file inside tell application Finder, which Finder cannot resolve (error -1728 'Can't get POSIX file'); the user's UI delete of trash-test was refused and the source kept. Reproduced on a scratchpad folder; coercing 'POSIX file (item 1 of argv) as alias' before the tell block works (exit 0, item in Trash). The error message wrongly blames Automation permission | phase-amend | Added P5 S6 (fix + test) and S7 (re-update scratch install, user retries delete and Put Back); P6 documents the fix | applied |
 | L15 | 2026-11-15 | P5 | P6 | With login startup enabled, update.sh stops the hub but the LaunchAgent does not restart it (RunAtLoad, no KeepAlive); the hub stays down until the user opens VideoHub or logs in again (worker used launchctl kickstart) | note | P6 docs: after updating on macOS, open VideoHub (or log in again) to restart the hub | open |
 | L16 | 2026-11-15 | P5 | P5 | hello-film was moved to the Trash during the S7 retry by a separate UI delete 42 s before trash-test (janitor log read via Finder from the trashed scratch folder); the user says they may have clicked the hello-film card. The confirm dialog names the project and its full path (ui/app.js:289-290). Not a defect | note | Recorded; no change. Scratch data only, already in the Trash with the scratch folder or removed by the user | applied |
+| L17 | 2026-11-15 | P6 | P8 | Finder creates .DS_Store in the repo root when the folder is browsed; scripts/upload-rules.test.js then fails (dot file), so D1 breaks on any Mac where the repo is opened in Finder. The worker moved the file to the scratchpad; no repo change | new-phase | Added P8 to make the distribution tests ignore Finder metadata (.DS_Store) without weakening other dot-file checks | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
@@ -184,6 +186,7 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 | P3 | 2026-11-15 | addressed | A1, A2, A3, A4, A5, A6 | 6abc3fb | [report](phases/03-scratch-install-and-review/plan.md) |
 | P4 | 2026-11-15 | addressed | A1, A2, A3, A4, A5, A6 | a37040d | [report](phases/04-render-and-protection/plan.md) |
 | P5 | 2026-11-15 | addressed | A1, A2, A3, A4, A5, A6, A7 | 9af1c0e | [report](phases/05-lifecycle-and-agents/plan.md) |
+| P6 | 2026-11-15 | addressed | A1, A2, A3, A4, A5 | 9282c6b | [report](phases/06-docs-verified-status/plan.md) |
 
 ## 12. Resume brief
 
