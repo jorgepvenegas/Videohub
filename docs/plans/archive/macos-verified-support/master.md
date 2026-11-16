@@ -7,7 +7,7 @@
 - Source: user request (2026-11-14): "I need to create a macOS compatible version of this project. create a plan to achieve this"
 - Size: large
 - Owner: coordinator agent (Claude Code); approvals by Jorge Venegas
-- Plan directory: `docs/plans/macos-verified-support`
+- Plan directory: `docs/plans/archive/macos-verified-support`
 - Branch: `plan/macos-verified-support`
 
 `Status` is one of `draft`, `active`, `complete`, or `blocked`. `approve` sets `active`; `close` sets `complete` when every phase is done.
