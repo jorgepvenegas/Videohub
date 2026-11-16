@@ -2,7 +2,7 @@
 
 - Plan ID: `macos-verified-support`
 - Master version: 34
-- Status: active
+- Status: complete
 - Created: 2026-11-14
 - Source: user request (2026-11-14): "I need to create a macOS compatible version of this project. create a plan to achieve this"
 - Size: large
@@ -47,15 +47,15 @@ flowchart LR
 
 ## 3. Definition of done
 
-- [ ] D1 — The full test suite passes on this Mac with zero failures — verify: `pnpm test` → `fail 0`
-- [ ] D2 — Platform calls return Mac-correct data on real hardware: the GPU is named in the encoder result, and the Desktop launcher and LaunchAgent use a stable Node path that survives a Homebrew Node upgrade (version-manager installs keep the versioned path; re-running setup refreshes it) — verify: darwin unit tests in `server/platform.darwin.test.js` plus a read-only probe script run on this Mac
-- [ ] D3 — A scratch install made with `bash setup.sh` on the real account opens the hub from `VideoHub.command` (Gatekeeper first-launch documented), shows the example film in live preview, saves a note, and the folder picker and Finder reveal work — verify: user observation recorded in P3 closeout + `node server/cli.js hub_workspace` on the scratch port
-- [ ] D4 — One reviewed render of a scratch example completes through the queue with sound and VideoToolbox, background QoS/niceness and RAM protection apply, CPU sliders are hidden with the explanation, and Stop's whole-tree termination (including Chrome relaunched during Stop) is fixed and proven with real processes — verify: `ffprobe` on the output, `ps -o pid,ppid,nice,pri,command` during render, UI observation, `node --test server/killtree-unix.test.js`
-- [ ] D5 — Finder Trash cleanup is restorable (Automation prompt handled, no hard delete), the LaunchAgent starts the hub at login, update preserves data/notes, and uninstall removes only owned integrations — verify: restore from Finder, `launchctl print gui/$(id -u)/com.videohub.hub`, data diff before/after update, uninstall dry-run then run
-- [ ] D6 — A new Claude Code session exposes the `hub_*` tools from the scratch install (OpenCode checked if the user agrees) — verify: tool list in a fresh agent session
-- [ ] D7 — `docs/PLATFORMS.md`, `README.md` and `CLAUDE.md` state macOS Apple Silicon as verified on real hardware, Intel as pending, list pnpm as a requirement, and record any new macOS limits found — verify: `grep -n "macOS\|pnpm" docs/PLATFORMS.md README.md CLAUDE.md`
-- [ ] D8 — VideoHub uses pnpm end to end: `pnpm-lock.yaml` replaces `package-lock.json` and `package.json` pins `packageManager`; setup/update install dependencies with `pnpm install --frozen-lockfile` on every OS and print install hints when pnpm is missing; an npm-era install updates to pnpm without losing data; docs and film templates say pnpm; no `npm ci`/`npm install`/`npm test` instruction remains outside retired-history notes — verify: `pnpm test`, installer dry-run output under `.test-tmp`, `grep -rn "npm ci\|npm install\|npm test\|package-lock" --exclude-dir=node_modules --exclude-dir=.git .`
-- [ ] D9 — After the scratch install is updated with the Stop fix, a real scratch render stopped partway leaves no render, Chrome or ffmpeg process behind — verify: `ps -p` on the recorded tree and an orphan search 5 s after `POST /api/jobs/JOB-ID/cancel`
+- [x] D1 — The full test suite passes on this Mac with zero failures — verify: `pnpm test` → `fail 0`
+- [x] D2 — Platform calls return Mac-correct data on real hardware: the GPU is named in the encoder result, and the Desktop launcher and LaunchAgent use a stable Node path that survives a Homebrew Node upgrade (version-manager installs keep the versioned path; re-running setup refreshes it) — verify: darwin unit tests in `server/platform.darwin.test.js` plus a read-only probe script run on this Mac
+- [x] D3 — A scratch install made with `bash setup.sh` on the real account opens the hub from `VideoHub.command` (Gatekeeper first-launch documented), shows the example film in live preview, saves a note, and the folder picker and Finder reveal work — verify: user observation recorded in P3 closeout + `node server/cli.js hub_workspace` on the scratch port
+- [x] D4 — One reviewed render of a scratch example completes through the queue with sound and VideoToolbox, background QoS/niceness and RAM protection apply, CPU sliders are hidden with the explanation, and Stop's whole-tree termination (including Chrome relaunched during Stop) is fixed and proven with real processes — verify: `ffprobe` on the output, `ps -o pid,ppid,nice,pri,command` during render, UI observation, `node --test server/killtree-unix.test.js`
+- [x] D5 — Finder Trash cleanup is restorable (Automation prompt handled, no hard delete), the LaunchAgent starts the hub at login, update preserves data/notes, and uninstall removes only owned integrations — verify: restore from Finder, `launchctl print gui/$(id -u)/com.videohub.hub`, data diff before/after update, uninstall dry-run then run
+- [x] D6 — A new Claude Code session exposes the `hub_*` tools from the scratch install (OpenCode checked if the user agrees) — verify: tool list in a fresh agent session
+- [x] D7 — `docs/PLATFORMS.md`, `README.md` and `CLAUDE.md` state macOS Apple Silicon as verified on real hardware, Intel as pending, list pnpm as a requirement, and record any new macOS limits found — verify: `grep -n "macOS\|pnpm" docs/PLATFORMS.md README.md CLAUDE.md`
+- [x] D8 — VideoHub uses pnpm end to end: `pnpm-lock.yaml` replaces `package-lock.json` and `package.json` pins `packageManager`; setup/update install dependencies with `pnpm install --frozen-lockfile` on every OS and print install hints when pnpm is missing; an npm-era install updates to pnpm without losing data; docs and film templates say pnpm; no `npm ci`/`npm install`/`npm test` instruction remains outside retired-history notes — verify: `pnpm test`, installer dry-run output under `.test-tmp`, `grep -rn "npm ci\|npm install\|npm test\|package-lock" --exclude-dir=node_modules --exclude-dir=.git .`
+- [x] D9 — After the scratch install is updated with the Stop fix, a real scratch render stopped partway leaves no render, Chrome or ffmpeg process behind — verify: `ps -p` on the recorded tree and an orphan search 5 s after `POST /api/jobs/JOB-ID/cancel`
 
 ## 4. Code standards
 
@@ -108,7 +108,7 @@ flowchart LR
 | P4 | Render and protection | One reviewed VideoToolbox render with sound; Stop, QoS/niceness, RAM protection and hidden CPU sliders verified | P3 | done | [plan](phases/04-render-and-protection/plan.md) |
 | P5 | Lifecycle and agents | Data-preserving update, real stopped render without orphans, LaunchAgent, Finder Trash restore, Claude Code hub_* tools, clean uninstall | P4 | done | [plan](phases/05-lifecycle-and-agents/plan.md) |
 | P6 | Docs verified status | PLATFORMS/README/CLAUDE docs mark macOS Apple Silicon verified and record new limits | P5 | done | [plan](phases/06-docs-verified-status/plan.md) |
-| P8 | Finder metadata tolerant tests | Finder .DS_Store files in the repo no longer fail the distribution tests on macOS | P6 | in_progress | [plan](phases/08-finder-metadata-tolerant-tests/plan.md) |
+| P8 | Finder metadata tolerant tests | Finder .DS_Store files in the repo no longer fail the distribution tests on macOS | P6 | done | [plan](phases/08-finder-metadata-tolerant-tests/plan.md) |
 
 Exit criteria per phase: P1 → D1; P7 → D8 and D1 still green; P2 → D2 and D1 still green; P3 → D3; P4 → D4; P5 → D5, D6, D9; P6 → D7 and a final `pnpm test`. Each of P3–P5 fixes the macOS defects it finds inside its own scope; a defect that needs more than a targeted fix becomes a new phase.
 
@@ -168,13 +168,13 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 
 | ID | Question or risk | Owner | Needed by | Status |
 |---|---|---|---|---|
-| R1 | Real-hardware runs (P3–P5) may surface defects too large for a targeted fix | coordinator | P3–P5 closeouts | open — add a new phase if so |
-| R2 | Finder Automation / Gatekeeper prompts need the user at the keyboard | Jorge Venegas | P3, P5 | open |
-| R3 | Registering MCP/skill with the real Claude Code/OpenCode profile changes user config | Jorge Venegas | P5 | open — ask before registering; uninstall must remove only owned entries |
-| R4 | Other sessions may be running a real VideoHub hub on port 7788 | coordinator | P3 | open — scratch uses 7799 only |
-| R5 | The pnpm switch changes the Windows installer, but no Windows machine is available; only injected tests cover it | Jorge Venegas | P7 | open — record Windows real-machine pnpm check as pending in docs |
-| R6 | Updating an npm-era install: pnpm may refuse to replace an npm `node_modules` without a TTY | coordinator | P7 | open — P7 must cover the npm → pnpm update path in a fake-home test |
-| R7 | pnpm's symlinked `node_modules` must still let film `render.js` resolve `puppeteer-core` from `VIDEOHUB_DIR`, and update must not trip its symlink refusals | coordinator | P7, P4 | open — verify in P7 tests and the P4 render |
+| R1 | Real-hardware runs (P3–P5) may surface defects too large for a targeted fix | coordinator | P3–P5 closeouts | closed — P3–P5 defects fixed in-phase (L6, L11, L14) or as P8 |
+| R2 | Finder Automation / Gatekeeper prompts need the user at the keyboard | Jorge Venegas | P3, P5 | closed — user present for P3–P5 prompts |
+| R3 | Registering MCP/skill with the real Claude Code/OpenCode profile changes user config | Jorge Venegas | P5 | closed — Claude Code registered (C8) and removed by uninstall; profile matches pre-P3 baseline |
+| R4 | Other sessions may be running a real VideoHub hub on port 7788 | coordinator | P3 | closed — scratch used 7799 only |
+| R5 | The pnpm switch changes the Windows installer, but no Windows machine is available; only injected tests cover it | Jorge Venegas | P7 | open — Windows pnpm install verified by injected tests only; documented in PLATFORMS.md |
+| R6 | Updating an npm-era install: pnpm may refuse to replace an npm `node_modules` without a TTY | coordinator | P7 | closed — npm→pnpm update verified (L3, P7 test) |
+| R7 | pnpm's symlinked `node_modules` must still let film `render.js` resolve `puppeteer-core` from `VIDEOHUB_DIR`, and update must not trip its symlink refusals | coordinator | P7, P4 | closed — renders loaded puppeteer-core under pnpm (P4) |
 
 ## 11. Closeout history
 
@@ -187,12 +187,13 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 | P4 | 2026-11-15 | addressed | A1, A2, A3, A4, A5, A6 | a37040d | [report](phases/04-render-and-protection/plan.md) |
 | P5 | 2026-11-15 | addressed | A1, A2, A3, A4, A5, A6, A7 | 9af1c0e | [report](phases/05-lifecycle-and-agents/plan.md) |
 | P6 | 2026-11-15 | addressed | A1, A2, A3, A4, A5 | 9282c6b | [report](phases/06-docs-verified-status/plan.md) |
+| P8 | 2026-11-15 | addressed | A1, A2 | 989d498 | [report](phases/08-finder-metadata-tolerant-tests/plan.md) |
 
 ## 12. Resume brief
 
-- Current phase: P1 (draft plan awaiting approval)
-- Last verdict: none
-- Next action: re-present refined P1 (v2) for approval, then delegate to a worker subagent
-- Open decisions: R2, R3
+- Current phase: none (all phases done)
+- Last verdict: addressed (P8)
+- Next action: end-of-plan disposition of the plan files; no PR (declined)
+- Open decisions: none
 - PR: declined (2026-11-14)
-- Last updated: 2026-11-14
+- Last updated: 2026-11-15

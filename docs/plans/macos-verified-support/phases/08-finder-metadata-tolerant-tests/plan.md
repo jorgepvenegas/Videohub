@@ -4,10 +4,10 @@
 - Phase: P8
 - Plan version: 1
 - Validated against master version: 34
-- Status: in_progress
+- Status: done
 - Approved by: Jorge Venegas (standing instruction C6)
 - Approved at: 2026-11-15
-- Commit: pending
+- Commit: 989d498
 - Implementation mode: subagent
 - Implemented by: sonnet-worker-p8
 - Implemented at: 2026-11-15
@@ -96,7 +96,7 @@ Fill at the end of every implementation session. Do not mark the phase done unti
 
 - Date: 2026-11-15
 - Session: sonnet-worker-p8
-- Verdict: done
+- Verdict: addressed
 - Steps complete: S1
 - Verification run: `node --check scripts/upload-rules.test.js` ok; S1 positive, negative and revert cases as above; `pnpm test` with root and `docs/` `.DS_Store` present: tests 350, pass 348, fail 0, skipped 2
 
@@ -105,6 +105,14 @@ Fill at the end of every implementation session. Do not mark the phase done unti
 | A1 | met | `pnpm test` with root and docs `.DS_Store` — fail 0; upload-rules test pass 3 |
 | A2 | met | `server/.probe` present — upload-rules test fails with actual `['server/.probe']`; revert case also fails on `.DS_Store` |
 | D1 (master) | met | `pnpm test` fail 0 with Finder metadata present |
+| D2 (master) | met | Final probe: `gpuNames()` → `["Apple M2 Max"]`, `TOOLS.node` = versioned asdf path (shim skipped by the stable rule); P2 tests; P3 real install |
+| D3 (master) | met | P3 closeout (setup, launcher, live preview, note, folder dialog, Finder reveal) |
+| D4 (master) | met | P4 closeout; final `node --test server/killtree-unix.test.js server/platform.darwin.test.js` → 16 pass, 0 fail |
+| D5 (master) | met | P5 closeout (update ×2, LaunchAgent, Finder Trash + Put Back, uninstall); final check: no `~/Desktop/VideoHub.command`, no LaunchAgent plist |
+| D6 (master) | met | P5 closeout: new Claude Code session lists `hub_*` tools; final `claude mcp list` has no `videohub` (removed by uninstall as designed) |
+| D7 (master) | met | P6 closeout; final `grep -i "Apple Silicon"` → 9 lines across PLATFORMS/README/CLAUDE |
+| D8 (master) | met | `packageManager` in package.json, no `package-lock.json`, no `npm ci/install/test` instruction outside the Linux `npm install -g pnpm` hint |
+| D9 (master) | met | P5 S2: stopped real render after update, no orphans at +5 s and +15 s |
 
 **Discoveries no earlier plan predicted:**
 
