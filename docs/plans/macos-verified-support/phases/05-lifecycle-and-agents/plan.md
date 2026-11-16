@@ -3,14 +3,14 @@
 - Plan ID: `macos-verified-support`
 - Phase: P5
 - Plan version: 1
-- Validated against master version: 31
-- Status: in_progress
+- Validated against master version: 32
+- Status: done
 - Approved by: Jorge Venegas (standing instruction C6; stopped render C11)
 - Approved at: 2026-11-15
-- Commit: pending
+- Commit: 9af1c0e
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: sonnet-worker-p5-s6
+- Implemented at: 2026-11-15
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -39,6 +39,7 @@ Finish the real-Mac lifecycle (D5, D6, D9): update the scratch install from the 
 | Ledger | Discovery | Effect on this phase |
 |---|---|---|
 | L15 | LaunchAgent does not restart the hub after update | Note for P6 docs |
+| L16 | hello-film trashed by a separate user click | Note; confirm dialog shows the path |
 | L14 | Finder Trash AppleScript always fails (-1728) | Added S6 fix and S7 retry; A4 verified by S7 |
 | L1 | pnpm for development and product | Update runs `pnpm install --frozen-lockfile` only if the lockfile changed |
 | L8 | Real endpoints, JSON CLI arguments, asdf Node 22.22.3 in the install | All CLI/API calls use JSON and `/api/config`, `/api/renders`, `/api/jobs/:id/cancel` |
@@ -56,10 +57,10 @@ Out of scope:
 
 ## 4. Entry conditions
 
-- [ ] P4 done; suite green — verify: `pnpm test` → `fail 0`
-- [ ] Scratch hub on 7799 healthy and idle — verify: `curl -s 127.0.0.1:7799/api/renders`
-- [ ] Phase plan revalidated against current master version
-- [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
+- [x] P4 done; suite green — verify: `pnpm test` → `fail 0`
+- [x] Scratch hub on 7799 healthy and idle — verify: `curl -s 127.0.0.1:7799/api/renders`
+- [x] Phase plan revalidated against current master version
+- [x] User approved this phase plan — verify: `Approved by` is set and status is `ready`
 
 ## 5. Steps
 
@@ -120,7 +121,7 @@ If a step reveals work outside this phase, report it and continue the approved s
   - none in the repository (the worker for S1–S3 creates the test item `/Users/jorge/VideoHubScratch/workspace/films/trash-test` as a copy of `hello-film_v2.mp4` in its own folder)
 - Change: the coordinator asks the user to (1) delete the `trash-test` project from VideoHub's UI, allow Finder Automation if prompted, then restore it from the Finder Trash with Put Back; (2) start a new Claude Code session in any folder and confirm `/mcp` shows `videohub` with `hub_*` tools; (3) optionally log out and back in and confirm VideoHub's hub is running (the coordinator checks `/api/ping` and `launchctl print`).
 - Acceptance:
-  - [ ] (1) and (2) reported working or as defects; (3) recorded as observed or skipped
+  - [x] (1) and (2) reported working or as defects; (3) recorded as observed or skipped
 - Verification: user report; `ls /Users/jorge/VideoHubScratch/workspace/films/trash-test` after Put Back
 - Rollback: none
 
@@ -181,18 +182,18 @@ If a step reveals work outside this phase, report it and continue the approved s
 - [x] A1 — Update from the repository preserves data, notes, outputs and settings, installs the new code and leaves integrations consistent — verify: S1 snapshots
 - [x] A2 — A real render stopped after update leaves no process behind — verify: S2 log
 - [x] A3 (S3 part) — The LaunchAgent starts the hub — verify: S3 outputs; S4 (3) if done
-- [ ] A4 — A UI deletion goes to the Finder Trash and is restorable — verify: S6 tests and S7 user report (S4 (1) exposed L14)
-- [ ] A5 — A new Claude Code session lists `hub_*` tools — verify: S4 (2)
-- [ ] A6 — Uninstall removes only owned integrations and the scratch folder ends in the Trash — verify: S5
-- [ ] A7 — Suite green and any repository fix checked — verify: `pnpm test` → `fail 0`, or `git status --short` shows no source change
+- [x] A4 — A UI deletion goes to the Finder Trash and is restorable — verify: S6 tests and S7 user report (S4 (1) exposed L14)
+- [x] A5 — A new Claude Code session lists `hub_*` tools — verify: S4 (2)
+- [x] A6 — Uninstall removes only owned integrations and the scratch folder ends in the Trash — verify: S5
+- [x] A7 — Suite green and any repository fix checked — verify: `pnpm test` → `fail 0`, or `git status --short` shows no source change
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
-- [ ] Names and structure state intent; comments explain only non-obvious reasons
-- [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation
-- [ ] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
+- [x] Names and structure state intent; comments explain only non-obvious reasons
+- [x] Every new test fails if the behavior it covers breaks; no test restates the implementation
+- [x] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
 
 ## 8. Risks and unknowns
 
@@ -220,24 +221,37 @@ Append during implementation. One line per deviation: date, step, what changed, 
 
 ## 10. Closeout
 
-Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
-
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-15
+- Session: coordinator + Sonnet 5.5 workers (23d30f5, 5d872d3, 9af1c0e, b499981, f42fcf9); user checks by Jorge Venegas
+- Verdict: addressed
+- Steps complete: S1, S2, S3, S4, S5, S6, S7
+- Verification run: update dry-run + real (twice) with before/after checksums; S2 bash capture log; `launchctl print gui/501/com.videohub.hub`; `/api/ping`; `node --test server/platform.darwin.test.js server/trash-darwin.test.js`; `VIDEOHUB_REAL_TRASH_TEST=1` real-Finder test; uninstall dry-run + real; `claude mcp list` / `~/.claude/skills` / `~/.config/opencode` baseline comparison; `pnpm test` → 350 tests, 348 pass, 0 fail, 2 skipped
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | met / partial / not met / deferred | `<command>` — <result> |
-| D1 (master) | met / partial / not met / deferred | `<command>` — <result> |
+| A1 | met | Two updates from the repo: data, notes, outputs, port 7799, launcher and plist checksums identical; new code present (`SIGSTOP`, `as alias`); OpenCode unchanged; one `videohub` MCP entry |
+| A2 | met | Job `jmwiashlf-1e9b6300` cancelled with 17 render processes running; orphan search at +5 s and +15 s found none |
+| A3 | met | LaunchAgent plist owned by the install; `launchctl print` running, hub parent pid 1 on 7799; logout skipped by the user (RunAtLoad start accepted); L15: update does not restart it |
+| A4 | met | First attempt exposed L14 (-1728); after S6 and the re-update the user deleted trash-test in the UI and restored it with Put Back; folder present afterwards |
+| A5 | met | User: new Claude Code session `/mcp` lists `videohub` with `hub_*` tools; `claude mcp list` showed it connected |
+| A6 | met | Uninstall exit 0 removed the MCP entry, skill, Desktop command, LaunchAgent; kept program files, data and outputs; scratch folder moved to the Finder Trash; profile matches the pre-P3 baseline |
+| A7 | met | `pnpm test` 348 pass, 0 fail; `node --check` on changed files; real-Finder test opt-in |
+| D5 (master) | met | A1, A3, A4, A6 |
+| D6 (master) | met | A5 |
+| D9 (master) | met | A2 |
+| D8 (master) | met | Updates installed from `pnpm-lock.yaml`; no npm used |
+| D1 (master) | met | `pnpm test` fail 0 |
+
+**Discovery sweep:** (1) Wrong assumption: macOS Trash had been implemented correctly; it always failed (L14). (2) New constraint: launchd does not restart the hub after update (L15). (3) Unplanned work: S6 Finder fix and S7 re-update. (4) For P6: docs must state the Trash fix, update restart behavior, Gatekeeper reality (L9), Stop fix (L11), slow-mode helper caveat (L12), pnpm Windows pending (L5). (5) Suspect evidence: none of P1–P4 changes; Linux Trash code is unaffected (different branch).
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| L14 | Finder Trash AppleScript always failed (-1728) | phase-amend | P5, P6 | S6/S7 done; P6 docs |
+| L15 | LaunchAgent does not restart the hub after update | note | P6 | P6 docs |
+| L16 | hello-film trashed by a separate user click | note | P5 | none |
 
-**Master updates written:** <version bump, ledger rows, phase map changes, or none>
-**Next-phase updates written:** <phase ID, plan version, sections changed, or none>
-**Remaining work and handoff:** <what the next session must do first>
+**Master updates written:** L14–L16
+**Next-phase updates written:** P6 plan applies L5, L7, L9, L11, L12, L14, L15
+**Remaining work and handoff:** P6 docs.
