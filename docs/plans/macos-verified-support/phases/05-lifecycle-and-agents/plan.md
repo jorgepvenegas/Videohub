@@ -3,7 +3,7 @@
 - Plan ID: `macos-verified-support`
 - Phase: P5
 - Plan version: 1
-- Validated against master version: 30
+- Validated against master version: 31
 - Status: in_progress
 - Approved by: Jorge Venegas (standing instruction C6; stopped render C11)
 - Approved at: 2026-11-15
@@ -38,6 +38,7 @@ Finish the real-Mac lifecycle (D5, D6, D9): update the scratch install from the 
 
 | Ledger | Discovery | Effect on this phase |
 |---|---|---|
+| L15 | LaunchAgent does not restart the hub after update | Note for P6 docs |
 | L14 | Finder Trash AppleScript always fails (-1728) | Added S6 fix and S7 retry; A4 verified by S7 |
 | L1 | pnpm for development and product | Update runs `pnpm install --frozen-lockfile` only if the lockfile changed |
 | L8 | Real endpoints, JSON CLI arguments, asdf Node 22.22.3 in the install | All CLI/API calls use JSON and `/api/config`, `/api/renders`, `/api/jobs/:id/cancel` |
@@ -146,7 +147,7 @@ If a step reveals work outside this phase, report it and continue the approved s
   - [x] Real-Finder test on a throwaway folder under `.test-tmp` moves it to the Trash (darwin only; skipped elsewhere and when `osascript` is unavailable)
 - Verification: `node --test server/platform.darwin.test.js` plus the real-Finder test; `pnpm test` → `fail 0`
 - Rollback: `git checkout HEAD -- server/platform.js server/platform.darwin.test.js`
-- Evidence (S6): script `on run argv\nset f to POSIX file (item 1 of argv) as alias\ntell application "Finder" to delete f\nend run`; error keeps the Automation hint only for -1743/not authorized/not allowed, else `Could not move to Trash: <Finder message, 200 chars>`.
+- Evidence (S6): script `on run argv\nset f to POSIX file (item 1 of argv) as alias\ntell application "Finder" to delete f\nend run`; error keeps the Automation hint only for -1743/not authorized/not allowed, else `Could not move to Trash: FINDER-MESSAGE (200 chars)`.
   - `node --check` on platform.js, platform.darwin.test.js, trash-darwin.test.js: ok
   - `node --test server/platform.darwin.test.js server/trash-darwin.test.js`: pass 16, fail 0 (real-Finder test ran, folder moved to Trash)
   - Revert check: with the old platform.js (git stash) the real-Finder test failed with Finder -1728 "Can't get POSIX file"; restored, passes
@@ -161,7 +162,7 @@ If a step reveals work outside this phase, report it and continue the approved s
   - none in the repository
 - Change: rerun `bash update.sh --target "/Users/jorge/VideoHubScratch/install"` from the repo (data must stay identical), make sure the launchd hub restarts on 7799, then the coordinator asks the user to delete `trash-test` in the UI and Put Back from the Finder Trash.
 - Acceptance:
-  - [ ] Delete moves `trash-test` to the Trash; Put Back restores it
+  - [x] Delete moves `trash-test` to the Trash; Put Back restores it
 - Verification: user report; `ls /Users/jorge/VideoHubScratch/workspace/films/trash-test`
 - Rollback: none
 - Evidence (2026-11-15, worker, automated part; the user delete/Put Back is still pending):
@@ -201,7 +202,9 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 ## 9. Deviations and working notes
 
-**S4 user answers (2026-11-15):** (1) Delete of trash-test failed: "Could not move to Trash. Allow Finder Automation permission and try again. 41:77: execution error: Finder got an error: Can't get POSIX file \"/Users/jorge/VideoHubScratch/workspace/films/trash-test\". (-1728)" — source kept (L14). (2) Claude Code /mcp: not yet answered. (3) Logout skipped; launchd RunAtLoad start (S3) accepted as evidence.
+**S7 user answer (2026-11-15):** after the re-update, deleting `trash-test` in the UI moved it to the Finder Trash and Put Back restored it; `ls /Users/jorge/VideoHubScratch/workspace/films/trash-test` shows `hello-film_v2.mp4` (1732470 bytes).
+
+**S4 user answers (2026-11-15):** (1) Delete of trash-test failed: "Could not move to Trash. Allow Finder Automation permission and try again. 41:77: execution error: Finder got an error: Can't get POSIX file \"/Users/jorge/VideoHubScratch/workspace/films/trash-test\". (-1728)" — source kept (L14). (2) Claude Code /mcp: new session lists `videohub` with `hub_*` tools (answered after the retry). (3) Logout skipped; launchd RunAtLoad start (S3) accepted as evidence.
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 

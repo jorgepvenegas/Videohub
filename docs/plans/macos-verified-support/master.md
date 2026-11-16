@@ -1,7 +1,7 @@
 # Master Plan — macOS verified support
 
 - Plan ID: `macos-verified-support`
-- Master version: 30
+- Master version: 31
 - Status: active
 - Created: 2026-11-14
 - Source: user request (2026-11-14): "I need to create a macOS compatible version of this project. create a plan to achieve this"
@@ -154,6 +154,7 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L12 | 2026-11-15 | P4 | P6 | Slow mode set nice 19 / pri 4 on the render tree except two Chrome 'Aperitif Renderer' helpers (stayed nice 10); after normal, pri returned but nice stayed 19 (unprivileged niceness cannot be lowered, as documented best effort) | note | P6 mentions that some Chrome helper processes may keep normal priority in slow mode | open |
 | L13 | 2026-11-15 | P4 | P4,P5 | D4 bundled a real-render Stop check that P4 could only prove with a real-process test after fixing killTree; the real stopped render needs the scratch install updated first (P5) | master-amend | Split D4: D4 keeps render/encoder/QoS/RAM/CPU controls and the proven Stop fix; new D9 (P5) = a stopped real render after update leaves no orphans | applied |
 | L14 | 2026-11-15 | P5 | P5,P6 | macOS Trash always fails: trashOne's AppleScript evaluates POSIX file inside tell application Finder, which Finder cannot resolve (error -1728 'Can't get POSIX file'); the user's UI delete of trash-test was refused and the source kept. Reproduced on a scratchpad folder; coercing 'POSIX file (item 1 of argv) as alias' before the tell block works (exit 0, item in Trash). The error message wrongly blames Automation permission | phase-amend | Added P5 S6 (fix + test) and S7 (re-update scratch install, user retries delete and Put Back); P6 documents the fix | applied |
+| L15 | 2026-11-15 | P5 | P6 | With login startup enabled, update.sh stops the hub but the LaunchAgent does not restart it (RunAtLoad, no KeepAlive); the hub stays down until the user opens VideoHub or logs in again (worker used launchctl kickstart) | note | P6 docs: after updating on macOS, open VideoHub (or log in again) to restart the hub | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
