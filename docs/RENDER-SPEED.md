@@ -107,6 +107,9 @@ reference): old JPEG + x264 VMAF 97.67 / SSIM 0.9953 / PSNR 47.92; new raw + AMF
 brightness only, came out ~0.4 lower on this soft synthetic clip. The difference is not visible here, but it is
 reported as measured.
 
+## macOS
+Apple Silicon (M2 Max), `h264_videotoolbox`, example film: 300 frames encoded in 3.9 s (job total 5 s), 2026-11-15. Other macOS hardware is unmeasured.
+
 ## Not verified
 - NVENC and Quick Sync: no such hardware on the test PC. Their arguments are a measurement from another PC (NVENC) and a
   proposal (QSV); `auto` falls back to x264 when their test encode fails.

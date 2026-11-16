@@ -245,7 +245,7 @@ export async function runInstaller(options, { hub = ROOT, platform = platformDef
           say('write launcher ' + f); if (!dry) write(f, entry, 0o755);
         }
       }
-      if (platform.IS_MAC && makeShortcut) log('The Desktop VideoHub.command opens Terminal briefly. If macOS blocks its first launch, use Open Anyway in Privacy & Security, then open it again.');
+      if (platform.IS_MAC && makeShortcut) log('The Desktop VideoHub.command opens Terminal briefly. If macOS ever blocks it, use Open Anyway in Privacy & Security, then open it again.');
       const priorStartupState = platform.IS_WIN ? await startupDetails(platform, hub) : null, priorStartup = !!priorStartupState?.owned;
       if (platform.IS_WIN) { legacyLaunchersSafe &&= referencesClear(priorStartupState, hub); if (priorStartupState.error) warn(priorStartupState.error); }
       const startup = await yesNo('startup', 'Start VideoHub quietly when you log in?', false, priorStartup ? { ...saved, startup: 'yes' } : saved); answers.startup = startup ? 'yes' : 'no';

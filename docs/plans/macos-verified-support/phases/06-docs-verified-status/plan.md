@@ -9,8 +9,8 @@
 - Approved at: 2026-11-15
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: sonnet-worker-p6
+- Implemented at: 2026-11-15
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -54,9 +54,9 @@ Out of scope:
 
 ## 4. Entry conditions
 
-- [ ] P5 done; suite green — verify: `pnpm test` → `fail 0`
-- [ ] Phase plan revalidated against current master version
-- [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
+- [x] P5 done; suite green — verify: `pnpm test` → `fail 0`
+- [x] Phase plan revalidated against current master version
+- [x] User approved this phase plan — verify: `Approved by` is set and status is `ready`
 
 ## 5. Steps
 
@@ -69,8 +69,9 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `docs/PLATFORMS.md` (modify) — intro, table macOS cells, macOS permissions section, real-machine acceptance section
 - Change: intro says macOS is verified on Apple Silicon (macOS 26.6, 2026-11-15) and Linux plus Intel macOS remain unverified on real machines. macOS table cells that were "verification pending" become verified; Trash cell describes the alias-based Finder script; Render tree stop (Linux and macOS) describes freezing the render root before terminating its tree; Autostart notes update does not restart the hub; Install row notes pnpm, with Windows pnpm install verified by tests only. Permissions section: launcher normally opens without a Gatekeeper prompt because setup creates it locally; Open Anyway only if macOS does block it; Automation prompt may appear on first Trash use; slow mode caveats (L12). Acceptance section: macOS Apple Silicon list marked done with the date; Linux and Intel items remain.
 - Acceptance:
-  - [ ] No "verification pending" remains in a macOS cell; Linux cells unchanged except the shared Stop description
+  - [x] No "verification pending" remains in a macOS cell; Linux cells unchanged except the shared Stop description
 - Verification: `grep -n -i "pending\|unverified\|not yet tested" docs/PLATFORMS.md`
+- Result: done. grep leaves lines 3 (intro), 9 (Linux cell) and 70 (acceptance section), none a macOS cell.
 - Rollback: `git checkout HEAD -- docs/PLATFORMS.md`
 
 ### S2 — README.md: status line and macOS troubleshooting
@@ -80,8 +81,9 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `README.md` (modify) — banner line 6, hardware encoders line 43, requirements macOS row 54, launcher paragraph 73, troubleshooting lines 141–142
 - Change: banner says macOS (Apple Silicon) verified, Linux and Intel macOS new and not yet tested on real machines; encoder line notes VideoToolbox measured on Apple Silicon; requirements row drops "Apple Silicon and Intel code paths need hardware verification" in favor of "verified on Apple Silicon; Intel unverified"; launcher and troubleshooting text match L9/L14/L15.
 - Acceptance:
-  - [ ] README and PLATFORMS make the same claims
+  - [x] README and PLATFORMS make the same claims
 - Verification: `grep -n -i "macOS" README.md`
+- Result: done. Banner, encoder line, requirements row, launcher paragraph and troubleshooting updated; added an update-restart troubleshooting bullet.
 - Rollback: `git checkout HEAD -- README.md`
 
 ### S3 — CLAUDE.md: agent instructions
@@ -91,8 +93,9 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `CLAUDE.md` (modify) — line 3 status sentence, line 15 macOS paragraph, "Linux/macOS desktop and rendering acceptance still requires real hardware" sentence
 - Change: status: macOS verified on Apple Silicon; Linux and Intel macOS not yet tested on real machines. macOS paragraph: launcher normally opens without a prompt; Open Anyway only if blocked; Finder may ask for Automation permission; after an update with login startup, open VideoHub to restart the hub. Acceptance sentence: Linux and Intel macOS still require real hardware.
 - Acceptance:
-  - [ ] CLAUDE.md consistent with PLATFORMS and README
+  - [x] CLAUDE.md consistent with PLATFORMS and README
 - Verification: `grep -n -i "macOS\|real hardware" CLAUDE.md`
+- Result: done. Status sentence, macOS paragraph and acceptance sentence updated.
 - Rollback: `git checkout HEAD -- CLAUDE.md`
 
 ### S4 — Setup message and render-speed note
@@ -104,25 +107,26 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `docs/RENDER-SPEED.md` (modify) — one measured macOS line
 - Change: setup line becomes: the Desktop `VideoHub.command` opens Terminal briefly; if macOS ever blocks it, use Open Anyway in Privacy & Security. RENDER-SPEED adds: Apple Silicon M2 Max, `h264_videotoolbox`, example film 300 frames encoded in 3.9 s (job total 5 s), 2026-11-15; other macOS hardware unmeasured.
 - Acceptance:
-  - [ ] Setup output wording updated; tests pass
+  - [x] Setup output wording updated; tests pass
 - Verification: `node --check scripts/install.mjs`; `pnpm test`
+- Result: done. `node --check` ok; install.test.js asserts only `/VideoHub\.command/`, so no test change; `pnpm test` fail 0 (after moving a stray ignored root `.DS_Store`, see discoveries).
 - Rollback: `git checkout HEAD -- scripts/install.mjs scripts/install.test.js docs/RENDER-SPEED.md`
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — PLATFORMS.md reports macOS Apple Silicon verified, Linux/Intel pending, and the L9/L11/L12/L14/L15 behaviors — verify: S1 grep and review
-- [ ] A2 — README.md matches PLATFORMS.md — verify: S2 grep
-- [ ] A3 — CLAUDE.md matches and still lists pnpm in requirements — verify: `grep -n "pnpm" CLAUDE.md README.md`
-- [ ] A4 — No doc claims the generated launcher is normally blocked or that Trash failures are always Automation permission — verify: `grep -rn -i "blocks its first\|blocked first launch\|Allow Finder Automation permission and try again" README.md CLAUDE.md docs scripts/install.mjs --exclude-dir=plans`
-- [ ] A5 — Suite green — verify: `pnpm test` → `fail 0`; `node --check scripts/install.mjs`
+- [x] A1 — PLATFORMS.md reports macOS Apple Silicon verified, Linux/Intel pending, and the L9/L11/L12/L14/L15 behaviors — verify: S1 grep and review
+- [x] A2 — README.md matches PLATFORMS.md — verify: S2 grep
+- [x] A3 — CLAUDE.md matches and still lists pnpm in requirements — verify: `grep -n "pnpm" CLAUDE.md README.md`
+- [x] A4 — No doc claims the generated launcher is normally blocked or that Trash failures are always Automation permission — verify: `grep -rn -i "blocks its first\|blocked first launch\|Allow Finder Automation permission and try again" README.md CLAUDE.md docs scripts/install.mjs --exclude-dir=plans`
+- [x] A5 — Suite green — verify: `pnpm test` → `fail 0`; `node --check scripts/install.mjs`
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
-- [ ] Names and structure state intent; comments explain only non-obvious reasons
-- [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation
-- [ ] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
+- [x] Names and structure state intent; comments explain only non-obvious reasons
+- [x] Every new test fails if the behavior it covers breaks; no test restates the implementation
+- [x] Master standards commands pass: format none, lint none, `node --check` on changed files, `pnpm test`
 
 ## 8. Risks and unknowns
 
@@ -140,22 +144,30 @@ Append during implementation. One line per deviation: date, step, what changed, 
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
 
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-15
+- Session: sonnet-worker-p6
+- Verdict: addressed
+- Steps complete: S1, S2, S3, S4
+- Verification run: PLATFORMS pending grep; `grep -n "pnpm" CLAUDE.md README.md`; A4 grep; `node --check scripts/install.mjs`; `pnpm test` → 350 tests, 348 pass, 0 fail, 2 skipped; staged diff scan for private paths
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | met / partial / not met / deferred | `<command>` — <result> |
-| D1 (master) | met / partial / not met / deferred | `<command>` — <result> |
+| A1 | met | PLATFORMS: intro, macOS live-preview/Trash/Stop/Autostart/Install/launcher/encoder cells and permissions text updated; L9, L11, L12, L14, L15 present; pending grep leaves only Linux cell, intro and acceptance text |
+| A2 | met | README banner, encoder line, requirements row, launcher paragraph and troubleshooting carry the same claims |
+| A3 | met | `grep -n "pnpm" CLAUDE.md README.md` → 8 lines including CLAUDE.md requirements |
+| A4 | met | A4 grep over README, CLAUDE, docs (excl. plans), install.mjs → no output |
+| A5 | met | `pnpm test` fail 0 (348 pass, 2 skipped); `node --check scripts/install.mjs` ok |
+| D7 (master) | met | A1, A2, A3, A4 |
+| D1 (master) | met | A5 |
+
+**Discovery sweep:** (1) Wrong assumption: none. (2) New constraint: none beyond L1-L15. (3) Unplanned work: none; README gained one troubleshooting bullet for L15. (4) Next phase: none. (5) Suspect evidence: a Finder-created ignored `.DS_Store` in the repo root failed `upload-rules.test.js`; moved out of the repo.
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| L16 | Finder creates an ignored `.DS_Store` in the repo root; `upload-rules.test.js` walks the root and fails on it, so `pnpm test` is red on a Mac after browsing the folder | note | later sessions on macOS | Moved the file out of the repo to get green; test left unchanged (out of scope) |
 
-**Master updates written:** <version bump, ledger rows, phase map changes, or none>
-**Next-phase updates written:** <phase ID, plan version, sections changed, or none>
-**Remaining work and handoff:** <what the next session must do first>
+**Master updates written:** none (coordinator to add L16 and record the commit)
+**Next-phase updates written:** none
+**Remaining work and handoff:** Coordinator records the commit and closes P6. Linux, Intel macOS, other macOS versions, a real OpenCode session and real Windows pnpm install remain unverified and are stated as such in the docs.
