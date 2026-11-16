@@ -95,11 +95,11 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 - Depends on: S1, S2
 - Files:
-  - none in the repository (probe script lives in `/private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2-probe.mjs`)
-- Change: read-only probe importing `server/platform.js`: print `gpuNames()` and `TOOLS.node` (a) with the normal PATH (asdf: expect the versioned execPath, because the shim's realpath differs) and (b) with `PATH=/private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2bin:$PATH` where `/private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2bin/node` is a symlink to `process.execPath` (expect `/private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2bin/node`). Set `VIDEOHUB_DATA_DIR` to a scratchpad folder so nothing is written into the repo.
+  - none in the repository (probe script lives in `<scratchpad>/p2-probe.mjs`)
+- Change: read-only probe importing `server/platform.js`: print `gpuNames()` and `TOOLS.node` (a) with the normal PATH (asdf: expect the versioned execPath, because the shim's realpath differs) and (b) with `PATH=<scratchpad>/p2bin:$PATH` where `<scratchpad>/p2bin/node` is a symlink to `process.execPath` (expect `<scratchpad>/p2bin/node`). Set `VIDEOHUB_DATA_DIR` to a scratchpad folder so nothing is written into the repo.
 - Acceptance:
   - [x] (a) GPU list contains `Apple M2 Max`; (b) `TOOLS.node` is the scratch symlink path
-- Verification: `node /private/tmp/claude-501/-Users-jorge-code-Videohub/cc9a790e-198c-4e91-851b-bc3b9a38df27/scratchpad/p2-probe.mjs` output recorded in the closeout; `git status --short` shows no new repo files
+- Verification: `node <scratchpad>/p2-probe.mjs` output recorded in the closeout; `git status --short` shows no new repo files
 - Evidence: see closeout; `git status --short` shows only the tracked edits plus pre-existing `.test-tmp/` and `node_modules/`
 - Rollback: delete the probe script
 
@@ -143,7 +143,7 @@ Fill at the end of every implementation session. Do not mark the phase done unti
 - Verification run: `node --test server/platform.darwin.test.js scripts/install.test.js` (pass 39, fail 0); `node --check` on the four changed files (clean); `pnpm test` (347 tests, 346 pass, 0 fail, 1 skipped); probe (a)/(b) below
 
 Probe output (real Mac, real node binary, `VIDEOHUB_DATA_DIR` in scratchpad):
-- (a) normal PATH: `{"gpus":["Apple M2 Max"],"node":"/Users/jorge/.asdf/installs/nodejs/24.16.0/bin/node"}` (asdf shim rejected, versioned execPath kept)
+- (a) normal PATH: `{"gpus":["Apple M2 Max"],"node":"~/.asdf/installs/nodejs/24.16.0/bin/node"}` (asdf shim rejected, versioned execPath kept)
 - (b) `p2bin` first on PATH: `{"gpus":["Apple M2 Max"],"node":"<scratchpad>/p2bin/node"}` (symlink to execPath chosen)
 
 | Criterion | Verdict | Evidence |

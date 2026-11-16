@@ -71,16 +71,16 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Depends on: none
 - Files:
   - none in the repository
-- Change: snapshot checksums of `/Users/jorge/VideoHubScratch/install/data/config.json`, `setup-answers.json`, `/Users/jorge/VideoHubScratch/workspace/films/hello-film/.videohub/notes.json`, the output videos, `~/Desktop/VideoHub.command`, `claude mcp list`, and `ls -la ~/.config/opencode`. From `/Users/jorge/code/Videohub` run `bash update.sh --target "/Users/jorge/VideoHubScratch/install" --dry-run`, read it, then run it. Restart the hub from the install with `bash open.sh --server` if update stopped it. Re-snapshot.
+- Change: snapshot checksums of `~/VideoHubScratch/install/data/config.json`, `setup-answers.json`, `~/VideoHubScratch/workspace/films/hello-film/.videohub/notes.json`, the output videos, `~/Desktop/VideoHub.command`, `claude mcp list`, and `ls -la ~/.config/opencode`. From `~/code/Videohub` run `bash update.sh --target "~/VideoHubScratch/install" --dry-run`, read it, then run it. Restart the hub from the install with `bash open.sh --server` if update stopped it. Re-snapshot.
 - Acceptance:
   - [x] Update exits 0; code backed up under `data/update-backup/`; `server/platform.js` in the install now contains the SIGSTOP fix
   - [x] Data, notes, outputs and port 7799 unchanged; `VideoHub.command` still valid; `claude mcp list` still one `videohub`; `~/.config/opencode` unchanged
 - Verification: before/after snapshots and update output recorded
-- Evidence (2026-11-15, worker): before/after snapshots (script `scratchpad/p5-snap.sh`) are byte-identical (`diff` empty): `data/config.json` d63a17c1... (port 7799), `setup-answers.json` 75654ffb..., `notes.json` f07808d1..., outputs v1 082f0cb9... and v2 6388b22e... (workspace/outputs copies the same), `~/Desktop/VideoHub.command` b86c3ade... (content unchanged: `exec '/Users/jorge/.asdf/installs/nodejs/22.22.3/bin/node' '.../install/scripts/install.mjs' open "$@"`). `ls -la ~/.config/opencode` before = after (.gitignore, cli.json, plugins, service.json, tui.json; no change). `claude mcp list` before = after: one `videohub: node /Users/jorge/VideoHubScratch/install/server/mcp.js - Connected`.
-  - Dry run: `check the render queue and stop only the server belonging to /Users/jorge/VideoHubScratch/install`, `back up replaced code to .../data/update-backup/2026-11-15T20-39-06-569Z`, `keep installed Node packages`, `would copy VideoHub skill to /Users/jorge/.claude/skills/videohub`, `Update complete...`. No warnings.
-  - Real: `stop this install's server (pid 17592)`, `back up replaced code to /Users/jorge/VideoHubScratch/install/data/update-backup/2026-11-15T20-39-06-569Z and copy the new code (data and projects stay)`, `keep installed Node packages`, `copy VideoHub skill to /Users/jorge/.claude/skills/videohub`, `Update complete. Open VideoHub with its existing launcher and restart your agent session.` No warnings. (Exit code was not captured because of the `tee` pipe; the completion line and effects confirm success.)
-  - `grep -n SIGSTOP /Users/jorge/VideoHubScratch/install/server/platform.js` -> 0 matches before, `475:    try { kill(pid, 'SIGSTOP'); } catch { }` after.
-  - Dot-folders / plans: the install already had `.agents/` and `.claude/` (created 12:01 by setup, not by update; empty skills dirs) and `docs/plans`; `diff -rq /Users/jorge/code/Videohub/docs /Users/jorge/VideoHubScratch/install/docs` is empty after update. Update copies docs/plans from a git checkout (low impact; note).
+- Evidence (2026-11-15, worker): before/after snapshots (script `scratchpad/p5-snap.sh`) are byte-identical (`diff` empty): `data/config.json` d63a17c1... (port 7799), `setup-answers.json` 75654ffb..., `notes.json` f07808d1..., outputs v1 082f0cb9... and v2 6388b22e... (workspace/outputs copies the same), `~/Desktop/VideoHub.command` b86c3ade... (content unchanged: `exec '~/.asdf/installs/nodejs/22.22.3/bin/node' '.../install/scripts/install.mjs' open "$@"`). `ls -la ~/.config/opencode` before = after (.gitignore, cli.json, plugins, service.json, tui.json; no change). `claude mcp list` before = after: one `videohub: node ~/VideoHubScratch/install/server/mcp.js - Connected`.
+  - Dry run: `check the render queue and stop only the server belonging to ~/VideoHubScratch/install`, `back up replaced code to .../data/update-backup/2026-11-15T20-39-06-569Z`, `keep installed Node packages`, `would copy VideoHub skill to ~/.claude/skills/videohub`, `Update complete...`. No warnings.
+  - Real: `stop this install's server (pid 17592)`, `back up replaced code to ~/VideoHubScratch/install/data/update-backup/2026-11-15T20-39-06-569Z and copy the new code (data and projects stay)`, `keep installed Node packages`, `copy VideoHub skill to ~/.claude/skills/videohub`, `Update complete. Open VideoHub with its existing launcher and restart your agent session.` No warnings. (Exit code was not captured because of the `tee` pipe; the completion line and effects confirm success.)
+  - `grep -n SIGSTOP ~/VideoHubScratch/install/server/platform.js` -> 0 matches before, `475:    try { kill(pid, 'SIGSTOP'); } catch { }` after.
+  - Dot-folders / plans: the install already had `.agents/` and `.claude/` (created 12:01 by setup, not by update; empty skills dirs) and `docs/plans`; `diff -rq ~/code/Videohub/docs ~/VideoHubScratch/install/docs` is empty after update. Update copies docs/plans from a git checkout (low impact; note).
   - Hub: `VIDEOHUB_NO_WINDOW=1 bash open.sh --server` -> `VideoHub is available at http://127.0.0.1:7799`; `/api/ping` -> `{"ok":true,"app":"videohub","pid":58781}`.
 - Rollback: restore code from `data/update-backup/TIMESTAMP` (copy back), restart the hub
 
@@ -109,7 +109,7 @@ If a step reveals work outside this phase, report it and continue the approved s
   - [x] Plist owned by this install; `launchctl print` exit 0; `/api/ping` 200 on 7799 started by launchd (parent pid 1)
 - Verification: recorded outputs
 - Evidence (2026-11-15): `node scripts/install.mjs stop` -> `stop this install's server (pid 58781)`; ping then failed (hub down). `node scripts/install.mjs autostart --startup yes` -> `{"enabled":true}`.
-  - Plist `~/Library/LaunchAgents/com.videohub.hub.plist`: Label `com.videohub.hub`; ProgramArguments `/Users/jorge/.asdf/installs/nodejs/22.22.3/bin/node`, `/Users/jorge/VideoHubScratch/install/server/hub.js`; WorkingDirectory the install; `VideoHubInstall` key = the install; RunAtLoad true (no KeepAlive); EnvironmentVariables PATH = the user's full shell PATH (asdf shims and 22.22.3/bin first, `/opt/homebrew/bin`, `/usr/local/bin`, system dirs, ...).
+  - Plist `~/Library/LaunchAgents/com.videohub.hub.plist`: Label `com.videohub.hub`; ProgramArguments `~/.asdf/installs/nodejs/22.22.3/bin/node`, `~/VideoHubScratch/install/server/hub.js`; WorkingDirectory the install; `VideoHubInstall` key = the install; RunAtLoad true (no KeepAlive); EnvironmentVariables PATH = the user's full shell PATH (asdf shims and 22.22.3/bin first, `/opt/homebrew/bin`, `/usr/local/bin`, system dirs, ...).
   - `launchctl print gui/501/com.videohub.hub` exit 0: `state = running`, `program = .../22.22.3/bin/node`, `runs = 1`, `pid = 60158`, `last exit code = (never exited)`, `properties = partial import | runatload | inferred program`.
   - `/api/ping` on 7799 -> `{"ok":true,"app":"videohub","pid":60158}`; `ps` pid 60158 ppid 1 (`node .../install/server/hub.js`), the sole listener on 7799. Autostart left enabled, hub running (launchd-owned, idle).
 - Rollback: `node scripts/install.mjs autostart --startup no`
@@ -118,11 +118,11 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 - Depends on: S3
 - Files:
-  - none in the repository (the worker for S1–S3 creates the test item `/Users/jorge/VideoHubScratch/workspace/films/trash-test` as a copy of `hello-film_v2.mp4` in its own folder)
+  - none in the repository (the worker for S1–S3 creates the test item `~/VideoHubScratch/workspace/films/trash-test` as a copy of `hello-film_v2.mp4` in its own folder)
 - Change: the coordinator asks the user to (1) delete the `trash-test` project from VideoHub's UI, allow Finder Automation if prompted, then restore it from the Finder Trash with Put Back; (2) start a new Claude Code session in any folder and confirm `/mcp` shows `videohub` with `hub_*` tools; (3) optionally log out and back in and confirm VideoHub's hub is running (the coordinator checks `/api/ping` and `launchctl print`).
 - Acceptance:
   - [x] (1) and (2) reported working or as defects; (3) recorded as observed or skipped
-- Verification: user report; `ls /Users/jorge/VideoHubScratch/workspace/films/trash-test` after Put Back
+- Verification: user report; `ls ~/VideoHubScratch/workspace/films/trash-test` after Put Back
 - Rollback: none
 
 ### S5 — Uninstall the scratch install and remove the scratch folder
@@ -130,14 +130,14 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Depends on: S4
 - Files:
   - none in the repository
-- Change: from the install run `bash uninstall.sh --dry-run`, then `bash uninstall.sh`. Verify removed: Desktop `VideoHub.command`, LaunchAgent plist and launchd job, `claude mcp list` `videohub`, `~/.claude/skills/videohub`; verify kept: install program files, data, workspace films/outputs/notes. Verify the hub on 7799 is stopped. Then move `/Users/jorge/VideoHubScratch` to the Finder Trash (osascript Finder delete, never `rm`) per C2, and confirm `claude mcp list` and `~/.config/opencode` match the pre-P3 state.
+- Change: from the install run `bash uninstall.sh --dry-run`, then `bash uninstall.sh`. Verify removed: Desktop `VideoHub.command`, LaunchAgent plist and launchd job, `claude mcp list` `videohub`, `~/.claude/skills/videohub`; verify kept: install program files, data, workspace films/outputs/notes. Verify the hub on 7799 is stopped. Then move `~/VideoHubScratch` to the Finder Trash (osascript Finder delete, never `rm`) per C2, and confirm `claude mcp list` and `~/.config/opencode` match the pre-P3 state.
 - Acceptance:
   - [x] Owned integrations gone; kept items present before the Trash move; nothing listens on 7799; real profile back to the pre-P3 state
 - Verification: uninstall output and before/after listings recorded
 - Evidence (2026-11-15): before: `claude mcp list` had `videohub` (node .../VideoHubScratch/install/server/mcp.js), skills improve/rex/synced/videohub, Desktop `VideoHub.command` and LaunchAgent plist present, `launchctl print` exit 0, hub pid 68548 on 7799 (7788 free), no render (no ffmpeg), `~/.claude/CLAUDE.md` absent, `~/.config/opencode` listed (cli.json, service.json, tui.json, plugins, .gitignore).
   - `bash uninstall.sh --dry-run` exit 0 (would stop server, remove MCP, Trash skill, disable autostart, Trash launcher, Trash install record); `bash uninstall.sh` exit 0 (stopped hub pid 68548, removed MCP `videohub`, skill folder to Trash, autostart disabled, launcher to Trash, record to Trash; "Your films, notes, outputs, settings and the program folder remain").
   - After: `videohub` gone from `claude mcp list`; skills improve/rex/synced; no Desktop command; no plist; `launchctl print` exit 113; nothing listening on 7788/7799; `~/.claude/CLAUDE.md` absent; `~/.config/opencode` listing identical (dates and files unchanged). Kept: install program files, `install/data` (config.json, setup-answers.json, jobs, index), workspace outputs (3 mp4), `films/trash-test/hello-film_v2.mp4`. `films/hello-film` (and its notes.json) was not present: the janitor log shows it was recycled to the Finder Trash (ok:true) at 2026-11-16T01:13Z during the S7 UI test, before uninstall, so it is not an uninstall defect.
-  - Finder `delete` of `/Users/jorge/VideoHubScratch` returned exit 0 ("folder VideoHubScratch of item .Trash"); original path no longer exists. Final state matches the pre-P3 baseline: MCP list (Claude Docs, context7, DaVinci Resolve), skills (improve, rex, synced), no Desktop command, no LaunchAgent plist, no ~/.claude/CLAUDE.md, nothing on 7788/7799; opencode dir unchanged.
+  - Finder `delete` of `~/VideoHubScratch` returned exit 0 ("folder VideoHubScratch of item .Trash"); original path no longer exists. Final state matches the pre-P3 baseline: MCP list (Claude Docs, context7, DaVinci Resolve), skills (improve, rex, synced), no Desktop command, no LaunchAgent plist, no ~/.claude/CLAUDE.md, nothing on 7788/7799; opencode dir unchanged.
 - Rollback: re-run setup from the Trash-restored folder (not expected)
 
 ### S6 — Fix macOS Finder Trash (phase-amend L14)
@@ -165,10 +165,10 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Depends on: S6
 - Files:
   - none in the repository
-- Change: rerun `bash update.sh --target "/Users/jorge/VideoHubScratch/install"` from the repo (data must stay identical), make sure the launchd hub restarts on 7799, then the coordinator asks the user to delete `trash-test` in the UI and Put Back from the Finder Trash.
+- Change: rerun `bash update.sh --target "~/VideoHubScratch/install"` from the repo (data must stay identical), make sure the launchd hub restarts on 7799, then the coordinator asks the user to delete `trash-test` in the UI and Put Back from the Finder Trash.
 - Acceptance:
   - [x] Delete moves `trash-test` to the Trash; Put Back restores it
-- Verification: user report; `ls /Users/jorge/VideoHubScratch/workspace/films/trash-test`
+- Verification: user report; `ls ~/VideoHubScratch/workspace/films/trash-test`
 - Rollback: none
 - Evidence (2026-11-15, worker, automated part; the user delete/Put Back is still pending):
   - Before: no render active (`/api/renders` renders `[]`; jobs all done/cancelled). Snapshot of config.json, setup-answers.json, hello-film notes.json, both hello-film output mp4s (and render chunks, outputs copies), `~/Desktop/VideoHub.command`, LaunchAgent plist, `claude mcp list` (one `videohub`, Connected), `ls -la ~/.config/opencode`.
@@ -207,13 +207,13 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 ## 9. Deviations and working notes
 
-**S7 user answer (2026-11-15):** after the re-update, deleting `trash-test` in the UI moved it to the Finder Trash and Put Back restored it; `ls /Users/jorge/VideoHubScratch/workspace/films/trash-test` shows `hello-film_v2.mp4` (1732470 bytes).
+**S7 user answer (2026-11-15):** after the re-update, deleting `trash-test` in the UI moved it to the Finder Trash and Put Back restored it; `ls ~/VideoHubScratch/workspace/films/trash-test` shows `hello-film_v2.mp4` (1732470 bytes).
 
-**S4 user answers (2026-11-15):** (1) Delete of trash-test failed: "Could not move to Trash. Allow Finder Automation permission and try again. 41:77: execution error: Finder got an error: Can't get POSIX file \"/Users/jorge/VideoHubScratch/workspace/films/trash-test\". (-1728)" — source kept (L14). (2) Claude Code /mcp: new session lists `videohub` with `hub_*` tools (answered after the retry). (3) Logout skipped; launchd RunAtLoad start (S3) accepted as evidence.
+**S4 user answers (2026-11-15):** (1) Delete of trash-test failed: "Could not move to Trash. Allow Finder Automation permission and try again. 41:77: execution error: Finder got an error: Can't get POSIX file \"~/VideoHubScratch/workspace/films/trash-test\". (-1728)" — source kept (L14). (2) Claude Code /mcp: new session lists `videohub` with `hub_*` tools (answered after the retry). (3) Logout skipped; launchd RunAtLoad start (S3) accepted as evidence.
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 
-- 2026-11-15 S1-S3 worker: S4 test item prepared: `/Users/jorge/VideoHubScratch/workspace/films/trash-test/hello-film_v2.mp4` (copy), `POST /api/scan` then `/api/projects` lists `trash-test` (id 66197c13084a, status review). S4 user actions and S5 not done. Type: note.
+- 2026-11-15 S1-S3 worker: S4 test item prepared: `~/VideoHubScratch/workspace/films/trash-test/hello-film_v2.mp4` (copy), `POST /api/scan` then `/api/projects` lists `trash-test` (id 66197c13084a, status review). S4 user actions and S5 not done. Type: note.
 - 2026-11-15 S1 note: update from a git checkout leaves `.agents/`, `.claude/` and `docs/plans` in the install (they were already there from setup). Type: note.
 - 2026-11-15 S2 note: my capture script lost the pre-Stop pid list (heredoc expanded `$(treepids)`); orphan search by pattern at +5 s and +15 s is clean and per-pid `ps -p` run later is clean. Type: note.
 - 2026-11-15 S7 note: after `update.sh` stopped the hub, the LaunchAgent did not bring it back (`state = not running`); a manual `launchctl kickstart -k` was needed. Type: note.

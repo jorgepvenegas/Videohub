@@ -91,7 +91,7 @@ flowchart LR
 | Volumes | `volumes()` probe → 19 mounts including `/dev`, `/System/Volumes/{VM,Preboot,Update,xarts,iSCPreboot,Hardware,Data}` and CoreSimulator images | Noise in storage UI and mount matching |
 | GPU names | `server/platform.js:534` `gpuNames()` returns `[]` when `IS_MAC` | No GPU shown on Mac |
 | Launcher Node path | `scripts/install.mjs:241` writes `process.execPath` into `VideoHub.command`; LaunchAgent uses the same | asdf → `~/.asdf/installs/nodejs/24.16.0/bin/node`; Homebrew → versioned Cellar path; both break after a Node upgrade |
-| asdf under fake HOME | `bash setup.sh --dry-run` under a `.test-tmp` HOME exited 126 because `/Users/jorge/.asdf/shims/node` depends on the real HOME | Probes and tests on this Mac must put a real `node` first on PATH |
+| asdf under fake HOME | `bash setup.sh --dry-run` under a `.test-tmp` HOME exited 126 because `~/.asdf/shims/node` depends on the real HOME | Probes and tests on this Mac must put a real `node` first on PATH |
 | Windows-only exports | `server/platform.js:317` exports `getShortcut`/`setShortcut`/`getAutostartState`, absent from the Unix return at `:550` | All callers in `scripts/install.mjs` are guarded by `platform.IS_WIN`; harmless, recorded as a note |
 
 **Assumptions:** Finder Automation, Gatekeeper and LaunchAgent behavior on macOS 26 match the documented flows (checked in P3/P5 with the user). Puppeteer renders use the installed Chrome via existing browser lookup (checked in P4).

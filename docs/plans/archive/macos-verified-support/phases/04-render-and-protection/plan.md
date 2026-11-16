@@ -22,7 +22,7 @@
 
 ## 1. Phase objective
 
-Prove on the real Mac that VideoHub's protected render queue works (D4): the reviewed example renders once with sound through the queue using VideoToolbox, render priority and background QoS apply and lift, RAM protection reads real free memory, the Renders page hides CPU-core controls with the macOS explanation, and Stop ends a running render's whole process tree. Renders happen only in the scratch install (`/Users/jorge/VideoHubScratch/install`, port 7799), one at a time (C9).
+Prove on the real Mac that VideoHub's protected render queue works (D4): the reviewed example renders once with sound through the queue using VideoToolbox, render priority and background QoS apply and lift, RAM protection reads real free memory, the Renders page hides CPU-core controls with the macOS explanation, and Stop ends a running render's whole process tree. Renders happen only in the scratch install (`~/VideoHubScratch/install`, port 7799), one at a time (C9).
 
 ## 2. Master traceability
 
@@ -45,7 +45,7 @@ Prove on the real Mac that VideoHub's protected render queue works (D4): the rev
 ## 3. Scope
 
 In scope:
-- Two renders of `/Users/jorge/VideoHubScratch/workspace/films/hello-film` through the scratch queue (C9), observation of the process tree, priority, QoS, RAM figures and Stop.
+- Two renders of `~/VideoHubScratch/workspace/films/hello-film` through the scratch queue (C9), observation of the process tree, priority, QoS, RAM figures and Stop.
 - A user check of the Renders page CPU controls and the render-finished notification.
 - Targeted fixes for macOS defects that block A1–A5, each added as a `phase-amend` step first.
 
@@ -82,12 +82,12 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Depends on: S1
 - Files:
   - none in the repository
-- Change: from `/Users/jorge/VideoHubScratch/install` queue the render with `VIDEOHUB_PORT=7799 node server/cli.js hub_render '{"project":"hello-film"}'` (adjust to the tool's real JSON schema). While it runs, capture the render tree with `ps -axo pid,ppid,pgid,nice,pri,command` at least twice; switch the render to slow mode through the documented guard control (`/api/guard/temp` or the Renders page action found in `server/hub.js`), capture `nice`/`pri` again (expect nice 19 and background priority), then restore and capture once more (restoration is best effort per docs). Poll `hub_job` until done. Then `ffprobe` the output: video stream, audio stream, duration about 10 s; read the job log for the encoder actually used (`h264_videotoolbox` or `hevc_videotoolbox`).
+- Change: from `~/VideoHubScratch/install` queue the render with `VIDEOHUB_PORT=7799 node server/cli.js hub_render '{"project":"hello-film"}'` (adjust to the tool's real JSON schema). While it runs, capture the render tree with `ps -axo pid,ppid,pgid,nice,pri,command` at least twice; switch the render to slow mode through the documented guard control (`/api/guard/temp` or the Renders page action found in `server/hub.js`), capture `nice`/`pri` again (expect nice 19 and background priority), then restore and capture once more (restoration is best effort per docs). Poll `hub_job` until done. Then `ffprobe` the output: video stream, audio stream, duration about 10 s; read the job log for the encoder actually used (`h264_videotoolbox` or `hevc_videotoolbox`).
 - Acceptance:
   - [x] Job finishes successfully; output has video and audio, about 10 s; log shows a VideoToolbox encoder
   - [ ] Slow mode raises niceness to 19 and lowers `pri` across the tree; restore is recorded (may stay lowered without privileges) - NOT OBSERVED, see evidence
 - Verification: `hub_job` final state; `ffprobe -v error -show_entries stream=codec_type,codec_name -show_entries format=duration` on the output file named by `hub_job`; captured `ps` snapshots
-- Evidence (2026-11-15): `hub_render '{"project":"hello-film","mode":"full"}'` -> job `jmwia9ztc-8d89f493`, state `done`, "took 5 s", 5/5 chunks, 2 workers, 300 frames in 3.9 s (76.9 fps). Output `/Users/jorge/VideoHubScratch/workspace/films/hello-film/hello-film_v1.mp4` (copy in workspace/outputs/2026-11-15/). Log: `encoder: videotoolbox (h264_videotoolbox)`; final mux `-c:v copy -c:a aac -b:a 320k` from `audio/mix.wav`. ffprobe: stream 0 h264 video, stream 1 aac audio, duration 10.000000. Log also contains `Truncating packet of size 8294400 to 65514` lines (stderr from ffmpeg while piping raw frames; output is valid, 10 s, 300 frames). An osascript `display notification` process (pid 36255, "Render finished: Hello, VideoHub v1 ...") was seen right after the render, so the notification was requested.
+- Evidence (2026-11-15): `hub_render '{"project":"hello-film","mode":"full"}'` -> job `jmwia9ztc-8d89f493`, state `done`, "took 5 s", 5/5 chunks, 2 workers, 300 frames in 3.9 s (76.9 fps). Output `~/VideoHubScratch/workspace/films/hello-film/hello-film_v1.mp4` (copy in workspace/outputs/2026-11-15/). Log: `encoder: videotoolbox (h264_videotoolbox)`; final mux `-c:v copy -c:a aac -b:a 320k` from `audio/mix.wav`. ffprobe: stream 0 h264 video, stream 1 aac audio, duration 10.000000. Log also contains `Truncating packet of size 8294400 to 65514` lines (stderr from ffmpeg while piping raw frames; output is valid, 10 s, 300 frames). An osascript `display notification` process (pid 36255, "Render finished: Hello, VideoHub v1 ...") was seen right after the render, so the notification was requested.
 - Process/priority snapshots: NOT captured. The whole render finished in 5 s; my first `ps` came after the job was already `done` (only the osascript notification process remained). No slow-mode request was possible during this render.
 - Second job (S3 attempt) also ran to `done` (see S3), where slow/normal requests were POSTed to `/api/renders/cmd` (`{"action":"slow"}` then `{"action":"normal"}`, both `{"ok":true,"note":null}`) but with no tracked render (`/api/renders` guard.renders was `[]`), so no nice/pri change was observable. Guard settings after: unchanged (CapActive 90, LowPrio 1, temp null); `/api/guard/temp` not used.
 - Rollback: none (output stays in the scratch workspace; P5 uninstall leaves outputs, scratch folder removed at P5 end)

@@ -22,7 +22,7 @@
 
 ## 1. Phase objective
 
-Prove on the real Mac that a user can install VideoHub with `bash setup.sh`, open it from the Desktop `VideoHub.command`, see the example film in live preview, leave a note, pick a folder with the macOS dialog and reveal a file in Finder (D3). The scratch install follows C2/C8: program at `/Users/jorge/VideoHubScratch/install`, workspace at `/Users/jorge/VideoHubScratch/workspace`, port 7799, Claude Code registration only, no global rule. Defects found here are fixed inside this phase when the fix is targeted; larger ones become new phases. No render happens in P3.
+Prove on the real Mac that a user can install VideoHub with `bash setup.sh`, open it from the Desktop `VideoHub.command`, see the example film in live preview, leave a note, pick a folder with the macOS dialog and reveal a file in Finder (D3). The scratch install follows C2/C8: program at `~/VideoHubScratch/install`, workspace at `~/VideoHubScratch/workspace`, port 7799, Claude Code registration only, no global rule. Defects found here are fixed inside this phase when the fix is targeted; larger ones become new phases. No render happens in P3.
 
 ## 2. Master traceability
 
@@ -62,7 +62,7 @@ Out of scope:
 
 - [x] P2 done; suite green — verify: `pnpm test 2>&1 | grep -E "^ℹ (pass|fail)"` → `fail 0`
 - [x] No other VideoHub on the account — verify: `lsof -nP -iTCP:7788 -iTCP:7799 -sTCP:LISTEN` empty; no `~/Desktop/VideoHub.command`; `claude mcp list` has no `videohub`
-- [x] `/Users/jorge/VideoHubScratch` does not exist yet — verify: `test ! -e /Users/jorge/VideoHubScratch`
+- [x] `~/VideoHubScratch` does not exist yet — verify: `test ! -e ~/VideoHubScratch`
 - [x] Phase plan revalidated against current master version
 - [x] User approved this phase plan — verify: `Approved by` is set and status is `ready`
 
@@ -74,37 +74,37 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 - Depends on: none
 - Files:
-  - none in the repository (creates `/Users/jorge/VideoHubScratch/install` and `/Users/jorge/VideoHubScratch/install/data/config.json`)
-- Change: `mkdir -p /Users/jorge/VideoHubScratch/install && git archive HEAD | tar -x -C /Users/jorge/VideoHubScratch/install`, then write `{"port": 7799}` to `/Users/jorge/VideoHubScratch/install/data/config.json` so every launcher and CLI of this install uses 7799.
+  - none in the repository (creates `~/VideoHubScratch/install` and `~/VideoHubScratch/install/data/config.json`)
+- Change: `mkdir -p ~/VideoHubScratch/install && git archive HEAD | tar -x -C ~/VideoHubScratch/install`, then write `{"port": 7799}` to `~/VideoHubScratch/install/data/config.json` so every launcher and CLI of this install uses 7799.
 - Acceptance:
   - [ ] The install contains `setup.sh`, `pnpm-lock.yaml`, `server/hub.js`; `data/config.json` has port 7799
-- Verification: `ls /Users/jorge/VideoHubScratch/install && cat /Users/jorge/VideoHubScratch/install/data/config.json`
+- Verification: `ls ~/VideoHubScratch/install && cat ~/VideoHubScratch/install/data/config.json`
 - Evidence (2026-11-15): `git archive HEAD | tar -x -C ~/VideoHubScratch/install` done; install has `setup.sh`, `pnpm-lock.yaml`, `server/hub.js`. Entry checks passed: nothing on 7788/7799, no Desktop command, `claude mcp list` had no videohub, `~/.claude/CLAUDE.md` does not exist (no checksum), `~/.claude/skills` = improve rex synced.
-- Deviation: the seeded `data/config.json` `{"port": 7799}` made `setup.sh --dry-run` report `kept the workspace /Users/jorge/Documents/VideoHub (... was not used: the workspace is already set)` — `initConfig` treats any existing config.json as an installed workspace and ignores `--workspace`. Seed removed before the real run (see S2).
-- Rollback: `rm -rf /Users/jorge/VideoHubScratch` (only this folder; P5 normally removes it through uninstall)
+- Deviation: the seeded `data/config.json` `{"port": 7799}` made `setup.sh --dry-run` report `kept the workspace ~/Documents/VideoHub (... was not used: the workspace is already set)` — `initConfig` treats any existing config.json as an installed workspace and ignores `--workspace`. Seed removed before the real run (see S2).
+- Rollback: `rm -rf ~/VideoHubScratch` (only this folder; P5 normally removes it through uninstall)
 
 ### S2 — Run setup with the recorded answers
 
 - Depends on: S1
 - Files:
   - none in the repository
-- Change: from `/Users/jorge/VideoHubScratch/install` run `bash setup.sh --dry-run` with the answers below, read it, then run it for real: `bash setup.sh --workspace "/Users/jorge/VideoHubScratch/workspace" --agents claude --watch-found no --gpu-encoder yes --global-rule no --shortcut yes --startup no --example yes`. Record the full output.
+- Change: from `~/VideoHubScratch/install` run `bash setup.sh --dry-run` with the answers below, read it, then run it for real: `bash setup.sh --workspace "~/VideoHubScratch/workspace" --agents claude --watch-found no --gpu-encoder yes --global-rule no --shortcut yes --startup no --example yes`. Record the full output.
 - Acceptance:
   - [ ] Exit 0; `pnpm install --frozen-lockfile` ran; `data/config.json` still has port 7799 plus the workspace
   - [ ] `~/Desktop/VideoHub.command` exists, is executable, names this install and execs the stable Node path (asdf here: the versioned path) — content recorded
   - [ ] `claude mcp list` shows the videohub server pointing at this install; `~/.claude/CLAUDE.md` unchanged (checksum before/after)
   - [ ] Workspace has films/outputs/sounds/thumbnails/archive and the example film
-- Verification: setup output; `cat ~/Desktop/VideoHub.command`; `xattr ~/Desktop/VideoHub.command`; `claude mcp list`; `shasum ~/.claude/CLAUDE.md` before/after; `ls /Users/jorge/VideoHubScratch/workspace /Users/jorge/VideoHubScratch/workspace/films`
-- Rollback: `bash /Users/jorge/VideoHubScratch/install/uninstall.sh` (dry-run first), then `rm -rf /Users/jorge/VideoHubScratch`
+- Verification: setup output; `cat ~/Desktop/VideoHub.command`; `xattr ~/Desktop/VideoHub.command`; `claude mcp list`; `shasum ~/.claude/CLAUDE.md` before/after; `ls ~/VideoHubScratch/workspace ~/VideoHubScratch/workspace/films`
+- Rollback: `bash ~/VideoHubScratch/install/uninstall.sh` (dry-run first), then `rm -rf ~/VideoHubScratch`
 - Evidence (2026-11-15):
   - Before: `claude mcp list` = claude.ai Claude Docs, plugin:context7, DaVinci Resolve (no videohub); `~/.claude/CLAUDE.md` absent; `~/.claude/skills` = improve rex synced.
-  - Dry-run and real run used `VIDEOHUB_PORT=7799 bash setup.sh [--dry-run] --workspace /Users/jorge/VideoHubScratch/workspace --agents claude --watch-found no --gpu-encoder yes --global-rule no --shortcut yes --startup no --example yes --server`. `--server` (extra flag) keeps setup from opening a browser window; `VIDEOHUB_PORT=7799` keeps its end-of-setup hub off 7788. Dry-run output: pnpm install, use workspace, create 5 folders + README.txt, write config.json, would register MCP videohub / copy skill, write launcher, copy example, "start the local hub if needed (server only)". No warnings.
-  - Real run: exit 0. `pnpm install --frozen-lockfile` ran (pnpm 11.5.2, +115 packages: @modelcontextprotocol/sdk 1.32.1, puppeteer-core 25.17.0, zod 4.6.7). Output also said `Found video folder: /Users/jorge/Documents/Media` (listed disabled in roots because `--watch-found no`).
-  - `data/config.json` after setup: `"port": 7788` (setup writes the default, not 7799), baseDir/outputs/sounds/archive/thumbstudio under `/Users/jorge/VideoHubScratch/workspace`, roots = scratch films (enabled) + Documents/Media (media, disabled), `render.encoder` auto. Port set to 7799 afterwards with a JSON edit (hub stopped via `node scripts/install.mjs stop`, restarted with `bash open.sh --server`).
+  - Dry-run and real run used `VIDEOHUB_PORT=7799 bash setup.sh [--dry-run] --workspace ~/VideoHubScratch/workspace --agents claude --watch-found no --gpu-encoder yes --global-rule no --shortcut yes --startup no --example yes --server`. `--server` (extra flag) keeps setup from opening a browser window; `VIDEOHUB_PORT=7799` keeps its end-of-setup hub off 7788. Dry-run output: pnpm install, use workspace, create 5 folders + README.txt, write config.json, would register MCP videohub / copy skill, write launcher, copy example, "start the local hub if needed (server only)". No warnings.
+  - Real run: exit 0. `pnpm install --frozen-lockfile` ran (pnpm 11.5.2, +115 packages: @modelcontextprotocol/sdk 1.32.1, puppeteer-core 25.17.0, zod 4.6.7). Output also said `Found video folder: ~/Documents/Media` (listed disabled in roots because `--watch-found no`).
+  - `data/config.json` after setup: `"port": 7788` (setup writes the default, not 7799), baseDir/outputs/sounds/archive/thumbstudio under `~/VideoHubScratch/workspace`, roots = scratch films (enabled) + Documents/Media (media, disabled), `render.encoder` auto. Port set to 7799 afterwards with a JSON edit (hub stopped via `node scripts/install.mjs stop`, restarted with `bash open.sh --server`).
   - `~/Desktop/VideoHub.command` (mode -rwxr-xr-x, 268 bytes):
-    `#!/bin/bash` / `# VideoHub install: /Users/jorge/VideoHubScratch/install` / `set -euo pipefail` / `export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"` / `exec '/Users/jorge/.asdf/installs/nodejs/22.22.3/bin/node' '/Users/jorge/VideoHubScratch/install/scripts/install.mjs' open "$@"`.
+    `#!/bin/bash` / `# VideoHub install: ~/VideoHubScratch/install` / `set -euo pipefail` / `export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"` / `exec '~/.asdf/installs/nodejs/22.22.3/bin/node' '~/VideoHubScratch/install/scripts/install.mjs' open "$@"`.
   - `xattr ~/Desktop/VideoHub.command` = `com.apple.macl`, `com.apple.provenance` (no `com.apple.quarantine`).
-  - After: `claude mcp list` has `videohub: node /Users/jorge/VideoHubScratch/install/server/mcp.js - Connected`; `~/.claude/skills` = improve rex synced videohub; `~/.claude/CLAUDE.md` still absent (unchanged); no OpenCode touched.
+  - After: `claude mcp list` has `videohub: node ~/VideoHubScratch/install/server/mcp.js - Connected`; `~/.claude/skills` = improve rex synced videohub; `~/.claude/CLAUDE.md` still absent (unchanged); no OpenCode touched.
   - Workspace: archive films outputs sounds thumbnail-templates thumbnails README.txt; films/hello-film present.
 
 ### S3 — Automated hub checks on port 7799
@@ -119,8 +119,8 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Rollback: stop the server (`node scripts/install.mjs stop` from the install)
 - Evidence (2026-11-15), all with `VIDEOHUB_PORT=7799`:
   - `bash open.sh --server` -> `VideoHub is available at http://127.0.0.1:7799`; listener on 7799 only (pid 7896 at the time of writing), none on 7788.
-  - `node server/cli.js hub_workspace` -> `Workspace: /Users/jorge/VideoHubScratch/workspace`, films/outputs/sounds/thumbnails/archive under it.
-  - `node server/cli.js hub_project '{"project":"hello-film"}'` -> `Project: Hello, VideoHub (id 926ba32ad69f) · /Users/jorge/VideoHubScratch/workspace/films/hello-film`, chunked, DUR=10, 30 fps, notes 0/0. (The CLI takes a JSON argument; a bare `hello-film` fails with "not valid JSON".)
+  - `node server/cli.js hub_workspace` -> `Workspace: ~/VideoHubScratch/workspace`, films/outputs/sounds/thumbnails/archive under it.
+  - `node server/cli.js hub_project '{"project":"hello-film"}'` -> `Project: Hello, VideoHub (id 926ba32ad69f) · ~/VideoHubScratch/workspace/films/hello-film`, chunked, DUR=10, 30 fps, notes 0/0. (The CLI takes a JSON argument; a bare `hello-film` fails with "not valid JSON".)
   - `curl /` -> 200; `/api/ping` -> `{"ok":true,"app":"videohub","pid":7896}` 200; `/api/config` -> 200 with port 7799. `/api/capabilities` and `/api/settings` do not exist (they return the SPA index page).
   - `/api/encoders` -> `{"available":["videotoolbox","x264"],"best":"videotoolbox","gpus":["Apple M2 Max"],"chosen":"auto"}`; `data/encoders.json` also has `gpus: ["Apple M2 Max"]`.
   - Server left running for S4.
@@ -196,7 +196,7 @@ Append during implementation. One line per deviation: date, step, what changed, 
 | Criterion | Verdict | Evidence |
 |---|---|---|
 | A1 | met | `bash setup.sh --workspace ~/VideoHubScratch/workspace --agents claude --global-rule no --shortcut yes --startup no --example yes` exit 0; `pnpm install --frozen-lockfile` ran; `claude mcp list` adds only `videohub` (connected); skill `videohub` added; `~/.claude/CLAUDE.md` absent before and after |
-| A2 | met | `VideoHub.command` (rwx) execs `/Users/jorge/.asdf/installs/nodejs/22.22.3/bin/node` (asdf: versioned path per the stable rule); user double-click: Terminal opened, **no Gatekeeper prompt**, Chrome app window on 7799 (`ps` pid 17610); `xattr` has no `com.apple.quarantine` |
+| A2 | met | `VideoHub.command` (rwx) execs `~/.asdf/installs/nodejs/22.22.3/bin/node` (asdf: versioned path per the stable rule); user double-click: Terminal opened, **no Gatekeeper prompt**, Chrome app window on 7799 (`ps` pid 17610); `xattr` has no `com.apple.quarantine` |
 | A3 | met | User played live preview and left a note: `notes.json` id 1, t 2.95 s, frame 88, "Scene 1 should also have a moon", status approved (approved notes are not listed by `hub_notes` open view) |
 | A4 | met | User report 2026-11-15: folder dialog opened, cancel and pick both worked; Finder reveal worked |
 | A5 | met | `pnpm test` → 347 pass, 0 fail; `node --check server/tools.js server/tools.test.js` clean |
