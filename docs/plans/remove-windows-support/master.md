@@ -1,8 +1,8 @@
 # Master Plan — Remove Windows support
 
 - Plan ID: `remove-windows-support`
-- Master version: 13
-- Status: active
+- Master version: 15
+- Status: complete
 - Created: 2026-11-17
 - Source: user request (2026-11-17): "I want to get rid of all windows related code and support"
 - Size: large
@@ -41,12 +41,12 @@ flowchart LR
 
 ## 3. Definition of done
 
-- [ ] D1 — No Windows entry points, wrappers, Windows-only scripts, tests or docs are tracked — verify: `git ls-files '*.cmd' '*.ps1' '*.bat' '*.vbs' 'scripts/windows-*' 'server/platform.win32.test.js' 'docs/WINDOWS-SECURITY.md'` prints nothing
-- [ ] D2 — Source has no Windows branches or Windows-only identifiers — verify: `grep -rnE "win32|IS_WIN|isWin|[Pp]ower[Ss]hell|winget|taskkill|Get-CimInstance|explorer\.exe|cmd\.exe|ComSpec|LOCALAPPDATA|USERPROFILE|APPDATA|windowsHide|windowsVerbatimArguments|notifyWindows|start-with-windows|Recycle Bin|\.exe\b|\.lnk\b" server scripts ui templates examples engine-hooks skill package.json setup.sh update.sh uninstall.sh open.sh` prints nothing except the legacy `exe: null` field of `/api/guard/settings` (`server/guard.js`, `server/hub.js`; kept for response-shape compatibility, ledger L7)
-- [ ] D3 — macOS and Linux lifecycle behavior is unchanged — verify: Linux/darwin cases in `scripts/install.test.js`, `scripts/agents.test.js`, `scripts/init-config.test.js` pass; `bash setup.sh --dry-run --yes` with HOME/XDG dirs under `.test-tmp` exits 0
-- [ ] D4 — Docs and agent instructions describe macOS + Linux only — verify: `grep -rnE "Windows|PowerShell|winget|\.cmd\b|\.ps1\b|%APPDATA%|Recycle Bin|Explorer|SmartScreen" README.md CLAUDE.md AGENTS.md docs skill --exclude-dir=plans` has no hit referring to the operating system (residual hits reviewed and listed in the P3 closeout)
-- [ ] D5 — Package metadata and test suite are consistent — verify: `pnpm install --frozen-lockfile && pnpm test` passes with 0 failures; `node -p "require('./package.json').os"` prints `[ 'linux', 'darwin' ]`; `node --check` passes on every changed `.js`/`.mjs`
-- [ ] D6 — Render templates stay identical and carry no Windows browser lookup — verify: `cmp templates/new-film/render.js examples/hello-film/render.js` exits 0 and D2's grep has no hit in either file
+- [x] D1 — No Windows entry points, wrappers, Windows-only scripts, tests or docs are tracked — verify: `git ls-files '*.cmd' '*.ps1' '*.bat' '*.vbs' 'scripts/windows-*' 'server/platform.win32.test.js' 'docs/WINDOWS-SECURITY.md'` prints nothing
+- [x] D2 — Source has no Windows branches or Windows-only identifiers — verify: `grep -rnE "win32|IS_WIN|isWin|[Pp]ower[Ss]hell|winget|taskkill|Get-CimInstance|explorer\.exe|cmd\.exe|ComSpec|LOCALAPPDATA|USERPROFILE|APPDATA|windowsHide|windowsVerbatimArguments|notifyWindows|start-with-windows|Recycle Bin|\.exe\b|\.lnk\b" server scripts ui templates examples engine-hooks skill package.json setup.sh update.sh uninstall.sh open.sh` prints nothing except the legacy `exe: null` field of `/api/guard/settings` (`server/guard.js`, `server/hub.js`; kept for response-shape compatibility, ledger L7)
+- [x] D3 — macOS and Linux lifecycle behavior is unchanged — verify: Linux/darwin cases in `scripts/install.test.js`, `scripts/agents.test.js`, `scripts/init-config.test.js` pass; `bash setup.sh --dry-run --yes` with HOME/XDG dirs under `.test-tmp` exits 0
+- [x] D4 — Docs and agent instructions describe macOS + Linux only — verify: `grep -rnE "Windows|PowerShell|winget|\.cmd\b|\.ps1\b|%APPDATA%|Recycle Bin|Explorer|SmartScreen" README.md CLAUDE.md AGENTS.md docs skill --exclude-dir=plans` has no hit referring to the operating system (residual hits reviewed and listed in the P3 closeout)
+- [x] D5 — Package metadata and test suite are consistent — verify: `pnpm install --frozen-lockfile && pnpm test` passes with 0 failures; `node -p "require('./package.json').os"` prints `[ 'linux', 'darwin' ]`; `node --check` passes on every changed `.js`/`.mjs`
+- [x] D6 — Render templates stay identical and carry no Windows browser lookup — verify: `cmp templates/new-film/render.js examples/hello-film/render.js` exits 0 and D2's grep has no hit in either file
 
 ## 4. Code standards
 
@@ -93,7 +93,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | P1 | Installer and agent integration | Setup, update, uninstall, open and agent registration run only the Unix lifecycle; Windows entry points, wrappers and Windows-only installer tests are gone; pnpm test stays green. | none | done | [plan](phases/01-installer-and-agent-integration/plan.md) |
 | P2 | Runtime platform layer | `server/platform.js` has no Windows branch or Windows-only exports; server, UI and test runner use only Unix integrations; Windows-named identifiers renamed; pnpm test green. | P1 | done | [plan](phases/02-runtime-platform-layer/plan.md) |
-| P3 | Templates, docs and agent rules | Render templates drop Windows browser paths; README, CLAUDE.md, AGENTS.md, docs and skill describe macOS + Linux only; WINDOWS-SECURITY.md removed; package.json metadata updated; final D1–D6 sweep. | P2 | in_progress | [plan](phases/03-templates-docs-and-agent-rules/plan.md) |
+| P3 | Templates, docs and agent rules | Render templates drop Windows browser paths; README, CLAUDE.md, AGENTS.md, docs and skill describe macOS + Linux only; WINDOWS-SECURITY.md removed; package.json metadata updated; final D1–D6 sweep. | P2 | done | [plan](phases/03-templates-docs-and-agent-rules/plan.md) |
 
 Status: `planned`, `ready`, `in_progress`, `done`, `blocked`, `needs_replan`, `superseded`.
 `ready` means the user has explicitly approved that phase plan. A written plan is not `ready` until it passes the approval gate. Later phases may stay as outlines; add them with `add-phase --outline`, then write the plan with `write-plan` just before the phase starts and stop for approval.
@@ -127,6 +127,8 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L7 | 2026-11-17 | P2 | P3 | D2 grep matches out.exe = null (server/guard.js:37) and exe: null (server/hub.js:105): a legacy HTTP response field of /api/guard/settings, kept because response shapes must not change | master-amend | Recorded as the accepted D2 exception; P3 closeout lists it as the only D2 hit outside docs | open |
 | L8 | 2026-11-17 | P2 | P3 | Backslash/drive-letter normalization (janitor.js archiveOne, outputs.js guardPath) and vmmem/WSL names in ramhogs.js remain; not matched by D2 and changing them alters Unix path semantics | note | Left as is per P2 scope; out of this plan | open |
 | L9 | 2026-11-17 | P2 | P3 | Test baseline after P2: 299 tests, 298 pass, 1 skipped, 0 fail (26 Windows-only tests removed); scratch hub on 7799 serves pages, /api/guard/settings and /api/renders with unchanged shapes | note | P3 compares against this baseline | open |
+| L10 | 2026-11-17 | P3 | P3 | Both render.js files also carried windowsHide: true on two spawn calls; D2/D6 required removing it, inside S1's file list but beyond its literal text | phase-amend | Removed in both files; templates remain byte-equal | open |
+| L11 | 2026-11-17 | P3 | P3 | Some docs cells depended on Windows text (PLATFORMS agent-integration rows, MIGRATING bullet); the fs.watch pitfall stays in ARCHITECTURE reworded, since reallyChanged remains in server/live.js | note | Rewritten in place during S5 | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
@@ -146,6 +148,7 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 |---|---|---|---|---|---|
 | P1 | 2026-11-17 | addressed | A1, A2, A3, A4 | 7a35e26 | [report](phases/01-installer-and-agent-integration/plan.md) |
 | P2 | 2026-11-17 | addressed | A1, A2, A3, A4 | 151cf07 | [report](phases/02-runtime-platform-layer/plan.md) |
+| P3 | 2026-11-17 | addressed | A1, A2, A3, A4, A5, A6 | 0ab6645 | [report](phases/03-templates-docs-and-agent-rules/plan.md) |
 
 ## 12. Resume brief
 

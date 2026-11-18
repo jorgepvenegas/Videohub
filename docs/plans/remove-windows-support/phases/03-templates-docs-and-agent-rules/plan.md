@@ -4,10 +4,10 @@
 - Phase: P3
 - Plan version: 1
 - Validated against master version: 13
-- Status: in_progress
+- Status: done
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-17
-- Commit: see git log (commit "P3: Templates, docs and agent rules")
+- Commit: 0ab6645
 - Implementation mode: subagent
 - Implemented by: p3-worker
 - Implemented at: 2026-11-17
@@ -46,6 +46,8 @@ Finish the removal where users and agents see it. Remove the Windows browser pat
 | L7 | `exe: null` in `/api/guard/settings` is the accepted D2 exception (master D2 amended) | A2 allows exactly that hit and no other |
 | L8 | Backslash/drive-letter normalization and `vmmem`/WSL process names remain in `server/` | Not in scope; the closeout lists them as known non-D2 remnants |
 | L9 | Baseline after P2: 299 tests, 298 pass, 1 skipped, 0 fail | A5 expects 0 failures and the same count (docs/template changes add or remove no tests) |
+| L10 | `windowsHide` in both render.js spawn calls | Removed in S1 (both files, byte-equal) |
+| L11 | Docs cells depending on Windows text; fs.watch pitfall kept reworded | Rewritten in place during S5 |
 
 ## 3. Scope
 
