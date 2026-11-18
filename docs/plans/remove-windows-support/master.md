@@ -93,7 +93,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | P1 | Installer and agent integration | Setup, update, uninstall, open and agent registration run only the Unix lifecycle; Windows entry points, wrappers and Windows-only installer tests are gone; pnpm test stays green. | none | done | [plan](phases/01-installer-and-agent-integration/plan.md) |
 | P2 | Runtime platform layer | `server/platform.js` has no Windows branch or Windows-only exports; server, UI and test runner use only Unix integrations; Windows-named identifiers renamed; pnpm test green. | P1 | done | [plan](phases/02-runtime-platform-layer/plan.md) |
-| P3 | Templates, docs and agent rules | Render templates drop Windows browser paths; README, CLAUDE.md, AGENTS.md, docs and skill describe macOS + Linux only; WINDOWS-SECURITY.md removed; package.json metadata updated; final D1–D6 sweep. | P2 | planned | [plan](phases/03-templates-docs-and-agent-rules/plan.md) |
+| P3 | Templates, docs and agent rules | Render templates drop Windows browser paths; README, CLAUDE.md, AGENTS.md, docs and skill describe macOS + Linux only; WINDOWS-SECURITY.md removed; package.json metadata updated; final D1–D6 sweep. | P2 | ready | [plan](phases/03-templates-docs-and-agent-rules/plan.md) |
 
 Status: `planned`, `ready`, `in_progress`, `done`, `blocked`, `needs_replan`, `superseded`.
 `ready` means the user has explicitly approved that phase plan. A written plan is not `ready` until it passes the approval gate. Later phases may stay as outlines; add them with `add-phase --outline`, then write the plan with `write-plan` just before the phase starts and stop for approval.
