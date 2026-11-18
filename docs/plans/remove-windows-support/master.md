@@ -2,7 +2,7 @@
 
 - Plan ID: `remove-windows-support`
 - Master version: 4
-- Status: draft
+- Status: active
 - Created: 2026-11-17
 - Source: user request (2026-11-17): "I want to get rid of all windows related code and support"
 - Size: large
@@ -91,7 +91,7 @@ flowchart LR
 
 | ID | Phase | Outcome | Depends on | Status | Plan |
 |---|---|---|---|---|---|
-| P1 | Installer and agent integration | Setup, update, uninstall, open and agent registration run only the Unix lifecycle; Windows entry points, wrappers and Windows-only installer tests are gone; pnpm test stays green. | none | planned | [plan](phases/01-installer-and-agent-integration/plan.md) |
+| P1 | Installer and agent integration | Setup, update, uninstall, open and agent registration run only the Unix lifecycle; Windows entry points, wrappers and Windows-only installer tests are gone; pnpm test stays green. | none | ready | [plan](phases/01-installer-and-agent-integration/plan.md) |
 | P2 | Runtime platform layer | `server/platform.js` has no Windows branch or Windows-only exports; server, UI and test runner use only Unix integrations; Windows-named identifiers renamed; pnpm test green. | P1 | planned | pending |
 | P3 | Templates, docs and agent rules | Render templates drop Windows browser paths; README, CLAUDE.md, AGENTS.md, docs and skill describe macOS + Linux only; WINDOWS-SECURITY.md removed; package.json metadata updated; final D1–D6 sweep. | P2 | planned | pending |
 
