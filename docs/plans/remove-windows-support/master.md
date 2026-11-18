@@ -152,9 +152,9 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 
 ## 12. Resume brief
 
-- Current phase: P3 (plan in draft)
-- Last verdict: P2 addressed
-- Next action: user reviews P3 plan and approves or requests changes
+- Current phase: none (all phases done)
+- Last verdict: P3 addressed
+- Next action: user decides PR and plan-file disposition
 - Open decisions: none
 - PR: declined (2026-11-17)
 - Last updated: 2026-11-17
