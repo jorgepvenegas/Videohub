@@ -4,10 +4,10 @@
 - Phase: P2
 - Plan version: 1
 - Validated against master version: 10
-- Status: in_progress
+- Status: done
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-17
-- Commit: pending
+- Commit: 151cf07
 - Implementation mode: subagent
 - Implemented by: p2-worker
 - Implemented at: 2026-11-17

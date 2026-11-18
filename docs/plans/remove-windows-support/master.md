@@ -1,7 +1,7 @@
 # Master Plan — Remove Windows support
 
 - Plan ID: `remove-windows-support`
-- Master version: 10
+- Master version: 13
 - Status: active
 - Created: 2026-11-17
 - Source: user request (2026-11-17): "I want to get rid of all windows related code and support"
@@ -92,7 +92,7 @@ flowchart LR
 | ID | Phase | Outcome | Depends on | Status | Plan |
 |---|---|---|---|---|---|
 | P1 | Installer and agent integration | Setup, update, uninstall, open and agent registration run only the Unix lifecycle; Windows entry points, wrappers and Windows-only installer tests are gone; pnpm test stays green. | none | done | [plan](phases/01-installer-and-agent-integration/plan.md) |
-| P2 | Runtime platform layer | `server/platform.js` has no Windows branch or Windows-only exports; server, UI and test runner use only Unix integrations; Windows-named identifiers renamed; pnpm test green. | P1 | in_progress | [plan](phases/02-runtime-platform-layer/plan.md) |
+| P2 | Runtime platform layer | `server/platform.js` has no Windows branch or Windows-only exports; server, UI and test runner use only Unix integrations; Windows-named identifiers renamed; pnpm test green. | P1 | done | [plan](phases/02-runtime-platform-layer/plan.md) |
 | P3 | Templates, docs and agent rules | Render templates drop Windows browser paths; README, CLAUDE.md, AGENTS.md, docs and skill describe macOS + Linux only; WINDOWS-SECURITY.md removed; package.json metadata updated; final D1–D6 sweep. | P2 | planned | pending |
 
 Status: `planned`, `ready`, `in_progress`, `done`, `blocked`, `needs_replan`, `superseded`.
@@ -124,6 +124,9 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L4 | 2026-11-17 | P1 | all | Test baseline after P1: 325 tests, 324 pass, 1 skipped, 0 fail (25 Windows-only tests removed) | note | Later phases compare against this baseline | open |
 | L5 | 2026-11-17 | P1 | all | scope command reads only the first path of a multi-file Files: bullet, so S1's grouped deletions showed as out of scope | plan-defect | Later phase plans list one file per Files: bullet | open |
 | L6 | 2026-11-17 | P1 | P3 | close requires every traced master DoD row to read met; P1 marks D1/D2/D5 met for its slice only, with the remaining slice named in the evidence | note | P3 closeout re-verifies D1-D6 in full with the master commands | open |
+| L7 | 2026-11-17 | P2 | P3 | D2 grep matches out.exe = null (server/guard.js:37) and exe: null (server/hub.js:105): a legacy HTTP response field of /api/guard/settings, kept because response shapes must not change | master-amend | Recorded as the accepted D2 exception; P3 closeout lists it as the only D2 hit outside docs | open |
+| L8 | 2026-11-17 | P2 | P3 | Backslash/drive-letter normalization (janitor.js archiveOne, outputs.js guardPath) and vmmem/WSL names in ramhogs.js remain; not matched by D2 and changing them alters Unix path semantics | note | Left as is per P2 scope; out of this plan | open |
+| L9 | 2026-11-17 | P2 | P3 | Test baseline after P2: 299 tests, 298 pass, 1 skipped, 0 fail (26 Windows-only tests removed); scratch hub on 7799 serves pages, /api/guard/settings and /api/renders with unchanged shapes | note | P3 compares against this baseline | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
@@ -142,6 +145,7 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 | Phase | Date | Verdict | Criteria met | Commit | Report |
 |---|---|---|---|---|---|
 | P1 | 2026-11-17 | addressed | A1, A2, A3, A4 | 7a35e26 | [report](phases/01-installer-and-agent-integration/plan.md) |
+| P2 | 2026-11-17 | addressed | A1, A2, A3, A4 | 151cf07 | [report](phases/02-runtime-platform-layer/plan.md) |
 
 ## 12. Resume brief
 
