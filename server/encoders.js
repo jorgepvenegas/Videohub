@@ -9,7 +9,7 @@ export { gpuNames } from './platform.js';
 import { gpuNames, OS } from './platform.js';
 
 export const ENCODERS = ['auto', 'nvenc', 'amf', 'vaapi', 'qsv', 'videotoolbox', 'x264'];
-export const PROBE_ORDER = ({ win32: ['nvenc', 'amf', 'qsv'], linux: ['nvenc', 'vaapi', 'qsv'], darwin: ['videotoolbox'] })[OS] || [];   // auto: the first that works, else x264
+export const PROBE_ORDER = ({ linux: ['nvenc', 'vaapi', 'qsv'], darwin: ['videotoolbox'] })[OS] || [];   // auto: the first that works, else x264
 export const LABELS = { videotoolbox: 'Mac graphics (VideoToolbox)', vaapi: 'Linux graphics (VA-API)', auto: 'Automatic (graphics card if it can, else processor)', nvenc: 'NVIDIA graphics card (NVENC)', amf: 'AMD graphics card (AMF)', qsv: 'Intel graphics (Quick Sync)', x264: 'Processor (x264)' };
 // Candidate argument sets per encoder, best first (the probe keeps the first one the card accepts). Same picture
 // quality as x264 or better, measured against a lossless reference: see docs/RENDER-SPEED.md.
@@ -45,7 +45,7 @@ export function probeWith(ffmpeg = 'ffmpeg') {
   return name => new Promise(async resolve => {
     for (const args of encoderCandidates(name)) {
       const ok = await new Promise(r => {
-        let c; try { c = spawn(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=gray:s=640x360:r=30', '-frames:v', '5', '-pix_fmt', 'yuv420p', ...args, '-f', 'null', '-'], { windowsHide: true, stdio: 'ignore' }); } catch { return r(false); }
+        let c; try { c = spawn(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=gray:s=640x360:r=30', '-frames:v', '5', '-pix_fmt', 'yuv420p', ...args, '-f', 'null', '-'], { stdio: 'ignore' }); } catch { return r(false); }
         const t = setTimeout(() => { try { c.kill(); } catch { } r(false); }, 20000);
         c.on('error', () => { clearTimeout(t); r(false); }); c.on('close', code => { clearTimeout(t); r(code === 0); });
       });
@@ -55,7 +55,6 @@ export function probeWith(ffmpeg = 'ffmpeg') {
   });
 }
 
-// the graphics cards Windows reports (names only; virtual display adapters left out)
 // What this PC can use: { available: ['amf', 'x264'], best: 'amf', gpus: [...], at }. Cached in memory and in
 // cacheFile, keyed by the ffmpeg binary (path, size, date): a new ffmpeg or driver probe again with refresh.
 let mem = null;

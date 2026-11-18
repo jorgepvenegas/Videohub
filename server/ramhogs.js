@@ -15,11 +15,7 @@ const NAMES = {
   blender: 'Blender', vmmem: 'WSL / virtual machine', vmmemwsl: 'WSL / virtual machine', 'vmware-vmx': 'VMware', virtualboxvm: 'VirtualBox',
 };
 // Hide infrastructure rather than suggesting the user close it to free RAM.
-const SKIP_BY_OS = { win32: ['system', 'registry', 'memory compression', 'idle', 'secure system', 'smss', 'csrss', 'wininit', 'winlogon', 'services', 'lsass',
-  'svchost', 'dwm', 'explorer', 'msmpeng', 'nissrv', 'searchhost', 'searchindexer', 'startmenuexperiencehost', 'shellexperiencehost', 'textinputhost',
-  'runtimebroker', 'ctfmon', 'fontdrvhost', 'sihost', 'taskhostw', 'audiodg', 'conhost', 'powershell', 'pwsh', 'cmd', 'wmiprvse', 'spoolsv',
-  'claude', 'node', 'ffmpeg', 'ffprobe', 'renderguard', 'msedgewebview2', 'radeonsoftware', 'amdrssrcext', 'atieclxx', 'atiesrxx', 'amdfendrsr',
-  'nvcontainer', 'nvdisplay.container', 'lockapp', 'widgets', 'phoneexperiencehost', 'securityhealthservice', 'smartscreen', 'dllhost', 'applicationframehost'],
+const SKIP_BY_OS = {
   linux: ['systemd', 'systemd-journald', 'systemd-logind', 'systemd-udevd', 'dbus-daemon', 'dbus-broker', 'xorg', 'xwayland', 'gnome-shell',
     'kwin_wayland', 'kwin_x11', 'plasmashell', 'pipewire', 'pipewire-pulse', 'wireplumber', 'pulseaudio', 'networkmanager', 'sshd',
     'claude', 'opencode', 'codex', 'node', 'ffmpeg', 'ffprobe', 'sh', 'bash', 'zsh', 'ps', 'kworker', 'kthreadd'],
@@ -28,7 +24,7 @@ const SKIP_BY_OS = { win32: ['system', 'registry', 'memory compression', 'idle',
     'claude', 'opencode', 'codex', 'node', 'ffmpeg', 'ffprobe', 'sh', 'bash', 'zsh', 'ps'],
 };
 const SKIP = new Set(SKIP_BY_OS[OS] || []);
-const processKey = name => String(name || '').replace(/\.exe$/i, '').toLowerCase();
+const processKey = name => String(name || '').toLowerCase();
 const browserFamily = key => /^(?:google[ -])?chrome(?: helper.*)?$/.test(key) ? 'chrome' : /^chromium(?:-browser| helper.*)?$/.test(key) ? 'chromium' : /^(?:msedge|microsoft[ -]edge)(?: helper.*)?$/.test(key) ? 'msedge' : null;
 
 let cache = { at: 0, list: [] }, running = null;
@@ -44,7 +40,7 @@ async function scan() {
       const key = processKey(r.name), family = browserFamily(key);
       if (!key || SKIP.has(key)) continue;
       if (family && (top(r).headless || /--headless|--app=http:\/\/127\.0\.0\.1/.test(top(r).cmd || ''))) continue;
-      const name = NAMES[family || key] || r.name.replace(/\.exe$/i, '');
+      const name = NAMES[family || key] || r.name;
       const g = groups.get(name) || { name, bytes: 0, procs: 0 };
       g.bytes += r.rssBytes || 0; g.procs++; groups.set(name, g);
     }

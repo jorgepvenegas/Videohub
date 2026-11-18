@@ -16,7 +16,7 @@ const BASE = `http://127.0.0.1:${PORT}`;
 async function ping() { try { const r = await fetch(BASE + '/api/ping', { signal: AbortSignal.timeout(1500) }); return r.ok; } catch { return false; } }
 async function ensureHub() {
   if (await ping()) return;
-  const child = spawn(process.execPath, [path.join(HUB_DIR, 'server', 'hub.js')], { cwd: HUB_DIR, detached: true, stdio: 'ignore', windowsHide: true });
+  const child = spawn(process.execPath, [path.join(HUB_DIR, 'server', 'hub.js')], { cwd: HUB_DIR, detached: true, stdio: 'ignore' });
   child.unref();
   for (let i = 0; i < 40; i++) { await new Promise(r => setTimeout(r, 500)); if (await ping()) return; }
   throw new Error('Could not start the VideoHub server (' + BASE + ').');
@@ -208,7 +208,7 @@ export const TOOLS = {
     run: async a => {
       const p = await resolve(a.project); const d = await call('GET', `/api/project/${p.id}`);
       if (!d.cleanup.length) return 'Nothing to clean up.';
-      return [`"${p.title}" — ${GB(d.cleanup.reduce((s, c) => s + c.size, 0))} can be cleaned up:`, ...d.cleanup.map(c => `- ${GB(c.size)} ${c.path} — ${c.reason}`), 'Tell the user to approve it on VideoHub\'s Disk page (Recycle Bin / archive). Never delete these yourself.'].join('\n');
+      return [`"${p.title}" — ${GB(d.cleanup.reduce((s, c) => s + c.size, 0))} can be cleaned up:`, ...d.cleanup.map(c => `- ${GB(c.size)} ${c.path} — ${c.reason}`), 'Tell the user to approve it on VideoHub\'s Disk page (Trash / archive). Never delete these yourself.'].join('\n');
     },
   },
 

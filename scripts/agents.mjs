@@ -4,9 +4,9 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { IS_WIN, trash } from '../server/platform.js';
+import { trash } from '../server/platform.js';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const normal = s => { const p = String(s || '').replace(/\\/g, '/').replace(/\/$/, ''); return IS_WIN ? p.toLowerCase() : p; };
+const normal = s => String(s || '').replace(/\/$/, '');
 const same = (a, b) => normal(a) === normal(b);
 const object = j => j && typeof j === 'object' && !Array.isArray(j);
 export function parseJsonc(text) {
@@ -39,20 +39,13 @@ export function agentPaths(agent, { home = os.homedir(), env = process.env } = {
   return { dir, config, skill: path.join(dir, 'skills', 'videohub'), rule: path.join(dir, agent === 'claude' ? 'CLAUDE.md' : 'AGENTS.md') };
 }
 function executable(name, env = process.env) {
-  for (const d of (env.PATH || '').split(path.delimiter)) for (const ext of IS_WIN ? ['.exe', '.cmd', '.bat', ''] : ['']) {
-    const p = path.join(d, name + ext); if (d && fs.existsSync(p)) return p;
+  for (const d of (env.PATH || '').split(path.delimiter)) {
+    const p = path.join(d, name); if (d && fs.existsSync(p)) return p;
   }
   return null;
 }
 export function executeAgent(file, args, { env = process.env } = {}) {
-  // Windows npm shims are batch files, which execFile cannot execute directly.
-  if (IS_WIN && /\.(cmd|bat)$/i.test(file)) {
-    const values = [file, ...args]; if (values.some(s => /["\r\n\0]/.test(String(s)))) throw new Error('Unsupported quote or control character in agent CLI argument');
-    const commandEnv = { ...env }, names = values.map((value, i) => { const key = 'VIDEOHUB_CLI_ARG_' + i; commandEnv[key] = String(value); return '"%' + key + '%"'; });
-    // Expand each argument once from env: literal %NAME%, &, and ! in paths survive cmd's parser.
-    return spawnSync(env.ComSpec || process.env.ComSpec || 'cmd.exe', ['/d', '/v:off', '/s', '/c', '"' + names.join(' ') + '"'], { encoding: 'utf8', windowsHide: true, windowsVerbatimArguments: true, env: commandEnv });
-  }
-  return spawnSync(file, args, { encoding: 'utf8', windowsHide: true, env });
+  return spawnSync(file, args, { encoding: 'utf8', env });
 }
 export function detectAgents(options = {}) {
   return ['claude', 'opencode'].filter(a => (options.find || executable)(a, options.env) || fs.existsSync(agentPaths(a, options).dir));
@@ -72,7 +65,7 @@ function mutateEntry(agent, j, mcp, remove) {
     if (remove) delete j.mcp.servers.videohub; else j.mcp.servers.videohub = { type: 'local', command: ['node', mcp], disabled: false };
   }
 }
-const begin = '<!-- videohub:begin (added by VideoHub setup; remove with uninstall.ps1) -->', end = '<!-- videohub:end -->';
+const begin = '<!-- videohub:begin (added by VideoHub setup; remove with uninstall.sh) -->', end = '<!-- videohub:end -->';
 const blocks = /<!-- videohub:begin[^>]*-->[\s\S]*?<!-- videohub:end -->/g;
 function ownedText(text, hub) { return new RegExp('(?:^|["\u0027`(\\s])' + normal(hub).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:/|["\u0027`\\s]|$)').test(normal(text)); }
 export async function integrateAgents({ action = 'setup', agents = [], hub = ROOT, home = os.homedir(), env = process.env, globalRule = true, dryRun = false, find = executable, run = executeAgent, recycle = trash } = {}) {
@@ -111,7 +104,7 @@ export async function integrateAgents({ action = 'setup', agents = [], hub = ROO
         if (skillText != null) { say(`move ${label} skill folder to Trash: ${p.skill}`); if (!dryRun) { const result = await recycle([p.skill]); if (!result[0]?.ok) throw new Error(result[0]?.error || 'Could not move skill to Trash'); } }
       } else if (action !== 'refresh' || skillText != null) {
         say(`copy VideoHub skill to ${p.skill}`);
-        if (!dryRun) { fs.mkdirSync(p.skill, { recursive: true }); for (const f of fs.readdirSync(path.join(hub, 'skill', 'videohub'), { withFileTypes: true }).filter(f => f.isFile())) fs.writeFileSync(path.join(p.skill, f.name), fs.readFileSync(path.join(hub, 'skill', 'videohub', f.name), 'utf8').replaceAll('{{VIDEOHUB_DIR}}', hub.replace(/\\/g, '/'))); }
+        if (!dryRun) { fs.mkdirSync(p.skill, { recursive: true }); for (const f of fs.readdirSync(path.join(hub, 'skill', 'videohub'), { withFileTypes: true }).filter(f => f.isFile())) fs.writeFileSync(path.join(p.skill, f.name), fs.readFileSync(path.join(hub, 'skill', 'videohub', f.name), 'utf8').replaceAll('{{VIDEOHUB_DIR}}', hub)); }
       }
       const old = fs.existsSync(p.rule) ? fs.readFileSync(p.rule, 'utf8') : '', found = [...old.matchAll(blocks)];
       if (action !== 'uninstall' && found.some(b => !ownedText(b[0], hub))) { say(`leave ${label} rule belonging to another install unchanged`); continue; }
@@ -119,7 +112,7 @@ export async function integrateAgents({ action = 'setup', agents = [], hub = ROO
         if (found.some(b => ownedText(b[0], hub))) { say(`remove VideoHub rule from ${p.rule}`); if (!dryRun) { fs.copyFileSync(p.rule, p.rule + '.videohub-backup'); fs.writeFileSync(p.rule, old.replace(blocks, block => ownedText(block, hub) ? '' : block)); } }
       } else if ((action === 'refresh' && found.length) || (action === 'setup' && globalRule)) {
         if (/<!-- videohub:begin/.test(old) && !found.length) throw new Error('Incomplete VideoHub rule marker; left unchanged: ' + p.rule);
-        const rule = fs.readFileSync(path.join(hub, 'claude', 'global-rule.md'), 'utf8').replaceAll('{{VIDEOHUB_DIR}}', hub.replace(/\\/g, '/')).trim();
+        const rule = fs.readFileSync(path.join(hub, 'claude', 'global-rule.md'), 'utf8').replaceAll('{{VIDEOHUB_DIR}}', hub).trim();
         const block = `${begin}\n${rule}\n${end}`;
         say(`write VideoHub rule to ${p.rule}`);
         if (!dryRun) { fs.mkdirSync(p.dir, { recursive: true }); if (fs.existsSync(p.rule)) fs.copyFileSync(p.rule, p.rule + '.videohub-backup'); fs.writeFileSync(p.rule, found.length ? old.replace(blocks, () => block) : (old.trimEnd() ? old.trimEnd() + '\n\n' : '') + block + '\n'); }

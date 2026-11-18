@@ -12,7 +12,7 @@ const wait = async (cond, ms = 5000) => { for (const end = Date.now() + ms; Date
 const ROOT = `const{spawn}=require('node:child_process'),fs=require('node:fs'),log=process.argv[1];process.on('SIGTERM',()=>{});
 const go=(d)=>{const c=spawn(process.execPath,['-e','setInterval(()=>{},1e3)'],{detached:d,stdio:'ignore'});fs.appendFileSync(log,c.pid+'\\n');c.on('exit',()=>go(true));};go(false);setInterval(()=>{},1e3);`;
 
-test('Unix Stop leaves neither the root nor relaunched detached children', { skip: process.platform === 'win32' }, async () => {
+test('Unix Stop leaves neither the root nor relaunched detached children', async () => {
   const base = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.test-tmp'); fs.mkdirSync(base, { recursive: true });
   const dir = fs.mkdtempSync(path.join(base, 'killtree-')), log = path.join(dir, 'pids.txt'); fs.writeFileSync(log, '');
   const pids = () => fs.readFileSync(log, 'utf8').split('\n').filter(Boolean).map(Number);

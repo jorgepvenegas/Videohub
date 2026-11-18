@@ -158,7 +158,7 @@ export function quietFile(file, ms = 4000) { quiet.set(norm(file), Date.now() + 
 export function watch(p, onChange) {
   if (watchers.has(p.id)) return;
   let timer = null, files = new Set();
-  // On Windows fs.watch also reports files being READ (last-access time): serving the page's own files made the
+  // fs.watch can also report files being READ: serving the page's own files made the
   // preview reload itself ("Code changed" with nothing changed). Only a newer modification time counts.
   const root = rootOf(p), since = Date.now(), mtimes = new Map();
   const reallyChanged = name => {

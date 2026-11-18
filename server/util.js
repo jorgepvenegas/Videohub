@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 export const HUB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // VIDEOHUB_DATA_DIR: pnpm test keeps its config, caches and queue out of the install's own data folder
 export const DATA_DIR = process.env.VIDEOHUB_DATA_DIR ? path.resolve(process.env.VIDEOHUB_DATA_DIR) : path.join(HUB_DIR, 'data');
-export const HOME = dirs.home, DESKTOP = dirs.desktop, DOCUMENTS = dirs.documents, APPDATA = dirs.config, TEMP = dirs.temp;
+export const HOME = dirs.home, DESKTOP = dirs.desktop, DOCUMENTS = dirs.documents, TEMP = dirs.temp;
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 export const idOf = p => crypto.createHash('sha1').update(pathKey(p)).digest('hex').slice(0, 12);
@@ -69,13 +69,12 @@ export function writeJson(file, data) {
 
 export function run(cmd, args, opts = {}) {
   return new Promise((resolve) => {
-    execFile(cmd, args, { windowsHide: true, maxBuffer: 64 << 20, ...opts }, (err, stdout, stderr) =>
+    execFile(cmd, args, { maxBuffer: 64 << 20, ...opts }, (err, stdout, stderr) =>
       resolve({ code: err ? (err.code ?? 1) : 0, stdout: String(stdout || ''), stderr: String(stderr || '') }));
   });
 }
 
 // Retained for older integrations; new OS operations belong in platform.js.
-export function powershell(script, opts = {}) { return run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], opts); }
 
 export async function pLimit(items, n, fn) {
   const out = new Array(items.length); let i = 0;

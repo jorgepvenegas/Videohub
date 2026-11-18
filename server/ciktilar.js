@@ -4,8 +4,8 @@
 // name keeps the other). Only when a link is impossible (another drive) is it a copy. Index: data/ciktilar.json.
 //   linkOutput(file, {title, v, kind})  a new render (jobs.js register: queue + hub_register_version)
 //   sync()                              after every scan: each project's newest final (the first run fills the folder)
-//   afterClean(results)                 the janitor removed renders: their links go to the Recycle Bin too, or the disk
-//                                       space would never come back (the data stays in the Bin / archive)
+//   afterClean(results)                 the janitor removed renders: their links go to the Trash too, or the disk
+//                                       space would never come back (the data stays in the Trash / archive)
 // The folder is outside every scan root and the scan skips it, so it is never a project or a duplicate.
 // Every video goes into a folder per day, <outputs>\2026-11-08\…;
 // videos left in the top folder by older versions are moved into their day's folder once (tidy, on the first sync).
@@ -95,7 +95,7 @@ export function sync() {
   return n;
 }
 
-// renders the janitor just recycled or archived: their links follow to the Recycle Bin (never deleted outright)
+// renders the janitor just recycled or archived: their links follow to the Trash (never deleted outright)
 export async function afterClean(results) {
   const gone = (results || []).filter((r) => r.status === 'ok' && r.path).map((r) => r.path);
   if (!gone.length) return 0;

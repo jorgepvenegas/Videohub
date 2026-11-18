@@ -69,7 +69,7 @@ export async function peaks(file) {
     if (fs.existsSync(f)) return f;
     // streamed: one bucket (80 samples = 320 bytes) at a time, so an hour of sound never sits in memory as PCM
     const data = await new Promise((resolve, reject) => {
-      const p = spawn(TOOLS.ffmpeg, ['-v', 'error', '-i', file, '-vn', '-ac', '1', '-ar', '8000', '-f', 'f32le', 'pipe:1'], { windowsHide: true });
+      const p = spawn(TOOLS.ffmpeg, ['-v', 'error', '-i', file, '-vn', '-ac', '1', '-ar', '8000', '-f', 'f32le', 'pipe:1']);
       const BUCKET = 80 * 4, out = []; let rest = Buffer.alloc(0), err = '';
       const take = buf => { const n = Math.floor(buf.length / 4), f = new Float32Array(n); for (let i = 0; i < n; i++) f[i] = buf.readFloatLE(i * 4); out.push(peaksOf(f)); };
       p.stdout.on('data', d => {
@@ -159,7 +159,7 @@ async function makeProxy(j) {
     '-g', '6', '-keyint_min', '6', '-sc_threshold', '0', '-bf', '0', '-vf', "scale='min(1920,iw)':-2", '-pix_fmt', 'yuv420p', '-threads', '4',
     '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-progress', 'pipe:1', '-nostats', tmp];
   await new Promise((resolve, reject) => {
-    const p = spawn(TOOLS.ffmpeg, args, { windowsHide: true });
+    const p = spawn(TOOLS.ffmpeg, args);
     try { os.setPriority(p.pid, os.constants.priority.PRIORITY_BELOW_NORMAL); } catch { }
     let last = 0;
     p.stdout.on('data', d => { const m = String(d).match(/out_time_us=(\d+)/g); if (!m) return; const us = +m[m.length - 1].split('=')[1]; j.progress = Math.min(0.99, us / 1e6 / dur); if (Date.now() - last > 700) { last = Date.now(); emit({ key: j.key, file: j.file, state: 'running', progress: j.progress }); } });

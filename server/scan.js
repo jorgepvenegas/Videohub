@@ -79,7 +79,7 @@ const SIM_FILE = path.join(DATA_DIR, 'similar-cache.json');
 const simCache = readJson(SIM_FILE, {});
 async function tinyFrame(file, t) {
   const r = await new Promise(res => {
-    const p = spawn(TOOLS.ffmpeg, ['-v', 'error', '-ss', t.toFixed(2), '-i', file, '-frames:v', '1', '-vf', 'scale=16:9,format=gray', '-f', 'rawvideo', '-'], { windowsHide: true });
+    const p = spawn(TOOLS.ffmpeg, ['-v', 'error', '-ss', t.toFixed(2), '-i', file, '-frames:v', '1', '-vf', 'scale=16:9,format=gray', '-f', 'rawvideo', '-']);
     const bufs = []; p.stdout.on('data', b => bufs.push(b)); p.on('close', () => res(Buffer.concat(bufs))); p.on('error', () => res(Buffer.alloc(0)));
   });
   return r.length === 144 ? r : null;
@@ -300,7 +300,7 @@ function watchRoot(root) {
     if (keys.every(k => rec.dirty.has(k))) return;
     const full = path.join(root.path, String(name));
     if (skipUnder.some(d => (lc(full) + path.sep).startsWith(d))) return;
-    // Windows reports files being READ as changes too (last-access time; ffprobe and thumbnails read every video):
+    // reads of a file can be reported as changes (ffprobe and thumbnails read every video):
     // a "change" counts only when the file was modified after its project was last described (that walk saw older ones)
     let m = Infinity; if (ev === 'change') try { m = fs.statSync(full).mtimeMs; } catch { }
     for (const k of keys) if (!(m < (rec.at.get(k) ?? -Infinity))) rec.dirty.add(k);
@@ -400,7 +400,7 @@ export function setNoteCounts(id, notes) {
   emit({ type: 'notes', id });
 }
 
-// a project leaves the list at once (hidden, or its folder went to the Recycle Bin)
+// a project leaves the list at once (hidden, or its folder went to the Trash)
 export function dropProject(id) {
   state.projects = state.projects.filter(x => x.id !== id);
   writeJson(INDEX, { at: state.at, projects: state.projects });

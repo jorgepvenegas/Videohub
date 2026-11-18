@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileOpenPlan, openPath, reveal } from './platform.js';
 
 // Open videos using their file association, without a command shell. "file" opens only media (video, audio,
-// pictures): a .bat/.exe/.lnk inside a film folder would run through its association. "folder" shows anything.
+// pictures): an executable or script inside a film folder would run through its association. "folder" shows anything.
 export const OPENABLE = new Set(['.mp4', '.webm', '.mov', '.mkv', '.m4v', '.avi', '.wav', '.mp3', '.m4a', '.ogg', '.aac', '.flac', '.png', '.jpg', '.jpeg', '.webp', '.gif']);
 export function openPlan(file, how = 'file') {
   if (typeof file !== 'string' || !file || /["\r\n\0]/.test(file)) throw Object.assign(new Error('Invalid file path'), { code: 400 });

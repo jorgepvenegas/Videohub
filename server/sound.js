@@ -58,7 +58,7 @@ function startSound(p) {
     if (info.mode === 'studio') {
       // the engine's own audio build reads the levels (engine/audio/vhsound.mjs); one at a time, hidden
       await new Promise((ok, no) => {
-        const c = spawn(process.execPath, ['make.mjs', path.basename(p.path), '--audio'], { cwd: p.studio, windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+        const c = spawn(process.execPath, ['make.mjs', path.basename(p.path), '--audio'], { cwd: p.studio, stdio: ['ignore', 'ignore', 'pipe'] });
         let err = ''; c.stderr.on('data', (d) => { err = (err + d).slice(-4000); });
         c.on('error', no); c.on('exit', (code) => code === 0 ? ok() : no(new Error('could not build audio: ' + errLine(err, code))));
       });

@@ -42,8 +42,7 @@ under `Documents\VideoHub`, so add the keys you want to keep (use your real path
 All of these can also be set on the Settings page.
 
 ## Other changes to know about
-- Script names: `KURULUM.cmd` → `SETUP.cmd`, `GUNCELLE.cmd` → `UPDATE.cmd`, `guncelle.ps1` → `update.ps1`.
-  The installed skill (`~/.claude/skills/videohub`) is replaced by the English one; setup asks before adding the
+- The installed skill (`~/.claude/skills/videohub`) is replaced by the English one; setup asks before adding the
   review-before-render rule to `~/.claude/CLAUDE.md` (keep your own rule if you have one and answer "no").
 - The first queue render of a project with no film yet is now `_v1` (it used to be `_v2`).
 - A first render with no earlier film takes its sound from the film's own `audio/mix.wav` (it used to be silent

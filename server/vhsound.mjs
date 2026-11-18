@@ -48,8 +48,8 @@ export function writeWav(file, { sr, ch, bits = 16 }) {
   const tmp = file + '.vhtmp';
   fs.writeFileSync(tmp, Buffer.concat([h, data])); replaceFile(tmp, file);
 }
-// put tmp in place of file: a rename (a new file, never written through a hard link); Windows refuses it while
-// someone reads the file (the preview streaming it, a virus scan), so retry a moment, then write over it in place
+// put tmp in place of file: a rename (a new file, never written through a hard link); it can fail while
+// someone reads the file (the preview streaming it), so retry a moment, then write over it in place
 export function replaceFile(tmp, file) {
   for (let k = 0; k < 6; k++) {
     try { fs.renameSync(tmp, file); return; } catch (e) { if (!['EPERM', 'EBUSY', 'EACCES'].includes(e.code)) throw e; }
@@ -101,7 +101,7 @@ const decoded = new Map();   // file|mtime|sr|nc → channels (the hub lives lon
 export function decodeAudio(file, sr, nc, ffmpeg = 'ffmpeg') {
   const st = fs.statSync(file), k = `${file}|${st.mtimeMs}|${sr}|${nc}`;
   if (decoded.has(k)) return decoded.get(k);
-  const r = spawnSync(ffmpeg, ['-v', 'error', '-i', file, '-f', 'f32le', '-acodec', 'pcm_f32le', '-ac', String(nc), '-ar', String(sr), '-'], { maxBuffer: 2 * 1024 * 1024 * 1024 - 1, windowsHide: true });
+  const r = spawnSync(ffmpeg, ['-v', 'error', '-i', file, '-f', 'f32le', '-acodec', 'pcm_f32le', '-ac', String(nc), '-ar', String(sr), '-'], { maxBuffer: 2 * 1024 * 1024 * 1024 - 1 });
   if (r.status !== 0 || !r.stdout) throw new Error('could not read audio file: ' + file + ' ' + String(r.stderr || '').slice(0, 200));
   const f = new Float32Array(r.stdout.buffer, r.stdout.byteOffset, Math.floor(r.stdout.length / 4));
   const n = Math.floor(f.length / nc), ch = Array.from({ length: nc }, () => new Float32Array(n));

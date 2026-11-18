@@ -25,15 +25,15 @@ function harness(platform = {}) {
   const ctx = {
     fs: { existsSync: file => files.has(file), mkdirSync: dir => files.add(dir), statSync: () => ({ mtimeMs: 100 }),
       readdirSync: dir => [...files].filter(file => path.dirname(file) === dir).map(file => path.basename(file)),
-      renameSync: (a, b) => { if (files.has(b)) throw Object.assign(new Error('EPERM'), { code: 'EPERM' }); for (const x of [...files]) if (x === a || x.startsWith(a + path.sep)) { files.delete(x); files.add(b + x.slice(a.length)); } },   // like Windows: never onto an existing name
+      renameSync: (a, b) => { if (files.has(b)) throw Object.assign(new Error('EPERM'), { code: 'EPERM' }); for (const x of [...files]) if (x === a || x.startsWith(a + path.sep)) { files.delete(x); files.add(b + x.slice(a.length)); } },   // never onto an existing name
       writeFileSync: file => files.add(file), appendFileSync() {}, copyFileSync: (a, b) => files.add(b),
       createWriteStream: () => ({ write: value => log.push(String(value)), end() {} }),
       promises: { copyFile: async (a, b) => files.add(b) } },
     path, spawn, randomUUID, DATA_DIR: path.join(base, 'data'), TOOLS: { node: 'node', ffmpeg: 'ffmpeg', ffprobe: 'ffprobe' },
-    renderSpawnOptions: { windowsHide: true },
+    renderSpawnOptions: { detached: true },
     findBrowser: () => ({ path: '/tools/browser' }),
-    shellCommand: cmd => ({ file: 'cmd.exe', args: ['/d', '/s', '/c', '"' + cmd + '"'], opts: { windowsVerbatimArguments: true } }),
-    killTree: async pid => { spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true }); },
+    shellCommand: cmd => ({ file: '/bin/sh', args: ['-c', cmd], opts: {} }),
+    killTree: async pid => { spawn('kill-tree', [String(pid)]); },
     process: { env: {} }, setTimeout: fn => { timers.push(fn); return timers.length; },
     readJson: (file, fallback) => file.endsWith('project.json') ? { render: { workers } }
       : file.endsWith('manifest.json') ? { dur: 2, fps: 60, chunkFrames: 120, chunkSec: 2 } : fallback,
@@ -142,7 +142,7 @@ test('cancelled render retains the queue slot until child exit and stays cancell
   const h = harness(), job = await h.create({ project: 'p1', mode: 'full' }); await flush();
   const child = h.children[0]; assert.equal(h.cancel(job.id), true);
   assert.equal(h.get(job.id).state, 'cancelled'); assert.equal(h.executing.size, 1);
-  assert.equal(h.children.at(-1).cmd, 'taskkill');
+  assert.equal(h.children.at(-1).cmd, 'kill-tree');
   await h.close(child, '', 1); assert.equal(h.get(job.id).state, 'cancelled'); assert.equal(h.executing.size, 0);
   assert.equal(h.events.some(e => e.type === 'failed'), false); assert.equal(h.cancel(job.id), false);
 });
@@ -164,7 +164,7 @@ test('cancellation during mux kills that process and does not register an output
   const h = harness(), job = await h.create({ project: 'p1', mode: 'full' }); await flush();
   await h.close(h.children[0]); await h.close(h.children.at(-1));
   const mux = h.children.at(-1); assert.ok(mux.args.includes('--mux'));
-  h.cancel(job.id); const kill = h.children.at(-1); assert.equal(kill.args[1], String(mux.pid));
+  h.cancel(job.id); const kill = h.children.at(-1); assert.equal(kill.args[0], String(mux.pid));
   await h.close(mux, '', 1); assert.equal(h.get(job.id).state, 'cancelled'); assert.equal(h.get(job.id).output, undefined);
 });
 
@@ -194,12 +194,12 @@ test('spawn errors settle once and invalid worker counts are rejected before sta
   const h = harness();
   for (const workers of [0, -1, 1.5, 5]) await assert.rejects(h.create({ project: 'p1', mode: 'full', workers }), error => error.code === 400);
   assert.equal(h.children.length, 0);
-  const result = h.spawnLogged({ id: 'missing', state: 'running', log: 'memory.log' }, 'missing.exe', []);
+  const result = h.spawnLogged({ id: 'missing', state: 'running', log: 'memory.log' }, 'missing', []);
   h.children[0].emit('error', new Error('ENOENT')); h.children[0].emit('close', -1);
   assert.equal((await result).code, -1); assert.equal(h.procs.size, 0);
 });
 
-test('unknown modes are rejected; command mode hands cmd.exe the command quoted and verbatim', async () => {
+test('unknown modes are rejected; command mode waits for approval', async () => {
   const h = harness();
   await assert.rejects(h.create({ project: 'p1', mode: 'fulll' }), error => error.code === 400); assert.equal(h.children.length, 0);
   const cmd = 'node -e "console.log(process.argv.slice(1))" "a b" c';
@@ -207,8 +207,7 @@ test('unknown modes are rejected; command mode hands cmd.exe the command quoted 
   const held = await h.create({ project: 'p1', mode: 'command', cmd }); await flush();
   assert.equal(held.needsApproval, true); assert.equal(h.children.length, 0); assert.ok(h.events.some(e => e.type === 'approval'));
   assert.equal(h.approve('nope'), false); assert.equal(h.approve(held.id), true); assert.equal(h.approve(held.id), false); await flush();
-  const child = h.children[0]; assert.equal(child.cmd, 'cmd.exe');
-  assert.deepEqual([...child.args], ['/d', '/s', '/c', '"' + cmd + '"']); assert.equal(child.opts.windowsVerbatimArguments, true);
+  assert.equal(h.children.length, 1);
 });
 
 test('a full render after a failed one takes a free backup name instead of failing on the existing one', async () => {
@@ -266,7 +265,7 @@ test('Unix command jobs retain approval, use the platform shell and start an iso
   assert.equal(held.needsApproval, true); assert.equal(h.children.length, 0);
   h.approve(held.id); await flush(); const child = h.children[0];
   assert.equal(child.cmd, '/bin/sh'); assert.deepEqual([...child.args], ['-c', cmd]);
-  assert.equal(child.opts.detached, true); assert.equal(child.opts.windowsVerbatimArguments, undefined);
+  assert.equal(child.opts.detached, true);
 });
 
 test('render scripts receive the discovered browser and preserve a per-job override', async () => {

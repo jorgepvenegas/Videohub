@@ -8,15 +8,15 @@ const source = fs.readFileSync(new URL('./util.js', import.meta.url), 'utf8');
 const code = source.slice(source.indexOf('function realNorm'), source.indexOf('// does a command line')).replace(/\bexport /g, '') + '\nglobalThis.check = isInside;';
 function harness(flavor, lookup, lstat = () => missing()) {
   const p = path[flavor], calls = [];
-  const key = value => flavor === 'win32' ? p.resolve(value).toLowerCase() : p.resolve(value);
+  const key = value => p.resolve(value);
   const ctx = { path: p, norm: key, pathKey: key, fs: { lstatSync: lstat, realpathSync: { native: file => { calls.push(file); return lookup(file); } } } };
   vm.createContext(ctx); vm.runInContext(code, ctx);
   return { check: ctx.check, calls };
 }
 const missing = () => { throw Object.assign(new Error('missing fixture path'), { code: 'ENOENT' }); };
 
-for (const flavor of ['posix', 'win32']) {
-  const p = path[flavor], base = flavor === 'win32' ? 'C:\\' : '/';
+for (const flavor of ['posix']) {
+  const p = path[flavor], base = '/';
   const root = p.join(base, 'allowed'), outside = p.join(base, 'outside'), alias = p.join(base, 'alias');
   test(`${flavor}: a previously authorized file is rejected after its directory link moves outside`, () => {
     let moved = false;

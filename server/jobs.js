@@ -155,7 +155,7 @@ function restoreChunks(job) {
     try { if (!fs.existsSync(f) && fs.existsSync(b)) { fs.mkdirSync(chunkDir(p), { recursive: true }); fs.renameSync(b, f); } } catch { }
   }
 }
-// a free name for `f` (x, x_2, x_3 ...): renames never overwrite, and renaming a folder onto an existing one fails on Windows
+// a free name for `f` (x, x_2, x_3 ...): renames never overwrite, and renaming a folder onto an existing one fails
 const freeName = f => { const ext = path.extname(f), b = f.slice(0, f.length - ext.length); let d = f; for (let i = 2; fs.existsSync(d); i++) d = `${b}_${i}${ext}`; return d; };
 
 function assertActive(job) {
@@ -176,7 +176,7 @@ function spawnLogged(job, cmd, args, opts = {}) {
   return new Promise((resolve) => {
     const log = fs.createWriteStream(job.log, { flags: 'a' });
     log.write(`\n# ${now()}  ${cmd} ${args.join(' ')}\n`);
-    const child = spawn(cmd, args, { ...renderSpawnOptions, ...opts, windowsHide: true, shell: opts.shell || false });
+    const child = spawn(cmd, args, { ...renderSpawnOptions, ...opts, shell: opts.shell || false });
     const children = procs.get(job.id) || new Set(); children.add(child); procs.set(job.id, children);
     job.pid = child.pid; const guardToken = guardTrack(child.pid, { cwd: opts.cwd || '', project: job.projectName || '', what: job.mode || '' }); emit('running', job);
     let q0 = null, done = 0, t0 = Date.now(), stdout = '', stderr = '', settled = false;

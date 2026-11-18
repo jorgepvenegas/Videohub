@@ -52,16 +52,16 @@ onScan(ev => { if (ev.phase === 'done' || ev.type === 'project') invalidate(); b
 onScan(ev => { if (ev.phase === 'done') setTimeout(() => { findCandidates().catch(() => { }); }, 200); });
 // a finished full scan re-walks every project's code in the background (cards' live revision / thumbVersion)
 onScan(ev => { if (ev.phase === 'done' && ev.full) refreshSources(index().projects); });
-// a render ended: a Windows notification too (the open VideoHub window shows its own notice)
-jobs.onJob(ev => { if (ev.type === 'done') outputsApi.notifyWindows(`Render finished: ${ev.job.projectName}${ev.job.version ? ' v' + ev.job.version : ''}`, ev.job.outputPath || ev.job.output || ''); else if (ev.type === 'failed') outputsApi.notifyWindows(`Render failed: ${ev.job.projectName}`, ev.job.error || ''); });
-// a custom command waits for a yes: a Windows notification, and an open VideoHub window jumps to the Renders page
-jobs.onJob(ev => { if (ev.type === 'approval') { outputsApi.notifyWindows('A render command needs your approval', `${ev.job.projectName}: ${ev.job.cmd || ''}`); broadcast('navigate', { hash: '#/renders' }); } });
+// a render ended: a desktop notification too (the open VideoHub window shows its own notice)
+jobs.onJob(ev => { if (ev.type === 'done') outputsApi.notifyDesktop(`Render finished: ${ev.job.projectName}${ev.job.version ? ' v' + ev.job.version : ''}`, ev.job.outputPath || ev.job.output || ''); else if (ev.type === 'failed') outputsApi.notifyDesktop(`Render failed: ${ev.job.projectName}`, ev.job.error || ''); });
+// a custom command waits for a yes: a desktop notification, and an open VideoHub window jumps to the Renders page
+jobs.onJob(ev => { if (ev.type === 'approval') { outputsApi.notifyDesktop('A render command needs your approval', `${ev.job.projectName}: ${ev.job.cmd || ''}`); broadcast('navigate', { hash: '#/renders' }); } });
 jobs.onJob(ev => { broadcast('job', ev); if (ev.type === 'running' && !GUARD_OFF) ensureGuard().catch(() => { }); });   // a render always runs protected
 setInterval(() => { if (clients.size) broadcast('renders', rendersPayload(false)); }, 2000);
 
 function rendersPayload(withHistory = true) {
   const guard = guardState(), list = jobs.list();
-  // programs holding RAM: looked up (one PowerShell call, cached 30 s) only while a render runs or waits, or the page opens
+  // programs holding RAM: looked up (one process-list call, cached 30 s) only while a render runs or waits, or the page opens
   const rendering = (guard.renders || []).length > 0 || list.some(j => j.state === 'running' || j.state === 'queued');
   return { guard, snipp: snippRenders(), jobs: list, hogs: rendering || withHistory ? ramHogs() : [], ...(withHistory ? { history: guardHistory() } : {}) };
 }
@@ -260,7 +260,7 @@ route('POST', '/api/hidden/restore', async (req) => {
   saveConfig({ hiddenProjects: (config().hiddenProjects || []).filter(h => h.key !== key) });
   scan().catch(() => { }); return { ok: true };
 });
-// "Delete folder": the project's folder (a 3D scene: also its out\<scene>; loose files: just those files) to the Recycle Bin.
+// "Delete folder": the project's folder (a 3D scene: also its out/<scene>; loose files: just those files) to the Trash.
 // Never a configured root itself or anything outside one, never while it renders or is queued.
 route('POST', '/api/project/:id/delete-folder', async (req, url, { id }) => {
   const p = project(id); if (!p) throw Object.assign(new Error('Project not found'), { code: 404 });
@@ -390,7 +390,7 @@ checkGuardTemp(); setInterval(checkGuardTemp, 60e3).unref();
 
 // ---------- run only while used: no VideoHub window, no render, no queued work for 2 min → RenderGuard and the hub close.
 // Claude's hub_* tools start the hub again when needed; a render job starts RenderGuard again.
-// "Start with Windows" on = the user wants them always running, so nothing closes.
+// "Start at login" on = the user wants them always running, so nothing closes.
 const IDLE_MS = (+process.env.VIDEOHUB_IDLE_SEC || 120) * 1000;
 const GUARD_OFF = process.env.VIDEOHUB_GUARD === 'off';   // test instances: never start or stop the real RenderGuard
 let lastUse = Date.now(), startupCache = { at: 0, on: false };
@@ -406,7 +406,7 @@ setInterval(async () => {
   if (!GUARD_OFF) await quitGuard().catch(() => { });
   process.exit(0);
 }, 20e3).unref();
-// "Start with Windows" (node scripts/install.mjs open --server at log-in): the hub stays on, so the render protection runs from the start
+// "Start at login" (node scripts/install.mjs open --server at log-in): the hub stays on, so the render protection runs from the start
 if (!GUARD_OFF) alwaysOn().then(on => { if (on) ensureGuard().catch(() => { }); }).catch(() => { });
 
 // only this PC's own pages and tools: a page on another website (or a DNS name pointed at 127.0.0.1) must not drive

@@ -14,7 +14,7 @@ function harness({ priority } = {}) {
     os: { cpus: () => Array(8), freemem: () => 8 * 2 ** 30, totalmem: () => 16 * 2 ** 30 }, path,
     dirs: { guard: path.resolve('.test-tmp', 'guard-fixture') }, capabilities: () => ({ cpuAffinity: true }), availableMemory: () => 8 * 2 ** 30,
     config: () => ({ roots: [] }), readJson: () => null, processAlive: () => true,
-    getAutostart: async () => true, setAutostart: async on => calls.push(['startup', on]), cleanupLegacyAutostart: async () => calls.push(['legacy']),
+    getAutostart: async () => true, setAutostart: async on => calls.push(['startup', on]),
     setTreePriority: async (...args) => { calls.push(['priority', ...args]); return priority?.(...args); }, killTree: async pid => calls.push(['kill', pid]),
     setInterval: fn => { timers.push(fn); return { unref() {} }; }, clearInterval() {},
   };
@@ -22,12 +22,11 @@ function harness({ priority } = {}) {
   return { ...ctx.guard, calls, timers, files };
 }
 
-test('guard delegates autostart and retains legacy cleanup on every settings save', async () => {
+test('guard delegates autostart when settings are saved', async () => {
   const h = harness(); assert.equal((await h.guardSettings()).Startup, true);
   assert.equal((await h.guardSettings()).capabilities.cpuAffinity, true);
-  await h.saveGuardSettings({ CapActive: 50 }); assert.deepEqual(h.calls, [['legacy']]);
-  await h.saveGuardSettings({ Startup: false }); assert.deepEqual(h.calls.at(-2), ['startup', false]);
-  assert.deepEqual(h.calls.at(-1), ['legacy']); assert.equal((await h.guardSettings()).CapActive, 50);
+  await h.saveGuardSettings({ CapActive: 50 }); assert.deepEqual(h.calls, []);
+  await h.saveGuardSettings({ Startup: false }); assert.deepEqual(h.calls, [['startup', false]]); assert.equal((await h.guardSettings()).CapActive, 50);
 });
 
 test('guard applies render priority and restores every core when protection ends', async () => {

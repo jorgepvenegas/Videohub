@@ -52,7 +52,7 @@ test('systems without affinity show the reason and retain RAM and priority prote
   assert.match(textOf(p), /CPU limit not available/); assert.doesNotMatch(textOf(p), /every core|90% of the cores/);
 });
 
-test('systems with affinity keep render power controls and Windows-compatible defaults', () => {
+test('systems with affinity keep render power controls and full-power defaults', () => {
   for (const capabilities of [{ cpuAffinity: true }, undefined]) {
     const p = panel(capabilities), fields = descendants(p).map(n => n['data-guard-setting']);
     assert.ok(fields.includes('CapActive')); assert.ok(fields.includes('SlowCapPct')); assert.match(textOf(p), /Full power/);

@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 const source = fs.readFileSync(new URL('./ramhogs.js', import.meta.url), 'utf8')
   .replace(/^import .+;\r?$/gm, '').replace(/\bexport /g, '');
-function harness(rows, OS = 'win32') {
+function harness(rows, OS = 'linux') {
   const ctx = { OS, processList: async () => rows };
   vm.createContext(ctx); vm.runInContext(source + '\nglobalThis.hogs = {ramHogsNow,ramNote};', ctx);
   return ctx.hogs;
@@ -13,8 +13,8 @@ function harness(rows, OS = 'win32') {
 
 test('RAM hogs group ordinary browser processes and omit render browser trees and system processes', async () => {
   const row = (pid, ppid, name, rssBytes = 2 ** 30, cmd = '') => ({ pid, ppid, name, rssBytes, cmd });
-  const h = harness([row(1, 0, 'chrome.exe', 2 ** 30, '--headless'), row(2, 1, 'chrome.exe'),
-    row(3, 0, 'chrome.exe'), row(4, 3, 'chrome.exe'), row(5, 0, 'svchost.exe'), row(6, 0, 'node.exe')]);
+  const h = harness([row(1, 0, 'chrome', 2 ** 30, '--headless'), row(2, 1, 'chrome'),
+    row(3, 0, 'chrome'), row(4, 3, 'chrome'), row(5, 0, 'systemd'), row(6, 0, 'node')]);
   const result = await h.ramHogsNow(); assert.equal(result.length, 1);
   assert.equal(result[0].name, 'Chrome (browser)'); assert.equal(result[0].bytes, 2 * 2 ** 30); assert.equal(result[0].procs, 2);
   assert.match(h.ramNote(result, 1024), /Chrome.*2\.0 GB/);

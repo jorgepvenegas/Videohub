@@ -81,7 +81,7 @@ test('example installation honors its explicit config directory and dry-run befo
 });
 test('example CLI honors --data and --dry-run, and missing workspace values fail without creation', () => {
   const d = scratch(), dataDir = path.join(d, 'data'), ws = path.join(d, 'Work'); initConfig({ dataDir, workspace: ws, hubDir, discover: none });
-  const cmd = path.join(HUB, 'scripts', 'init-config.mjs'), env = { ...process.env, HOME: d, USERPROFILE: d, APPDATA: path.join(d, 'AppData'), LOCALAPPDATA: path.join(d, 'Local'), XDG_CONFIG_HOME: path.join(d, '.config'), XDG_DATA_HOME: path.join(d, '.local', 'share'), VIDEOHUB_DATA_DIR: path.join(d, 'other-data') };
+  const cmd = path.join(HUB, 'scripts', 'init-config.mjs'), env = { ...process.env, HOME: d, XDG_CONFIG_HOME: path.join(d, '.config'), XDG_DATA_HOME: path.join(d, '.local', 'share'), VIDEOHUB_DATA_DIR: path.join(d, 'other-data') };
   const dry = spawnSync(process.execPath, [cmd, '--example', '--data', dataDir, '--dry-run'], { env, encoding: 'utf8' }); assert.equal(dry.status, 0, dry.stderr); assert.equal(JSON.parse(dry.stdout).target, path.join(ws, 'films', 'hello-film')); assert.equal(fs.existsSync(path.join(ws, 'films', 'hello-film')), false); assert.equal(fs.existsSync(path.join(env.VIDEOHUB_DATA_DIR, 'config.json')), false);
   const bad = spawnSync(process.execPath, [cmd, '--workspace', '--data', path.join(d, 'missing-data')], { env, encoding: 'utf8' }); assert.equal(bad.status, 2); assert.equal(fs.existsSync(path.join(d, 'missing-data')), false);
 });

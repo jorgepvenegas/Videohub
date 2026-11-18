@@ -4,8 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { parseJsonc, integrateAgents, agentPaths, detectAgents, parseAgentOptions, executeAgent } from './agents.mjs';
-import { IS_WIN } from '../server/platform.js';
+import { parseJsonc, integrateAgents, agentPaths, detectAgents, parseAgentOptions } from './agents.mjs';
 const hub = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = () => { const home = path.join(hub, '.test-tmp', 'agents-' + randomUUID()); fs.mkdirSync(home, { recursive: true }); return { home, env: { PATH: '', XDG_CONFIG_HOME: path.join(home, '.config') }, hub, find: () => null }; };
 const write = (f, s) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, s); };
@@ -76,12 +75,8 @@ test('a path embedded inside another install path does not claim ownership of it
   write(path.join(p.skill, 'SKILL.md'), foreign); write(p.rule, '<!-- videohub:begin -->\n' + foreign + '\n<!-- videohub:end -->'); const recycled = [];
   const r = await integrateAgents({ ...o, action: 'uninstall', agents: ['opencode'], recycle: async a => { recycled.push(...a); return []; } }); assert.deepEqual(r.errors, []); assert.deepEqual(recycled, []); assert.match(fs.readFileSync(p.rule, 'utf8'), /other-prefix/);
 });
-test('Windows agent batch shims preserve special path characters and the supplied fake home', t => {
-  if (!IS_WIN) { t.skip('Windows batch execution'); return; }
-  const o = scratch(), out = path.join(o.home, 'capture.json'), capture = path.join(o.home, 'capture.mjs'), shim = path.join(o.home, '%VIDEOHUB_TRAP% & tools!', 'opencode.cmd');
-  write(capture, 'import fs from "node:fs";fs.writeFileSync(' + JSON.stringify(out) + ',JSON.stringify({args:process.argv.slice(2),home:process.env.HOME,marker:process.env.VIDEOHUB_FAKE_MARKER}));');
-  write(shim, '@echo off\r\n"' + process.execPath + '" "' + capture + '" %*\r\n');
-  const env = { ...process.env, HOME: o.home, USERPROFILE: o.home, APPDATA: path.join(o.home, 'AppData'), LOCALAPPDATA: path.join(o.home, 'Local'), XDG_CONFIG_HOME: o.env.XDG_CONFIG_HOME, VIDEOHUB_TRAP: 'SHOULD_NOT_EXPAND', VIDEOHUB_FAKE_MARKER: 'fake-only' };
-  const args = ['mcp', 'add', path.join(o.home, '%VIDEOHUB_TRAP% & film!')], r = executeAgent(shim, args, { env }); assert.equal(r.status, 0, r.stderr);
-  assert.deepEqual(JSON.parse(fs.readFileSync(out, 'utf8')), { args, home: o.home, marker: 'fake-only' });
+test('a rule block written with the old marker text is replaced on refresh', async () => {
+  const o = scratch(), p = agentPaths('opencode', o), oldScript = 'uninstall.' + 'ps1'; write(p.rule, 'Personal rule\n\n<!-- videohub:begin (added by VideoHub setup; remove with ' + oldScript + ') -->\nstale ' + hub + '/server/cli.js\n<!-- videohub:end -->\n');
+  await integrateAgents({ ...o, action: 'refresh', agents: ['opencode'] }); const text = fs.readFileSync(p.rule, 'utf8');
+  assert.equal([...text.matchAll(/<!-- videohub:begin/g)].length, 1); assert.doesNotMatch(text, /stale/); assert.ok(!text.includes(oldScript)); assert.match(text, /remove with uninstall\.sh/); assert.match(text, /Personal rule/);
 });

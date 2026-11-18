@@ -66,7 +66,7 @@ export function buildSfx() {
   if (!synth) return Promise.reject(Object.assign(new Error('Ready-made effects need the optional 3D studio engine (set studioDir in Settings). Your own sound folder and files from disk still work.'), { code: 400 }));
   const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'sfxlib.mjs');
   building = new Promise((ok, no) => {
-    const c = spawn(TOOLS.node || process.execPath, [script, synth, SFX_DIR], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    const c = spawn(TOOLS.node || process.execPath, [script, synth, SFX_DIR], { stdio: ['ignore', 'pipe', 'pipe'] });
     let err = ''; c.stderr.on('data', (d) => { err = (err + d).slice(-600); });
     c.on('error', no);
     c.on('exit', (code) => (code === 0 ? ok(library()) : no(new Error('could not make the effects: ' + (err.trim() || 'exit code ' + code)))));
@@ -77,7 +77,7 @@ export function buildSfx() {
 // a sound for the film: copied into <film>/vhaudio/ (never moved), its length measured
 async function duration(file) {
   return new Promise((res) => {
-    const c = spawn(TOOLS.ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { windowsHide: true });
+    const c = spawn(TOOLS.ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]);
     let out = ''; c.stdout.on('data', (d) => { out += d; }); c.on('exit', () => res(+out.trim() || 0)); c.on('error', () => res(0));
   });
 }

@@ -74,7 +74,7 @@ export function readTweaksStrict(file) {
   catch { throw Object.assign(new Error('Could not read tweaks.json; fix it manually'), { code: 409 }); }
 }
 
-// tmp file + rename (readers never see half a file); Windows refuses the rename while someone reads the file, so
+// tmp file + rename (readers never see half a file); the rename can fail while someone reads the file, so
 // retry 6 × 120 ms like vhsound.mjs replaceFile, then write in place
 export function writeTweaks(file, obj) {
   const txt = JSON.stringify(obj, null, 1), tmp = file + '.' + process.pid + '.tmp';

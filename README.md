@@ -3,7 +3,7 @@
 **A local review studio and render queue for videos that Claude Code or OpenCode writes as code.**
 Ask your agent for a video. It builds a film as a web page that draws every frame in code. VideoHub plays the film straight from its code, so you can watch it, step through frames, draw and leave notes before rendering. Send the notes back to your agent, review the fixes in the reloading preview, then render when you are ready. The queue keeps the computer usable and can re-render only the seconds that changed.
 
-> **Windows 10/11, Linux and macOS; Claude Code or OpenCode. macOS on Apple Silicon is verified on real hardware; Linux and Intel macOS are new, not yet tested on real machines.** See [platform support](docs/PLATFORMS.md) for feature limits and the remaining hardware checks.
+> **macOS and Linux; Claude Code or OpenCode. macOS on Apple Silicon is verified on real hardware; Linux and Intel macOS are new, not yet tested on real machines.** See [platform support](docs/PLATFORMS.md) for feature limits and the remaining hardware checks.
 
 ![Live preview with a note on a frame](docs/screenshots/review-live-preview.png)
 
@@ -23,7 +23,7 @@ Ask your agent for a video. It builds a film as a web page that draws every fram
 - **Recent renders & outputs folder** — every finished render, newest first; each one also hard-linked into one
   outputs folder (a folder per day, no extra disk space).
 - **Disk cleanup** — what can safely go (old chunks, silent copies, browser profiles, check frames, old versions) and
-  why; always to Trash / Recycle Bin or the archive, never deleted outright, always with your approval.
+  why; always to Trash or the archive, never deleted outright, always with your approval.
 - **Sound** — mute/solo/levels per stem, remove the music, duck it under a range, add sounds from your library or
   disk on the timeline; renders use the rebuilt mix.
 - **Thumbnail Studio** — sketch a thumbnail (posed mannequins, objects, text, camera/depth/light), send the brief to
@@ -35,21 +35,20 @@ Ask your agent for a video. It builds a film as a web page that draws every fram
 
 ### Render protection and speed
 Built into the Node server, with no compiled helper:
-- **CPU limits and priority** — Windows uses processor affinity; Linux uses `taskset` when installed. Renders run at low priority. These systems offer Full power / Balanced / Quiet presets and a temporary full-power window.
+- **CPU limits and priority** — Linux uses `taskset` when installed. Renders run at low priority. These systems offer Full power / Balanced / Quiet presets and a temporary full-power window.
 - **macOS protection** — uses niceness and background QoS (`taskpolicy`) when a render slows down. macOS has no supported CPU-core affinity API, so VideoHub hides the Render power and slow CPU sliders and explains the limit. Priority and RAM protection remain available.
-- **RAM slow mode** — when available RAM crosses a threshold, the newest render slows down; at critical RAM, every render slows down. Windows/Linux with affinity also reduce the allowed cores. macOS counts free, inactive and speculative memory through `vm_stat`.
+- **RAM slow mode** — when available RAM crosses a threshold, the newest render slows down; at critical RAM, every render slows down. Linux with affinity also reduces the allowed cores. macOS counts free, inactive and speculative memory through `vm_stat`.
 - **Slow down / Normal speed / Stop** per render, or for all renders at once. On Unix, restoring a numerically lower nice value can require privileges, so a slowed render may retain its lower priority until it ends. VideoHub does not request elevated privileges; a new render starts with its configured priority.
 - **One render at a time**, partial re-renders, workers / encoder / fps controls, and a list of other programs holding RAM (VideoHub never closes them).
-- **Hardware encoders** — Windows: NVENC / AMF / QSV; Linux: NVENC / VAAPI / QSV; macOS: VideoToolbox; x264 is the processor fallback. A short encode probe determines what works with the installed ffmpeg. See [render speed](docs/RENDER-SPEED.md) for the existing Windows measurements; VideoToolbox is measured on Apple Silicon (M2 Max); Linux and other macOS hardware are unmeasured.
+- **Hardware encoders** — Linux: NVENC / VAAPI / QSV; macOS: VideoToolbox; x264 is the processor fallback. A short encode probe determines what works with the installed ffmpeg. See [render speed](docs/RENDER-SPEED.md) for the existing measurements (an older PC; see the note there); VideoToolbox is measured on Apple Silicon (M2 Max); Linux and other macOS hardware are unmeasured.
 
 ![Renders](docs/screenshots/renders.png)
 
 ## Requirements
-All platforms need Node.js 22+, ffmpeg on PATH, a native Chrome/Chromium/Edge browser for headless rendering, pnpm (setup installs dependencies with `pnpm install --frozen-lockfile` and only prints these hints when it is missing), and Claude Code or OpenCode for making and fixing films. No native modules or compiled render-protection helper are required.
+Both platforms need Node.js 22+, ffmpeg on PATH, a native Chrome/Chromium/Edge browser for headless rendering, pnpm (setup installs dependencies with `pnpm install --frozen-lockfile` and only prints these hints when it is missing), and Claude Code or OpenCode for making and fixing films. No native modules or compiled render-protection helper are required.
 
 | Platform | Install missing tools | Notes |
 |---|---|---|
-| Windows 10/11 | `winget install -e --id OpenJS.NodeJS.LTS`; `winget install -e --id Gyan.FFmpeg`; `winget install -e --id pnpm.pnpm` | Edge or Chrome; setup retains the existing Windows paths |
 | Linux desktop | Your distribution's Node 22+ package; `sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, or `sudo pacman -S ffmpeg`; `npm install -g pnpm` or your distribution's pnpm package | Install a native browser; Snap/Flatpak browser wrappers are unsupported. Optional `taskset`, `zenity`/`kdialog`, `notify-send` |
 | macOS | With Homebrew: `brew install node ffmpeg pnpm`; `brew install --cask google-chrome`, or Chrome from its download page | Chrome / Edge / Chromium in `/Applications` or `~/Applications`; Verified on Apple Silicon (macOS 26.6); Intel unverified |
 
@@ -58,22 +57,15 @@ A graphical desktop session is needed for windows, folder dialogs, desktop notif
 ## Install
 Download the ZIP and unpack it, or clone the repository into a folder you want to keep. Open that folder in Claude Code or OpenCode and ask it to install VideoHub, or run the installer yourself. Setup asks about the workspace, discovered video folders, graphics encoding, agents, review rule, shortcut, login startup and example film. Re-runs keep existing answers, folders and settings.
 
-### Windows
-Double-click **SETUP.cmd**. It runs the shared Node installer directly. Preview the steps with `node scripts/install.mjs setup --dry-run`; `--yes` accepts recommended answers. Examples: `--workspace "D:/Videos/VideoHub"` and `--agents claude,opencode`. The same answer flags shown below work on every platform.
-
-The `.ps1` setup/update/uninstall files are compatibility forwarders and respect PowerShell's existing policy. If that policy blocks one, use the Node command or `.cmd` entry point; no policy change is needed.
-
-Open VideoHub from its Desktop shortcut or **open.cmd**. The shortcut starts the installed Node.js executable directly; a console window may appear briefly. `open.cmd` and login startup may also show a short console window. The current launch path uses neither VBScript nor hidden PowerShell. Update migrates owned shortcut/startup entries and recycles the old `open.vbs` / `open.ps1` only when those references are safe; custom, unreadable or failed migrations retain the files and show a warning. Start a new session in your selected agent to load `hub_*` tools.
-
 ### Linux and macOS
-Run `chmod +x setup.sh update.sh uninstall.sh open.sh`, then `./setup.sh`. Preview first with `./setup.sh --dry-run --agents opencode`. Setup prints missing-system-tool instructions instead of silently installing system packages.
+Run `chmod +x setup.sh update.sh uninstall.sh open.sh`, then `./setup.sh`. Preview first with `./setup.sh --dry-run --agents opencode`. Setup prints missing-system-tool instructions instead of silently installing system packages. `--yes` accepts recommended answers. Examples: `--workspace ~/Videos/VideoHub` and `--agents claude,opencode`. Start a new session in your selected agent to load `hub_*` tools.
 
 Flags: `--yes`, `--workspace PATH`, `--agents claude,opencode`, and `--watch-found`, `--gpu-encoder`, `--global-rule`, `--shortcut`, `--startup`, `--example` with `yes` or `no`. Launch with `./open.sh`. Linux also installs an application desktop entry and can add a Desktop copy.
 
 On macOS the optional Desktop launcher is **VideoHub.command**, which briefly opens Terminal. There is no unsigned `.app` bundle. The launcher is created locally by setup and normally opens without a prompt. Only if macOS blocks it, attempt to open it, then go to **System Settings → Privacy & Security → Open Anyway**, confirm, and open it again. You can also launch with `./open.sh` from the installed folder.
 
 ### Claude Code and OpenCode
-Setup detects the installed agents. Select one or both with `--agents claude,opencode` on every platform; legacy Windows `-Agents` spelling remains accepted. Each receives its own local MCP registration, the shared skill and the optional marked review rule. Restart the selected agent after setup.
+Setup detects the installed agents. Select one or both with `--agents claude,opencode` on every platform. Each receives its own local MCP registration, the shared skill and the optional marked review rule. Restart the selected agent after setup.
 
 OpenCode's rules live in `~/.config/opencode/AGENTS.md` (under `$XDG_CONFIG_HOME` if set). When that file exists OpenCode reads it instead of Claude's global compatibility rules. Setup prints this consequence and never copies unrelated personal rules between agents. Settings → Agent name controls the review button label.
 
@@ -110,32 +102,16 @@ requests from other web pages and writes with a foreign Origin. Its render queue
 projects, so **never expose port 7788** (no port forwarding, no tunnels, no `0.0.0.0` proxies). It only serves files
 inside your watched folders, the archive and its own folders.
 
-### Windows launch and security warnings
-Windows setup, update and uninstall use the shared Node lifecycle commands listed in the security guide. `SETUP.cmd` and `UPDATE.cmd` call Node directly. Normal launch uses `open.cmd` → Node → `scripts/install.mjs open`; new Desktop shortcuts and login startup also use the installed Node executable. None of these paths changes PowerShell's execution policy or adds a policy override. Windows integrations still use transparent commands and installed Windows/.NET libraries where needed: the picker loads WinForms, and Trash uses the installed Recycle Bin API. Nothing compiles inline C# or custom P/Invoke helpers.
-
-See [Windows security guidance](docs/WINDOWS-SECURITY.md) for the current behavior, exact-alert evidence and upgrading an older distributed copy.
-
-These changes simplify the launch and system-integration paths. They do not establish that a security alert is a false positive or guarantee that a vendor will accept every downloaded version. Record the security product, exact warning or detection ID, affected file and VideoHub version before deciding what needs review. `node scripts/windows-security.mjs` prints local source fingerprints and retired-helper presence without reading antivirus history or uploading anything; it is not an antivirus scan.
-
-| Warning type | What to distinguish |
-|---|---|
-| Antivirus malware detection | A named threat/detection for a file needs investigation of that exact file and verdict. Keep the blocked item blocked during review. |
-| SmartScreen / unknown publisher / reputation warning | Publisher identity and download reputation are separate from a named malware detection. The exact message identifies which check was involved. |
-| Smart App Control block | This is an application-control trust decision. It is not interchangeable with an antivirus detection or a script-policy error. |
-| PowerShell scripts disabled / unsigned-script error | This is a script-policy restriction. Use the direct Node lifecycle command instead of the optional `.ps1` compatibility entry; no policy setting needs to change. Other application-control restrictions still need the computer's approved deployment process. |
-
-If an examined distributable still receives a malware detection, use that product vendor's official file-review process for the exact affected file. Review what the submission contains first; VideoHub does not upload files to scanners or vendors automatically. Disabling security protection, adding broad exclusions or bypassing download/script policies is not part of setup.
-
 
 ## Update
-Download the new version and unpack it separately. Windows: double-click `UPDATE.cmd`, or run `node scripts/install.mjs update --target "C:/path/to/installed/VideoHub" --dry-run`, then repeat without `--dry-run`. Linux/macOS: from the new copy run `./update.sh --target /path/to/installed/VideoHub --dry-run`, then repeat without `--dry-run`.
+Download the new version and unpack it separately. From the new copy run `./update.sh --target /path/to/installed/VideoHub --dry-run`, then repeat without `--dry-run`.
 
 The update backs up replaced code and keeps the workspace, settings, queue, films and notes. Use the existing launcher afterwards and restart your agent session. Downloaded or shared copies do not change automatically: distribute this version and explicitly update each installed copy that needs it.
 
 ## Uninstall
-Windows: from the installed folder run `node scripts/install.mjs uninstall --dry-run`, then repeat without `--dry-run` or use `UNINSTALL.cmd`. Linux/macOS: `./uninstall.sh --dry-run`, then `./uninstall.sh` from the installed folder.
+`./uninstall.sh --dry-run`, then `./uninstall.sh` from the installed folder.
 
-Only integrations owned by this install are removed: MCP entry, skill, managed rule block, shortcut and login startup. Reversible removals use Trash / Recycle Bin. Films, notes, outputs, settings and the program folder remain.
+Only integrations owned by this install are removed: MCP entry, skill, managed rule block, shortcut and login startup. Reversible removals use Trash. Films, notes, outputs, settings and the program folder remain.
 
 ## Troubleshooting
 - **macOS Trash permission** — Finder may ask for Automation permission the first time VideoHub moves a file to Trash. If macOS reports missing permission, allow it in System Settings → Privacy & Security → Automation for the requesting terminal/process; other Finder errors are shown as Finder returned them. If refused, VideoHub refuses the operation and keeps the source; it never falls back to permanent deletion.

@@ -79,7 +79,7 @@ test('create, get, save, duplicate and delete global thumbnail', async () => {
   assert.ok(dup.brief.title.includes('(copy)'));
   assert.equal(dup.brief.layers.length, 1);
 
-  // 6. Delete (Recycle Bin)
+  // 6. Delete (Trash)
   const delRes = await deleteThumbnail('_', tid, { recycle });
   assert.equal(delRes.ok, true);
   assert.throws(() => getThumbnail('_', tid), /Thumbnail not found/);

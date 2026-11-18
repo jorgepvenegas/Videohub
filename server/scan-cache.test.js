@@ -17,15 +17,6 @@ test('case-sensitive video pairs cannot reuse another pair\'s similarity result'
   assert.equal(await ctx.samePicture(clip('a'), clip('b')), false); assert.ok(decoded > cachedAt);
 });
 
-test('Windows spelling variants still reuse the same video comparison', async () => {
-  let decoded = 0;
-  const ctx = vm.createContext({ simCache: {}, SIM_FILE: 'fake-cache', writeJson() {}, casePath: p => p.toLowerCase(),
-    tinyFrame: async () => { decoded++; return Buffer.alloc(144); } });
-  vm.runInContext(code, ctx);
-  assert.equal(await ctx.samePicture(clip('A'), clip('B')), true); const cachedAt = decoded;
-  assert.equal(await ctx.samePicture(clip('a'), clip('b')), true); assert.equal(decoded, cachedAt);
-});
-
 test('legacy lowercase cache entries cannot keep a false duplicate match alive after upgrading', async () => {
   const a = clip('a'), b = clip('b'), legacy = [a.path, a.size, a.mtime, b.path, b.size, b.mtime].join('|');
   const ctx = vm.createContext({ simCache: { [legacy]: true }, SIM_FILE: 'fake-cache', writeJson() {}, casePath: p => p,
