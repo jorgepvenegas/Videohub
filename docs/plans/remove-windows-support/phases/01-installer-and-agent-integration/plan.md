@@ -76,7 +76,7 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Acceptance:
   - [ ] None of the listed files is tracked
 - Verification: `git ls-files '*.cmd' '*.ps1' 'scripts/windows-*'` — expected: no output
-- Rollback: `git checkout HEAD -- <files>`
+- Rollback: `git checkout HEAD -- SETUP.cmd UPDATE.cmd UNINSTALL.cmd open.cmd setup.ps1 update.ps1 uninstall.ps1 scripts/make-icon.ps1 scripts/windows-security.mjs scripts/windows-security.test.js scripts/windows-installer.test.js scripts/windows-safety.test.js`
 
 ### S2 — Make `scripts/install.mjs` Unix-only
 
@@ -126,7 +126,7 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 - Depends on: S4
 - Files: none (verification only)
-- Change: run `bash setup.sh --dry-run --yes` with `HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `TMPDIR` under `.test-tmp/p1-home` and `VIDEOHUB_DATA_DIR`/`VIDEOHUB_BASE_DIR` under `.test-tmp/p1-data`, `VIDEOHUB_PORT=7799`, `VIDEOHUB_NO_WINDOW=1`. Also run `bash update.sh --dry-run --target <scratch copy>` and `bash uninstall.sh --dry-run` in the same isolation if they can run without touching the real install; otherwise record why not.
+- Change: run `bash setup.sh --dry-run --yes` with `HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `TMPDIR` under `.test-tmp/p1-home` and `VIDEOHUB_DATA_DIR`/`VIDEOHUB_BASE_DIR` under `.test-tmp/p1-data`, `VIDEOHUB_PORT=7799`, `VIDEOHUB_NO_WINDOW=1`. Also run `bash update.sh --dry-run --target .test-tmp/p1-target (a scratch copy of the repo)` and `bash uninstall.sh --dry-run` in the same isolation if they can run without touching the real install; otherwise record why not.
 - Acceptance:
   - [ ] setup dry-run exits 0 and prints only Unix actions
 - Verification: the commands above — expected: exit 0, no write outside `.test-tmp`
@@ -145,7 +145,7 @@ If a step reveals work outside this phase, report it and continue the approved s
 - [ ] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
 - [ ] Names and structure state intent; comments explain only non-obvious reasons
 - [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation
-- [ ] Master standards commands pass: `none` (format), `none` (lint), `node --check <changed files>`, `pnpm install --frozen-lockfile && pnpm test`
+- [ ] Master standards commands pass: `none` (format), `none` (lint), `node --check` on each changed file, `pnpm install --frozen-lockfile && pnpm test`
 
 ## 8. Risks and unknowns
 

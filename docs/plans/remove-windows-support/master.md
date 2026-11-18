@@ -55,7 +55,7 @@ flowchart LR
 | Source of truth | `CLAUDE.md` (Development rules), `docs/ARCHITECTURE.md`, `docs/PLATFORMS.md` |
 | Format | none (no formatter; keep the compact ES-module style of surrounding code) |
 | Lint | none |
-| Type check | `node --check <each changed .js/.mjs>` |
+| Type check | `node --check` on each changed .js/.mjs file |
 | Tests | `pnpm install --frozen-lockfile && pnpm test` (baseline 2026-11-17: 350 tests, 348 pass, 2 skipped, 0 fail) |
 | Project rules | Tests isolate HOME/temp/data under `.test-tmp`; never touch the real install, real agent profiles or user films; English code/comments; preserve exported names and result shapes used by MCP/HTTP/UI except the Windows-only ones this plan removes; read old stored values through `legacy.js`; keep `templates/new-film/render.js` byte-equal to `examples/hello-film/render.js`; inspect staged diff for private paths/identities before committing; UI never imports `server/`. |
 
