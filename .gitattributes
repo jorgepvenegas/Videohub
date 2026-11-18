@@ -1,0 +1,3 @@
+# Repo-only files: left out of git archive, so make-upload.mjs never ships a dot file.
+.gitignore export-ignore
+.gitattributes export-ignore
