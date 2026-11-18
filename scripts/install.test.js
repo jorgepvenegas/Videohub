@@ -6,7 +6,6 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { parseOptions, runInstaller, stopInstalledHub, validateUpdatePaths } from './install.mjs';
-import { IS_WIN } from '../server/platform.js';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const write = (f, t = '{}') => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
 function fixture(os = 'linux', installName = 'install') {
@@ -17,7 +16,7 @@ function fixture(os = 'linux', installName = 'install') {
   write(path.join(hub, 'skill', 'videohub', 'SKILL.md'), '---\nname: videohub\ndescription: Fixture\n---\n{{VIDEOHUB_DIR}}/server/cli.js\n'); write(path.join(hub, 'claude', 'global-rule.md'), '{{VIDEOHUB_DIR}}/server/cli.js\n');
   write(path.join(hub, 'examples', 'hello-film', 'index.html'), '<canvas></canvas>'); write(path.join(hub, 'examples', 'hello-film', 'videohub-project.json'), '{"title":"Example"}');
   const env = { PATH: '', XDG_CONFIG_HOME: path.join(home, '.config'), XDG_DATA_HOME: path.join(home, '.local', 'share'), VIDEOHUB_DATA_DIR: path.join(hub, 'data'), VIDEOHUB_PORT: '7799', VIDEOHUB_NO_WINDOW: '1' };
-  const calls = [], platform = { OS: 'linux', IS_WIN: false, IS_MAC: false, IS_LINUX: true, dirs: { home, config: path.join(home, '.config', 'videohub'), desktop: path.join(home, 'Desktop') }, findTool: () => null, findBrowser: () => ({ path: null }), desktopEntry: () => '[Desktop Entry]\nName=VideoHub\nExec="/home/me/VideoHub/open.sh"\n', pathKey: p => path.resolve(p), processList: async () => [], getAutostart: async () => false, setAutostart: async on => { calls.push(['startup', on]); return { code: 0 }; }, trash: async a => { calls.push(['trash', a]); return a.map(p => ({ path: p, ok: true })); }, openUrlWindow: u => calls.push(['open', u]) };
+  const calls = [], platform = { OS: 'linux', IS_MAC: false, IS_LINUX: true, dirs: { home, config: path.join(home, '.config', 'videohub'), desktop: path.join(home, 'Desktop') }, findTool: () => null, findBrowser: () => ({ path: null }), desktopEntry: () => '[Desktop Entry]\nName=VideoHub\nExec="/home/me/VideoHub/open.sh"\n', pathKey: p => path.resolve(p), processList: async () => [], getAutostart: async () => false, setAutostart: async on => { calls.push(['startup', on]); return { code: 0 }; }, trash: async a => { calls.push(['trash', a]); return a.map(p => ({ path: p, ok: true })); }, openUrlWindow: u => calls.push(['open', u]) };
   if (os === 'darwin') { platform.OS = 'darwin'; platform.IS_MAC = true; platform.TOOLS = { node: '/opt/homebrew/bin/node' }; platform.IS_LINUX = false; platform.dirs.config = path.join(home, 'Library', 'Application Support', 'VideoHub'); platform.desktopEntry = () => { throw new Error('macOS must not create a desktop entry'); }; }
   return { hub, home, workspace, env, platform, calls, log: () => {}, launch: false, discover: () => [], run: () => { throw new Error('No package or external command may run in this test'); } };
 }
@@ -89,7 +88,7 @@ test('macOS dry-run gives Homebrew hints and writes no Desktop command or Librar
 test('macOS setup creates a quoted executable Desktop command and Library installation record', async () => {
   const o = fixture('darwin', "VideoHub's copy"); await runInstaller({ action: 'setup', yes: true, workspace: o.workspace, agents: 'opencode' }, o);
   const command = path.join(o.home, 'Desktop', 'VideoHub.command'), text = fs.readFileSync(command, 'utf8'); assert.ok(text.startsWith('#!/bin/bash\n')); assert.ok(text.includes('# VideoHub install: ' + o.hub + '\n')); assert.ok(text.includes('/opt/homebrew/bin:/usr/local/bin:$PATH')); assert.ok(text.includes("exec '/opt/homebrew/bin/node' '" + path.join(o.hub, 'scripts', 'install.mjs').replaceAll("'", "'\\''") + "' open \"$@\""));
-  if (!IS_WIN) assert.ok(fs.statSync(command).mode & 0o111);
+  assert.ok(fs.statSync(command).mode & 0o111);
   assert.ok(fs.existsSync(path.join(o.home, 'Library', 'Application Support', 'VideoHub', 'install.json'))); assert.equal(fs.existsSync(path.join(o.home, '.local', 'share', 'applications')), false);
   o.calls.length = 0; await runInstaller({ action: 'uninstall' }, { ...o, request: async () => null }); assert.ok(o.calls.some(c => c[0] === 'startup' && c[1] === false)); assert.ok(o.calls.some(c => c[0] === 'trash' && c[1].includes(command))); assert.ok(fs.existsSync(path.join(o.workspace, 'films', 'hello-film', 'index.html')));
 });
@@ -134,19 +133,18 @@ test('launcher does not open a different program that wins a startup port race',
   const o = fixture(); let polls = 0;
   await assert.rejects(runInstaller({ action: 'open' }, { ...o, request: async () => ++polls === 1 ? null : { app: 'videohub', pid: 456 }, spawnServer: () => ({ pid: 999, on() {}, unref() {} }), delay: async () => {} }), /acquired the VideoHub port/); assert.deepEqual(o.calls, []);
 });
-test('Windows lifecycle uses the same queue and ownership checks without allowing dry-run API contact', async () => {
-  const o = fixture(), platform = { ...o.platform, IS_WIN: true }, stopped = [];
+test('stop uses the queue and ownership checks without allowing dry-run API contact', async () => {
+  const o = fixture(), platform = o.platform, stopped = [];
   await runInstaller({ action: 'stop', target: o.hub, 'dry-run': true }, { ...o, platform, request: async () => { throw new Error('Dry-run contacted server'); } });
   await assert.rejects(runInstaller({ action: 'stop', target: o.hub }, { ...o, platform, request: async () => ({ app: 'videohub', pid: 888 }), stopPid: p => stopped.push(p) }), /another process/); assert.deepEqual(stopped, []);
-  const row = { pid: 123, name: 'node.exe', start: 'original', cmd: '"' + process.execPath + '" "' + path.join(o.hub, 'server', 'hub.js') + '"' }; let exited = false;
+  const row = { pid: 123, name: 'node', start: 'original', cmd: '"' + process.execPath + '" "' + path.join(o.hub, 'server', 'hub.js') + '"' }; let exited = false;
   await stopInstalledHub({ install: o.hub, platform: { processList: async () => exited ? [] : [row] }, port: 7799, request: async u => u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' }, stopPid: p => { stopped.push(p); exited = true; }, delay: async () => {} }); assert.deepEqual(stopped, [123]);
 });
-test('Windows stop ownership folds path casing while Unix and different install prefixes remain distinct', async () => {
-  const o = fixture(), stopped = [], request = async u => u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' };
-  const script = path.join(o.hub, 'server', 'hub.js'), row = { pid: 123, name: 'node.exe', start: 'original', cmd: '"' + process.execPath + '" "' + script.toUpperCase() + '"' }; let exited = false;
-  await stopInstalledHub({ install: o.hub, platform: { IS_WIN: true, processList: async () => exited ? [] : [row] }, port: 7799, request, stopPid: p => { stopped.push(p); exited = true; }, delay: async () => {} }); assert.deepEqual(stopped, [123]);
-  for (const [IS_WIN, cmd] of [[false, row.cmd], [true, 'node "' + path.join(o.hub + '-copy', 'server', 'hub.js').toUpperCase() + '"']]) {
-    await assert.rejects(stopInstalledHub({ install: o.hub, platform: { IS_WIN, processList: async () => [{ ...row, cmd }] }, port: 7799, request, stopPid: () => { throw new Error('Wrong install was stopped'); }, delay: async () => {} }), /another process/);
+test('stop ownership is case-sensitive and different install prefixes remain distinct', async () => {
+  const o = fixture(), request = async u => u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' };
+  const script = path.join(o.hub, 'server', 'hub.js'), row = { pid: 123, name: 'node', start: 'original', cmd: '"' + process.execPath + '" "' + script.toUpperCase() + '"' };
+  for (const cmd of [row.cmd, 'node "' + path.join(o.hub + '-copy', 'server', 'hub.js') + '"']) {
+    await assert.rejects(stopInstalledHub({ install: o.hub, platform: { processList: async () => [{ ...row, cmd }] }, port: 7799, request, stopPid: () => { throw new Error('Wrong install was stopped'); }, delay: async () => {} }), /another process/);
   }
 });
 test('lifecycle refuses unknown process start identity instead of treating null as a match', async () => {
@@ -156,14 +154,14 @@ test('lifecycle refuses unknown process start identity instead of treating null 
 test('canonical update validation rejects nested junction aliases before stop or copy', async () => {
   const o = fixture(), nested = path.join(o.hub, 'nested'), sibling = o.hub + '-copy', alias = path.join(path.dirname(o.hub), 'nested-alias'), sameAlias = path.join(path.dirname(o.hub), 'same-alias');
   fs.mkdirSync(nested); fs.mkdirSync(sibling);
-  // Resolve fake junctions on every host; Windows may deny creating real junctions in test runners.
+  // Resolve fake junctions instead of creating real ones.
   const aliases = new Map([[alias, nested], [sameAlias, o.hub]]), realpath = p => aliases.get(p) || fs.realpathSync(p), resolver = { realpath };
   assert.throws(() => validateUpdatePaths(o.hub, alias, resolver), /not nested/); assert.throws(() => validateUpdatePaths(alias, o.hub, resolver), /not nested/); assert.equal(validateUpdatePaths(o.hub, sameAlias, resolver).same, true); assert.equal(validateUpdatePaths(o.hub, sibling).same, false);
-  const noContact = { ...o, platform: { ...o.platform, IS_WIN: true }, request: async () => { throw new Error('Validation contacted a server'); }, stopPid: () => { throw new Error('Validation stopped a process'); } };
+  const noContact = { ...o, request: async () => { throw new Error('Validation contacted a server'); }, stopPid: () => { throw new Error('Validation stopped a process'); } };
   await assert.rejects(runInstaller({ action: 'validate-update', source: o.hub, target: nested }, noContact), /not nested/); await assert.rejects(runInstaller({ action: 'validate-update', source: o.hub, target: o.hub }, noContact), /same folder/);
   await runInstaller({ action: 'validate-update', source: o.hub, target: sibling }, noContact); assert.equal(fs.readdirSync(sibling).length, 0);
 });
 test('Bash launchers pass bash -n when a working Bash is available', t => {
-  const version = spawnSync('bash', ['--version'], { encoding: 'utf8', timeout: 10000, windowsHide: true }); if (version.error || version.status !== 0) { t.skip('Bash is unavailable on this host; run bash -n on Linux/macOS'); return; }
-  for (const f of ['setup.sh', 'update.sh', 'uninstall.sh', 'open.sh']) { const r = spawnSync('bash', ['-n', f], { cwd: ROOT, encoding: 'utf8', timeout: 10000, windowsHide: true }); assert.equal(r.status, 0, f + ': ' + r.stderr); }
+  const version = spawnSync('bash', ['--version'], { encoding: 'utf8', timeout: 10000 }); if (version.error || version.status !== 0) { t.skip('Bash is unavailable on this host; run bash -n on Linux/macOS'); return; }
+  for (const f of ['setup.sh', 'update.sh', 'uninstall.sh', 'open.sh']) { const r = spawnSync('bash', ['-n', f], { cwd: ROOT, encoding: 'utf8', timeout: 10000 }); assert.equal(r.status, 0, f + ': ' + r.stderr); }
 });

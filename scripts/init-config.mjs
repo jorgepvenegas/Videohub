@@ -1,4 +1,4 @@
-// Setup's helper for data/config.json: setup.ps1 asks the questions, this file decides and writes (so the logic lives
+// Setup's helper for data/config.json: setup.sh asks the questions, this file decides and writes (so the logic lives
 // next to server/config.js and is unit-tested in scripts/init-config.test.js). It never moves or deletes a folder,
 // never overwrites a value an existing config.json has and never replaces a config it cannot read.
 //
@@ -14,11 +14,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEFAULTS, DEFAULT_BASE, WORKSPACE_FOLDERS, discoverRoots } from '../server/config.js';
 import { ENCODERS, detectEncoders } from '../server/encoders.js';
-import { IS_WIN } from '../server/platform.js';
 
 export const HUB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const low = p => IS_WIN ? path.resolve(p).toLowerCase() : path.resolve(p);
-const inside = (c, p) => { const r = path.relative(low(p), low(c)); return !r || (!r.startsWith('..' + path.sep) && r !== '..' && !path.isAbsolute(r)); };
+const inside = (c, p) => { const r = path.relative(path.resolve(p), path.resolve(c)); return !r || (!r.startsWith('..' + path.sep) && r !== '..' && !path.isAbsolute(r)); };
 
 export const README = `This is your VideoHub workspace: everything VideoHub makes lives here.
 
@@ -33,12 +31,12 @@ VideoHub never deletes anything here by itself. Settings > Folders shows and cha
 
 // null when the folder can be the workspace, else why not (plain words for setup)
 export function checkWorkspace(p, hubDir = HUB) {
-  const example = IS_WIN ? 'D:\\Videos\\VideoHub' : '/home/me/Videos/VideoHub';
+  const example = '/home/me/Videos/VideoHub';
   if (typeof p !== 'string' || !p.trim()) return 'Type a folder, for example ' + example + '.';
   p = p.trim().replace(/^"(.*)"$/, '$1');
   if (!path.isAbsolute(p)) return 'Type a full path, for example ' + example + '.';
   const r = path.resolve(p);
-  if (low(path.parse(r).root) === low(r)) return 'Pick a folder, not a whole drive or filesystem root (for example ' + path.join(r, 'VideoHub') + ').';
+  if (path.resolve(path.parse(r).root) === path.resolve(r)) return 'Pick a folder, not a whole drive or filesystem root (for example ' + path.join(r, 'VideoHub') + ').';
   if (inside(r, hubDir)) return 'Pick a folder outside the VideoHub program folder (updates replace that folder).';
   let a = r; while (!fs.existsSync(a)) { const up = path.dirname(a); if (up === a) return 'The drive ' + path.parse(r).root + ' does not exist on this PC.'; a = up; }
   try { if (!fs.statSync(a).isDirectory()) return a === r ? 'That is a file, not a folder.' : a + ' is a file, not a folder.'; } catch { return 'That folder cannot be read.'; }
@@ -77,11 +75,11 @@ export function initConfig({ dataDir = path.join(HUB, 'data'), hubDir = HUB, wor
   if (saved) {
     // installed: the workspace and every value stay; only keys that are missing are added
     ws = saved.baseDir || DEFAULT_BASE(); cfg = { ...saved };
-    actions.push(`kept the workspace ${ws}` + (workspace && low(workspace) !== low(ws) ? ` (${workspace} was not used: the workspace is already set; change single folders in Settings)` : ''));
+    actions.push(`kept the workspace ${ws}` + (workspace && path.resolve(workspace) !== path.resolve(ws) ? ` (${workspace} was not used: the workspace is already set; change single folders in Settings)` : ''));
     if (!cfg.render || typeof cfg.render !== 'object' || !cfg.render.encoder) { cfg.render = { ...(cfg.render || {}), encoder: encoder || 'auto' }; changed = true; W(`set the render encoder to ${cfg.render.encoder}`); }
     else actions.push(`kept the render encoder ${cfg.render.encoder}`);
     const roots = Array.isArray(cfg.roots) ? cfg.roots : [];
-    const add = watch.filter(w => w && !roots.some(r => r && typeof r.path === 'string' && low(r.path) === low(w)));
+    const add = watch.filter(w => w && !roots.some(r => r && typeof r.path === 'string' && path.resolve(r.path) === path.resolve(w)));
     if (add.length) { cfg.roots = [...roots, ...add.map(w => ({ path: path.resolve(w), type: 'container', enabled: true }))]; changed = true; for (const w of add) W(`watch ${w}`); }
   } else {
     const requested = typeof workspace === 'string' ? workspace.trim().replace(/^"(.*)"$/, '$1') : workspace ?? DEFAULT_BASE();
@@ -89,10 +87,10 @@ export function initConfig({ dataDir = path.join(HUB, 'data'), hubDir = HUB, wor
     ws = path.resolve(requested);
     let found = []; try { found = discover(); } catch { }
     found = found.filter(r => !inside(r.path, ws));
-    const on = new Set(watch.map(low)), films = path.join(ws, WORKSPACE_FOLDERS.films);
-    const extra = watch.filter(w => !found.some(r => low(r.path) === low(w))).map(w => ({ path: path.resolve(w), type: 'container', enabled: true }));
+    const on = new Set(watch.map(w => path.resolve(w))), films = path.join(ws, WORKSPACE_FOLDERS.films);
+    const extra = watch.filter(w => !found.some(r => path.resolve(r.path) === path.resolve(w))).map(w => ({ path: path.resolve(w), type: 'container', enabled: true }));
     cfg = { ...DEFAULTS(ws), baseDir: ws, render: { encoder: encoder || 'auto' },
-      roots: [{ path: films, type: 'container', enabled: true }, ...found.map(r => ({ path: r.path, type: r.type, enabled: on.has(low(r.path)) })), ...extra] };
+      roots: [{ path: films, type: 'container', enabled: true }, ...found.map(r => ({ path: r.path, type: r.type, enabled: on.has(path.resolve(r.path)) })), ...extra] };
     changed = true;
     W(`use the workspace ${ws}`);
     for (const r of cfg.roots.slice(1)) if (r.enabled) W(`also watch ${r.path}`);
@@ -129,13 +127,13 @@ export function installExample({ dataDir = path.join(HUB, 'data'), hubDir = HUB,
     copy(source, target);
     const meta = path.join(source, 'videohub-project.json'); if (fs.existsSync(meta)) { fs.mkdirSync(path.join(target, '.videohub')); fs.copyFileSync(meta, path.join(target, '.videohub', 'project.json'), fs.constants.COPYFILE_EXCL); }
     if (!roots.some(r => r?.enabled !== false && typeof r.path === 'string' && inside(target, r.path))) {
-      const cfg = { ...saved, roots: [{ path: dir, type: 'container', enabled: true }, ...roots.filter(r => typeof r?.path !== 'string' || low(r.path) !== low(dir))] }, tmp = file + '.' + process.pid + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(cfg, null, 1)); fs.renameSync(tmp, file);
+      const cfg = { ...saved, roots: [{ path: dir, type: 'container', enabled: true }, ...roots.filter(r => typeof r?.path !== 'string' || path.resolve(r.path) !== path.resolve(dir))] }, tmp = file + '.' + process.pid + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(cfg, null, 1)); fs.renameSync(tmp, file);
     }
   }
   return { installed: false, kept: false, path: target, target, source, dryRun };
 }
 
-// ---------- command line (setup.ps1)
+// ---------- command line (setup.sh)
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const a = process.argv.slice(2), val = k => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : null; };
   const all = k => a.flatMap((x, i) => x === k && a[i + 1] != null ? [a[i + 1]] : []);

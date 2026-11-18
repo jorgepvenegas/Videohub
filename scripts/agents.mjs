@@ -4,9 +4,9 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { IS_WIN, trash } from '../server/platform.js';
+import { trash } from '../server/platform.js';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const normal = s => { const p = String(s || '').replace(/\\/g, '/').replace(/\/$/, ''); return IS_WIN ? p.toLowerCase() : p; };
+const normal = s => String(s || '').replace(/\/$/, '');
 const same = (a, b) => normal(a) === normal(b);
 const object = j => j && typeof j === 'object' && !Array.isArray(j);
 export function parseJsonc(text) {
@@ -39,20 +39,13 @@ export function agentPaths(agent, { home = os.homedir(), env = process.env } = {
   return { dir, config, skill: path.join(dir, 'skills', 'videohub'), rule: path.join(dir, agent === 'claude' ? 'CLAUDE.md' : 'AGENTS.md') };
 }
 function executable(name, env = process.env) {
-  for (const d of (env.PATH || '').split(path.delimiter)) for (const ext of IS_WIN ? ['.exe', '.cmd', '.bat', ''] : ['']) {
-    const p = path.join(d, name + ext); if (d && fs.existsSync(p)) return p;
+  for (const d of (env.PATH || '').split(path.delimiter)) {
+    const p = path.join(d, name); if (d && fs.existsSync(p)) return p;
   }
   return null;
 }
 export function executeAgent(file, args, { env = process.env } = {}) {
-  // Windows npm shims are batch files, which execFile cannot execute directly.
-  if (IS_WIN && /\.(cmd|bat)$/i.test(file)) {
-    const values = [file, ...args]; if (values.some(s => /["\r\n\0]/.test(String(s)))) throw new Error('Unsupported quote or control character in agent CLI argument');
-    const commandEnv = { ...env }, names = values.map((value, i) => { const key = 'VIDEOHUB_CLI_ARG_' + i; commandEnv[key] = String(value); return '"%' + key + '%"'; });
-    // Expand each argument once from env: literal %NAME%, &, and ! in paths survive cmd's parser.
-    return spawnSync(env.ComSpec || process.env.ComSpec || 'cmd.exe', ['/d', '/v:off', '/s', '/c', '"' + names.join(' ') + '"'], { encoding: 'utf8', windowsHide: true, windowsVerbatimArguments: true, env: commandEnv });
-  }
-  return spawnSync(file, args, { encoding: 'utf8', windowsHide: true, env });
+  return spawnSync(file, args, { encoding: 'utf8', env });
 }
 export function detectAgents(options = {}) {
   return ['claude', 'opencode'].filter(a => (options.find || executable)(a, options.env) || fs.existsSync(agentPaths(a, options).dir));
@@ -72,7 +65,7 @@ function mutateEntry(agent, j, mcp, remove) {
     if (remove) delete j.mcp.servers.videohub; else j.mcp.servers.videohub = { type: 'local', command: ['node', mcp], disabled: false };
   }
 }
-const begin = '<!-- videohub:begin (added by VideoHub setup; remove with uninstall.ps1) -->', end = '<!-- videohub:end -->';
+const begin = '<!-- videohub:begin (added by VideoHub setup; remove with uninstall.sh) -->', end = '<!-- videohub:end -->';
 const blocks = /<!-- videohub:begin[^>]*-->[\s\S]*?<!-- videohub:end -->/g;
 function ownedText(text, hub) { return new RegExp('(?:^|["\u0027`(\\s])' + normal(hub).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:/|["\u0027`\\s]|$)').test(normal(text)); }
 export async function integrateAgents({ action = 'setup', agents = [], hub = ROOT, home = os.homedir(), env = process.env, globalRule = true, dryRun = false, find = executable, run = executeAgent, recycle = trash } = {}) {
