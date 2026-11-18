@@ -8,7 +8,7 @@ if (!name || name === 'list' || !TOOLS[name]) {
   console.log('Tools:\n' + Object.entries(TOOLS).map(([k, t]) => `  ${k} — ${t.description.split('.')[0]}`).join('\n'));
   process.exit(name && name !== 'list' ? 1 : 0);
 }
-// exitCode instead of process.exit(): exiting while fetch sockets close trips a libuv assertion on Windows
+// exitCode instead of process.exit(): exiting while fetch sockets close can trip a libuv assertion
 try {
   const args = json ? JSON.parse(json) : {};
   console.log(await TOOLS[name].run(args));

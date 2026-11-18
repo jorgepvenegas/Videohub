@@ -46,11 +46,11 @@ test('case-distinct Unix watch folders can be added with either entry method', a
   }
 });
 
-test('both folder entry methods reject duplicate Windows paths without claiming an addition', async () => {
+test('both folder entry methods reject duplicate paths that differ only by a trailing slash without claiming an addition', async () => {
   for (const method of ['picker', 'text']) {
-    const s = await settings({ platform: 'win32', roots: ['C:\\Videos\\Film'] });
-    if (method === 'picker') s.picker.pick('c:/videos/film/');
-    else { s.addInput.value = 'c:/videos/film/'; s.add(); }
+    const s = await settings({ roots: ['/home/me/Film'] });
+    if (method === 'picker') s.picker.pick('/home/me/Film/');
+    else { s.addInput.value = '/home/me/Film/'; s.add(); }
     await s.save();
     assert.equal(s.calls[0].roots.length, 1);
     assert.ok(s.messages.some(m => /already in the list/.test(m.message)));

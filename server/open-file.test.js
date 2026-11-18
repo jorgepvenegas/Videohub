@@ -15,7 +15,7 @@ test('media opening plans preserve the absolute Unicode path without a command s
   assert.equal(p.target, path.resolve(file));
   assert.equal(p.how, 'file');
   assert.ok(typeof p.command === 'string' && Array.isArray(p.args));
-  assert.ok(!/^(?:cmd(?:\.exe)?|(?:\/bin\/)?sh|powershell(?:\.exe)?)$/i.test(p.command));
+  assert.ok(!/^(?:\/bin\/)?sh$/i.test(p.command));
   assert.deepEqual(Object.keys(p).sort(), ['args', 'command', 'how', 'select', 'target']);
   assert.equal(p.select, false);
 });
@@ -31,7 +31,7 @@ test('missing files and invalid actions return useful errors', () => {
   assert.throws(() => openPlan('bad"path.mp4'), e => e.code === 400);
 });
 test('"file" opens only media; programs and shortcuts can only be shown in their folder', () => {
-  for (const name of ['run.bat', 'tool.exe', 'link.lnk', 'script.cmd', 'page.hta']) {
+  for (const name of ['run.sh', 'tool.bin', 'link.desktop', 'script.command', 'page.html']) {
     const f = path.join(dir, name); fs.writeFileSync(f, 'x');
     try {
       assert.throws(() => openPlan(f), e => e.code === 400); assert.throws(() => openPlan(f, 'file'), e => e.code === 400);

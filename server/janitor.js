@@ -1,5 +1,5 @@
 // Finds what can go, explains why, and removes it reversibly:
-// deletions go to the Recycle Bin, old versions are moved to the archive folder. Nothing is hard-deleted.
+// deletions go to the Trash, old versions are moved to the archive folder. Nothing is hard-deleted.
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import { recycleStream } from './platform.js';
@@ -265,16 +265,10 @@ const units = c => c.files ? c.files.filter(f => isInside(f.path, c.path) && f.p
 async function leftOf(c) { let s = 0; for (const u of units(c)) s += await dirOrFileSize(u.path); return s; }
 const anyLeft = c => units(c).some(u => exists(u.path));
 
-// SHFileOperation error codes (incl. the old DE_* ones) in plain English
+// Trash result codes in plain English (recycleStream reports 0 or -3)
 function why(code) {
-  if (code === -1) return 'Operation interrupted.';
-  if (code === -2) return 'Too large for the Recycle Bin; left untouched to avoid permanent deletion.';
-  if (code === -3) return 'The Recycle Bin is disabled or unavailable on this drive; left untouched to avoid permanent deletion.';
-  if ([2, 3, 0x7C, 0x402].includes(code)) return 'Not found.';
-  if ([5, 0x78, 0x10074].includes(code)) return 'Access denied.';
-  if ([32, 33].includes(code)) return 'In use by another program (open file).';
-  if (code === 0x71 || code === 0x72) return 'Source and destination are the same.';
-  return `Windows error code ${code}.`;
+  if (code === -3) return 'The Trash is unavailable here; left untouched to avoid permanent deletion.';
+  return `Trash error code ${code}.`;
 }
 
 // old versions: copy (async, so the hub keeps answering), check, then remove the original
@@ -292,7 +286,7 @@ async function archiveOne(i) {
   return dest;
 }
 
-// project folders to the Recycle Bin (VideoHub's "Delete folder"): same SHFileOperation path, Bin size check, log
+// project folders to the Trash (VideoHub's "Delete folder"): same trash path, log
 export async function recyclePaths(items) {
   const res = new Map();
   await recycleStream(items, (it, code, err) => { res.set(it.path, code === 0 ? null : (err || why(code))); });
@@ -346,8 +340,7 @@ async function runJob(ids) {
   });
   for (const c of recycleList) {
     const rest = await leftOf(c), freed = Math.max(0, c.size - rest), e = codes.get(c);
-    // Windows says "not found" also when a file inside is held open by another program (seen with a locked Chrome profile)
-    const err = !e ? null : e.code != null && e.code > 0 && rest ? `Could not delete: a file inside may be open in another program (Windows code ${e.code}). Try again after closing that program.` : e.text;
+    const err = e?.text ?? null;
     if (!rest) { job.freed += c.size; res(c, 'ok', { freed: c.size }); logLine({ action: 'recycle', path: c.path, ok: true, size: c.size }); }
     else { job.freed += freed; res(c, 'error', { freed, left: rest, error: (freed ? `Partially removed: ${Math.round(rest / 1048576)} MB left. ` : '') + (err || 'Still on disk.') }); logLine({ action: 'recycle', path: c.path, ok: false, error: err, left: rest }); }
   }

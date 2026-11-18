@@ -106,7 +106,7 @@ export function markSeen(key) { const s = seenMap() || (seen = {}); if (key) s[k
 export function markAllSeen() { const s = seenMap() || (seen = {}); for (const it of collect()) if (it.exists) s[it.key] = s[it.key] || new Date().toISOString(); saveSeen(); }
 
 // Keep the existing export for callers; the platform chooses the system notification.
-export function notifyWindows(title, body) { return notify(title, body); }
+export function notifyDesktop(title, body) { return notify(title, body); }
 
 export function routes(route, readBody) {
   route('GET', '/api/outputs', (req, url) => outputs(Math.min(1000, +(url.searchParams.get('limit') || 150))));

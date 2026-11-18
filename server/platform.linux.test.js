@@ -4,7 +4,7 @@ import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { createPlatform } from './platform.js';
 
-// Every command and file is fake: these Linux contracts also run on Windows.
+// Every command and file is fake: these Linux contracts run on any host.
 function harness({ tools = [], files: initial = {}, proc = null, run: answer, env = {}, uid = 1000, sync = () => '', onDelay } = {}) {
   const files = new Map(Object.entries(initial)), calls = [], spawned = [], priorities = [], signals = [], delays = [], renames = [];
   const error = code => Object.assign(new Error(code), { code });

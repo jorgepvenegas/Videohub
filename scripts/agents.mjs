@@ -104,7 +104,7 @@ export async function integrateAgents({ action = 'setup', agents = [], hub = ROO
         if (skillText != null) { say(`move ${label} skill folder to Trash: ${p.skill}`); if (!dryRun) { const result = await recycle([p.skill]); if (!result[0]?.ok) throw new Error(result[0]?.error || 'Could not move skill to Trash'); } }
       } else if (action !== 'refresh' || skillText != null) {
         say(`copy VideoHub skill to ${p.skill}`);
-        if (!dryRun) { fs.mkdirSync(p.skill, { recursive: true }); for (const f of fs.readdirSync(path.join(hub, 'skill', 'videohub'), { withFileTypes: true }).filter(f => f.isFile())) fs.writeFileSync(path.join(p.skill, f.name), fs.readFileSync(path.join(hub, 'skill', 'videohub', f.name), 'utf8').replaceAll('{{VIDEOHUB_DIR}}', hub.replace(/\\/g, '/'))); }
+        if (!dryRun) { fs.mkdirSync(p.skill, { recursive: true }); for (const f of fs.readdirSync(path.join(hub, 'skill', 'videohub'), { withFileTypes: true }).filter(f => f.isFile())) fs.writeFileSync(path.join(p.skill, f.name), fs.readFileSync(path.join(hub, 'skill', 'videohub', f.name), 'utf8').replaceAll('{{VIDEOHUB_DIR}}', hub)); }
       }
       const old = fs.existsSync(p.rule) ? fs.readFileSync(p.rule, 'utf8') : '', found = [...old.matchAll(blocks)];
       if (action !== 'uninstall' && found.some(b => !ownedText(b[0], hub))) { say(`leave ${label} rule belonging to another install unchanged`); continue; }
@@ -112,7 +112,7 @@ export async function integrateAgents({ action = 'setup', agents = [], hub = ROO
         if (found.some(b => ownedText(b[0], hub))) { say(`remove VideoHub rule from ${p.rule}`); if (!dryRun) { fs.copyFileSync(p.rule, p.rule + '.videohub-backup'); fs.writeFileSync(p.rule, old.replace(blocks, block => ownedText(block, hub) ? '' : block)); } }
       } else if ((action === 'refresh' && found.length) || (action === 'setup' && globalRule)) {
         if (/<!-- videohub:begin/.test(old) && !found.length) throw new Error('Incomplete VideoHub rule marker; left unchanged: ' + p.rule);
-        const rule = fs.readFileSync(path.join(hub, 'claude', 'global-rule.md'), 'utf8').replaceAll('{{VIDEOHUB_DIR}}', hub.replace(/\\/g, '/')).trim();
+        const rule = fs.readFileSync(path.join(hub, 'claude', 'global-rule.md'), 'utf8').replaceAll('{{VIDEOHUB_DIR}}', hub).trim();
         const block = `${begin}\n${rule}\n${end}`;
         say(`write VideoHub rule to ${p.rule}`);
         if (!dryRun) { fs.mkdirSync(p.dir, { recursive: true }); if (fs.existsSync(p.rule)) fs.copyFileSync(p.rule, p.rule + '.videohub-backup'); fs.writeFileSync(p.rule, found.length ? old.replace(blocks, () => block) : (old.trimEnd() ? old.trimEnd() + '\n\n' : '') + block + '\n'); }

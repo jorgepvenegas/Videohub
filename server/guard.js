@@ -1,9 +1,7 @@
 // VideoHub's render protection, built into the hub (plain Node + OS tools; no helper program).
-// The legacy guard\VideoHubAgent.exe (formerly RenderGuard.exe) was compiled during installation and used process
-// suspension and global hotkeys. Current protection uses Node and operating-system commands; it builds no helper.
 // What protection still does:
 //  - every render VideoHub's queue starts gets a CPU limit (processor affinity: a share of the cores) and low priority;
-//    Windows passes both on to every process the render starts later (Chrome, ffmpeg)
+//    both are passed on to every process the render starts later (Chrome, ffmpeg)
 //  - free RAM is watched: below PauseMB the newest render slows down (idle priority, SlowCapPct of the cores), below
 //    CriticalMB every render does; when RAM is back they return to normal speed, oldest first
 //  - Slow down / Normal speed / Stop per render on the Renders page
@@ -14,9 +12,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { config } from './config.js';
 import { readJson, processAlive } from './util.js';
-import { dirs, capabilities, availableMemory, getAutostart, setAutostart, cleanupLegacyAutostart, setTreePriority, killTree } from './platform.js';
+import { dirs, capabilities, availableMemory, getAutostart, setAutostart, setTreePriority, killTree } from './platform.js';
 
-const RG = dirs.guard;   // Windows keeps RenderGuard so existing settings and history remain readable.
+const RG = dirs.guard;
 const MB = 1048576, CORES = os.cpus().length;
 
 // ---------- settings (settings.txt, key=value). VideoHub is its only UI.
@@ -45,7 +43,6 @@ export async function saveGuardSettings(patch) {
   fs.mkdirSync(RG, { recursive: true });
   fs.writeFileSync(SETTINGS, Object.entries(kv).map(([k, v]) => `${k}=${v}`).join('\r\n'));
   if (patch.Startup != null) await setAutostart(!!patch.Startup);
-  await cleanupLegacyAutostart();   // the old agent's autostart, if an old install left it
   guardCommand('reload');
   return guardSettings();
 }

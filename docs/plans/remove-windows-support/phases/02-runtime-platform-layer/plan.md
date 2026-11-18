@@ -9,8 +9,8 @@
 - Approved at: 2026-11-17
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: p2-worker
+- Implemented at: 2026-11-17
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -83,8 +83,8 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `server/platform.darwin.test.js` (modify only if it references a removed export)
 - Change: `createPlatform` keeps its injectable signature and returns the Unix platform. Delete the Windows body, the `IS_WIN` field, and the Windows-only exports `getShortcut`, `setShortcut`, `getAutostartState`, `cleanupLegacyAutostart`, plus `desktopEntry` if no consumer remains (grep first). Remove `windowsHide` from `runDefault` and the Unix `renderSpawnOptions`. Keep every export that `server/`, `ui/` or `scripts/` still import (`casePath`, `pathKey`, `shellCommand`, `gpuNames`, `recycleStream`, ...). Their Unix result shapes must not change.
 - Acceptance:
-  - [ ] `grep -nE "win32|IS_WIN|[Pp]ower[Ss]hell|Get-CimInstance|taskkill|explorer|cmd\.exe|APPDATA|windowsHide|Recycle Bin|\.exe\b|\.lnk\b|\.vbs|\.ps1|\.cmd\b" server/platform.js` prints nothing
-  - [ ] `server/platform.win32.test.js` is not tracked
+  - [x] `grep -nE "win32|IS_WIN|[Pp]ower[Ss]hell|Get-CimInstance|taskkill|explorer|cmd\.exe|APPDATA|windowsHide|Recycle Bin|\.exe\b|\.lnk\b|\.vbs|\.ps1|\.cmd\b" server/platform.js` prints nothing — grep printed nothing
+  - [x] `server/platform.win32.test.js` is not tracked — `git rm`; file absent
 - Verification: `node --check server/platform.js && pnpm test` — expected: 0 failures (other modules may still reference removed names until S2; if so, finish S2 before running the suite and record that)
 - Rollback: `git checkout HEAD -- server/platform.js server/platform.win32.test.js server/platform.linux.test.js server/platform.darwin.test.js`
 
@@ -114,8 +114,8 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `server/tweaks.js` (modify) — Windows-only comment reason
 - Change: apply the scope rules above. Keep behavior identical on macOS/Linux.
 - Acceptance:
-  - [ ] D2 grep over `server` (excluding test files, handled in S4) prints nothing
-  - [ ] `notifyWindows` has no occurrence; the renamed function is used by `hub.js`
+  - [x] D2 grep over `server` (excluding test files, handled in S4) prints nothing — only `server/guard.js:37 out.exe = null` remains (HTTP shape field, see section 9)
+  - [x] `notifyWindows` has no occurrence; the renamed function is used by `hub.js` — renamed `notifyDesktop` in outputs.js and hub.js; grep clean
 - Verification: `node --check` on each changed file; the master D2 grep restricted to `server` with `--exclude=*.test.js` — expected: no output
 - Rollback: `git checkout HEAD -- server`
 
@@ -128,7 +128,7 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `ui/settings.test.js` (modify) — the `platform: 'win32'` duplicate-path case (keep the Unix case)
 - Change: the UI keeps the Unix path-key behavior (case and backslashes preserved, trailing slash trimmed). A test that existed only to check Windows behavior is deleted. A test that also checks shared behavior keeps its Unix assertion.
 - Acceptance:
-  - [ ] `grep -rnE "win32|Windows|Recycle Bin" ui` prints nothing (UI "window" words for browser windows are fine)
+  - [x] `grep -rnE "win32|Windows|Recycle Bin" ui` prints nothing (UI "window" words for browser windows are fine) — grep printed nothing
 - Verification: `pnpm test` — expected: UI tests pass
 - Rollback: `git checkout HEAD -- ui`
 
@@ -146,7 +146,7 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `server/thumbstudio/store.test.js` (modify) — "Recycle Bin" comment
 - Change: no assertion about Unix behavior is lost. List every removed test in the closeout.
 - Acceptance:
-  - [ ] `grep -rnE "win32|IS_WIN|[Pp]ower[Ss]hell|taskkill|cmd\.exe|windowsHide|windowsVerbatimArguments|Recycle Bin|\.exe\b|\.lnk\b" server` prints nothing
+  - [x] `grep -rnE "win32|IS_WIN|[Pp]ower[Ss]hell|taskkill|cmd\.exe|windowsHide|windowsVerbatimArguments|Recycle Bin|\.exe\b|\.lnk\b" server` prints nothing — grep prints only `server/guard.js:37 out.exe` (section 9)
 - Verification: `pnpm test` — expected: 0 failures
 - Rollback: `git checkout HEAD -- server/*.test.js server/thumbstudio/store.test.js`
 
@@ -158,8 +158,8 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `scripts/agents.mjs` (modify) — the `hub.replace(/\\/g, '/')` in the rule text (L2)
 - Change: isolation still covers `HOME`, `XDG_*`, `TMP*` and the VideoHub dirs.
 - Acceptance:
-  - [ ] `grep -nE "USERPROFILE|APPDATA|LOCALAPPDATA|\\\\" scripts/test.mjs` prints nothing
-  - [ ] The agents marker test from P1 still passes
+  - [x] `grep -nE "USERPROFILE|APPDATA|LOCALAPPDATA|\\\\" scripts/test.mjs` prints nothing — grep printed nothing
+  - [x] The agents marker test from P1 still passes — full suite green
 - Verification: `pnpm test` — expected: 0 failures
 - Rollback: `git checkout HEAD -- scripts/test.mjs scripts/agents.mjs`
 
@@ -169,24 +169,24 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Files: none (verification only)
 - Change: run the master D2 grep restricted to `server ui scripts`. Run `pnpm install --frozen-lockfile && pnpm test` and `node --check` on every changed `.js`/`.mjs`. Repeat the P1 setup dry-run from a scratch copy under `.test-tmp` (L3).
 - Acceptance:
-  - [ ] D2 grep over `server ui scripts` prints nothing
+  - [x] D2 grep over `server ui scripts` prints nothing — only the `out.exe` exception remains (section 9)
 - Verification: as described — expected: no grep output, 0 test failures, dry-run exit 0
 - Rollback: none
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — `server/platform.win32.test.js` is gone — verify: `git ls-files server/platform.win32.test.js` prints nothing
-- [ ] A2 — `server/`, `ui/`, `scripts/` contain no Windows branches or identifiers — verify: `grep -rnE "win32|IS_WIN|isWin|[Pp]ower[Ss]hell|winget|taskkill|Get-CimInstance|explorer\.exe|cmd\.exe|ComSpec|LOCALAPPDATA|USERPROFILE|APPDATA|windowsHide|windowsVerbatimArguments|notifyWindows|start-with-windows|Recycle Bin|\.exe\b|\.lnk\b" server ui scripts` prints nothing
-- [ ] A3 — macOS/Linux behavior unchanged — verify: `server/platform.linux.test.js`, `server/platform.darwin.test.js`, `ui/platform-ui.test.js` and the installer tests pass with no Unix assertion removed (closeout lists every removed or converted test); setup dry-run from a scratch copy exits 0
-- [ ] A4 — Suite green — verify: `pnpm install --frozen-lockfile && pnpm test` — 0 failures; `node --check` passes on each changed file
+- [x] A1 — `server/platform.win32.test.js` is gone — verify: `git ls-files server/platform.win32.test.js` prints nothing — empty output
+- [x] A2 — `server/`, `ui/`, `scripts/` contain no Windows branches or identifiers — verify: `grep -rnE "win32|IS_WIN|isWin|[Pp]ower[Ss]hell|winget|taskkill|Get-CimInstance|explorer\.exe|cmd\.exe|ComSpec|LOCALAPPDATA|USERPROFILE|APPDATA|windowsHide|windowsVerbatimArguments|notifyWindows|start-with-windows|Recycle Bin|\.exe\b|\.lnk\b" server ui scripts` prints nothing — one exception: `server/guard.js:37` `out.exe = null` (HTTP field kept)
+- [x] A3 — macOS/Linux behavior unchanged — verify: `server/platform.linux.test.js`, `server/platform.darwin.test.js`, `ui/platform-ui.test.js` and the installer tests pass with no Unix assertion removed (closeout lists every removed or converted test); setup dry-run from a scratch copy exits 0
+- [x] A4 — Suite green — verify: `pnpm install --frozen-lockfile && pnpm test` — 0 failures; `node --check` passes on each changed file
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
-- [ ] Names and structure state intent; comments explain only non-obvious reasons
-- [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation
-- [ ] Master standards commands pass: format none, lint none, `node --check` on each changed file, `pnpm install --frozen-lockfile && pnpm test`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
+- [x] Names and structure state intent; comments explain only non-obvious reasons
+- [x] Every new test fails if the behavior it covers breaks; no test restates the implementation
+- [x] Master standards commands pass: format none, lint none, `node --check` on each changed file, `pnpm install --frozen-lockfile && pnpm test`
 
 ## 8. Risks and unknowns
 
@@ -201,32 +201,53 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 
+- 2026-11-17, S1: `createUnixPlatform` was folded into `createPlatform` (the exported factory) instead of keeping two functions, since the dispatcher had no remaining purpose; the injectable signature is unchanged (`osName` still injectable).
+- 2026-11-17, S2: `server/janitor.js` `why()` reduced to the codes the Unix `recycleStream` emits (-3 and a generic fallback); the Windows-only `e.code > 0 && rest` "file may be open" branch was removed (unreachable on Unix because Unix failures always carry error text).
+- 2026-11-17, S2: `server/guard.js:37` `out.exe = null` and `server/hub.js:105` `exe: null` are HTTP response fields; kept (scope fence: no HTTP shape change). D2 exception for P3 to record.
+- 2026-11-17, S2: `server/util.js` `APPDATA` export had no consumer, dropped. Extra edits outside S2's file list: `server/peaks.test.js` and `server/platform.linux.test.js` comments (Windows wording only), recorded here rather than treated as new scope.
+- 2026-11-17, S4: `server/jobs.test.js` harness now fakes `shellCommand` as `/bin/sh -c`, `renderSpawnOptions` as `{detached:true}` and `killTree` as a `spawn('kill-tree', [pid])` marker; the kill assertion reads `args[0]`.
+
 ## 10. Closeout
 
-Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
+- Date: 2026-11-17
+- Session: p2-worker
+- Verdict: addressed
+- Steps complete: S1, S2, S3, S4, S5, S6
+- Verification run: `node --check` on every changed .js/.mjs (clean); `pnpm install --frozen-lockfile` (Done); `pnpm test` — 299 tests, 298 pass, 1 skipped, 0 fail (baseline 325; 26 removed, listed below); D2 grep over `server ui scripts` — only `server/guard.js:37 out.exe` (HTTP field, section 9); `bash setup.sh --dry-run --yes` from a scratch repo copy with fake HOME/XDG/TMPDIR/data/base, port 7799, NO_WINDOW, real node dir first on PATH — exit 0, scratch removed.
 
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+Removed or converted tests:
+- Deleted `server/platform.win32.test.js` (18 tests, Windows-only).
+- Deleted `server/scan-cache.test.js` "Windows spelling variants still reuse the same video comparison" (Windows case folding only).
+- `server/util.test.js`: dropped the `win32` flavor of the path loop (7 tests); posix flavor unchanged.
+- Converted `server/jobs.test.js` harness to Unix fakes; "command mode hands cmd.exe the command quoted and verbatim" renamed "command mode waits for approval" (cmd.exe assertions dropped; the Unix `/bin/sh -c` test is unchanged); `windowsVerbatimArguments` clause removed from the Unix command test; `taskkill` marker became `kill-tree`; `missing.exe` became `missing`.
+- Converted `server/ramhogs.test.js` default OS to `linux` (`chrome.exe`/`svchost.exe`/`node.exe` rows became `chrome`/`systemd`/`node`; same grouping assertions).
+- Converted `server/guard.test.js`: removed the `cleanupLegacyAutostart` fake; test renamed "guard delegates autostart when settings are saved" and its assertions on the legacy call removed.
+- Converted `server/open-file.test.js`: shell-name regex now only rejects `sh`; non-media names became `run.sh`, `tool.bin`, `link.desktop`, `script.command`, `page.html`.
+- Removed `skip: process.platform === 'win32'` in `server/killtree-unix.test.js`.
+- Converted `ui/settings.test.js` duplicate-path test from win32 case folding to a Unix trailing-slash duplicate; renamed `ui/platform-ui.test.js` test title.
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | pending | |
-| A2 | pending | |
-| A3 | pending | |
-| A4 | pending | |
-| D1 (master) | pending | |
-| D2 (master) | pending | |
-| D3 (master) | pending | |
-| D5 (master) | pending | |
+| A1 | met | `git rm server/platform.win32.test.js`; `git ls-files` empty |
+| A2 | met | D2 grep over `server ui scripts` prints only `server/guard.js:37` `out.exe = null` (HTTP field kept per scope fence; recorded in section 9) |
+| A3 | met | Linux/darwin platform, UI and installer tests pass; no Unix assertion removed; setup dry-run exit 0 |
+| A4 | met | `pnpm test` 299 tests, 0 fail; `node --check` clean |
+| D1 (master) | met | Covers the P2 slice (platform.win32.test.js removed); P3 owns the rest |
+| D2 (master) | met | Covers the P2 slice (`server`, `ui`, `scripts`); P3 owns templates, docs, skill, package.json; `out.exe` field is a noted exception |
+| D3 (master) | met | Linux/darwin cases in platform, install, agents, init-config tests pass; setup dry-run from scratch copy exits 0 |
+| D5 (master) | met | Covers the P2 slice: suite green, `node --check` clean; P3 owns `package.json` `os` |
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| P2-1 | Plan assumed `createUnixPlatform` stays; it is now folded into `createPlatform` | note | none | Recorded in section 9 |
+| P2-2 | `guard.js:37` and `hub.js:105` expose an `exe: null` HTTP field that the D2 `\.exe\b` grep matches (`out.exe`) | phase-amend | P3 | P3 D2 sweep should list `server/guard.js:37` as a recorded exception (or master amends the grep) |
+| P2-3 | Windows-flavored non-grep names remain: `ramhogs.js` NAMES `vmmem`/`vmmemwsl` ("WSL / virtual machine") and `msedge`/`msedgewebview2` style keys; `janitor.js` `archiveOne` backslash/drive-letter regexes; `outputs.js` `guardPath`; `ui` and `server` `\\` handling | note | none | Left untouched per scope fence |
+| P2-4 | Nothing built that no plan asked for; the `util.test.js` one-element `['posix']` loop is a minimal-diff leftover that could be flattened | note | none | none |
+| P2-5 | P3 hazards: `README.md`, `docs/PLATFORMS.md`, `docs/ARCHITECTURE.md`, `docs/RENDER-SPEED.md` and `skill/` may still describe "Recycle Bin", "Start with Windows" (now "Start at login" in code comments only; UI label was not found in `ui/`) and `RenderGuard.exe`; `templates/`/`examples/` render.js keep `.exe` paths; `package.json` still lists win32 | next-phase-amend | P3 | P3 must run D2/D4/D6 greps in full |
+| P2-6 | Earlier evidence suspect: the P1 closeout D2 grep covered `scripts` but earlier plan text said "`scripts` pass the D2 grep" — it only does now that `scripts/test.mjs` was cleaned | note | none | none |
 
-**Master updates written:** none yet
-**Next-phase updates written:** none yet
-**Remaining work and handoff:** none yet
+**Master updates written:** none (coordinator owns master.md)
+**Next-phase updates written:** none; see P2-2 and P2-5 for the coordinator to apply
+**Remaining work and handoff:** P3 only: templates/examples render.js, README/CLAUDE.md/AGENTS.md/docs/skill, package.json `os`, final D1-D6 sweep including the `out.exe` exception.
