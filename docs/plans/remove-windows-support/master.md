@@ -142,5 +142,5 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 - Last verdict: none
 - Next action: user reviews P1 plan and approves or requests changes
 - Open decisions: none
-- PR: none
+- PR: declined (2026-11-17)
 - Last updated: 2026-11-17
