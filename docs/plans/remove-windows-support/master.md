@@ -42,7 +42,7 @@ flowchart LR
 ## 3. Definition of done
 
 - [ ] D1 — No Windows entry points, wrappers, Windows-only scripts, tests or docs are tracked — verify: `git ls-files '*.cmd' '*.ps1' '*.bat' '*.vbs' 'scripts/windows-*' 'server/platform.win32.test.js' 'docs/WINDOWS-SECURITY.md'` prints nothing
-- [ ] D2 — Source has no Windows branches or Windows-only identifiers — verify: `grep -rnE "win32|IS_WIN|isWin|[Pp]ower[Ss]hell|winget|taskkill|Get-CimInstance|explorer\.exe|cmd\.exe|ComSpec|LOCALAPPDATA|USERPROFILE|APPDATA|windowsHide|windowsVerbatimArguments|notifyWindows|start-with-windows|Recycle Bin|\.exe\b|\.lnk\b" server scripts ui templates examples engine-hooks skill package.json setup.sh update.sh uninstall.sh open.sh` prints nothing, or only exceptions recorded in the discovery ledger with a reason
+- [ ] D2 — Source has no Windows branches or Windows-only identifiers — verify: `grep -rnE "win32|IS_WIN|isWin|[Pp]ower[Ss]hell|winget|taskkill|Get-CimInstance|explorer\.exe|cmd\.exe|ComSpec|LOCALAPPDATA|USERPROFILE|APPDATA|windowsHide|windowsVerbatimArguments|notifyWindows|start-with-windows|Recycle Bin|\.exe\b|\.lnk\b" server scripts ui templates examples engine-hooks skill package.json setup.sh update.sh uninstall.sh open.sh` prints nothing except the legacy `exe: null` field of `/api/guard/settings` (`server/guard.js`, `server/hub.js`; kept for response-shape compatibility, ledger L7)
 - [ ] D3 — macOS and Linux lifecycle behavior is unchanged — verify: Linux/darwin cases in `scripts/install.test.js`, `scripts/agents.test.js`, `scripts/init-config.test.js` pass; `bash setup.sh --dry-run --yes` with HOME/XDG dirs under `.test-tmp` exits 0
 - [ ] D4 — Docs and agent instructions describe macOS + Linux only — verify: `grep -rnE "Windows|PowerShell|winget|\.cmd\b|\.ps1\b|%APPDATA%|Recycle Bin|Explorer|SmartScreen" README.md CLAUDE.md AGENTS.md docs skill --exclude-dir=plans` has no hit referring to the operating system (residual hits reviewed and listed in the P3 closeout)
 - [ ] D5 — Package metadata and test suite are consistent — verify: `pnpm install --frozen-lockfile && pnpm test` passes with 0 failures; `node -p "require('./package.json').os"` prints `[ 'linux', 'darwin' ]`; `node --check` passes on every changed `.js`/`.mjs`
@@ -93,7 +93,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | P1 | Installer and agent integration | Setup, update, uninstall, open and agent registration run only the Unix lifecycle; Windows entry points, wrappers and Windows-only installer tests are gone; pnpm test stays green. | none | done | [plan](phases/01-installer-and-agent-integration/plan.md) |
 | P2 | Runtime platform layer | `server/platform.js` has no Windows branch or Windows-only exports; server, UI and test runner use only Unix integrations; Windows-named identifiers renamed; pnpm test green. | P1 | done | [plan](phases/02-runtime-platform-layer/plan.md) |
-| P3 | Templates, docs and agent rules | Render templates drop Windows browser paths; README, CLAUDE.md, AGENTS.md, docs and skill describe macOS + Linux only; WINDOWS-SECURITY.md removed; package.json metadata updated; final D1–D6 sweep. | P2 | planned | pending |
+| P3 | Templates, docs and agent rules | Render templates drop Windows browser paths; README, CLAUDE.md, AGENTS.md, docs and skill describe macOS + Linux only; WINDOWS-SECURITY.md removed; package.json metadata updated; final D1–D6 sweep. | P2 | planned | [plan](phases/03-templates-docs-and-agent-rules/plan.md) |
 
 Status: `planned`, `ready`, `in_progress`, `done`, `blocked`, `needs_replan`, `superseded`.
 `ready` means the user has explicitly approved that phase plan. A written plan is not `ready` until it passes the approval gate. Later phases may stay as outlines; add them with `add-phase --outline`, then write the plan with `write-plan` just before the phase starts and stop for approval.
@@ -149,9 +149,9 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 
 ## 12. Resume brief
 
-- Current phase: P2 (plan in draft)
-- Last verdict: P1 addressed
-- Next action: user reviews P2 plan and approves or requests changes
+- Current phase: P3 (plan in draft)
+- Last verdict: P2 addressed
+- Next action: user reviews P3 plan and approves or requests changes
 - Open decisions: none
 - PR: declined (2026-11-17)
 - Last updated: 2026-11-17
