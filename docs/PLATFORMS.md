@@ -1,42 +1,36 @@
 # Platform support
 
-Windows remains the established platform. macOS on Apple Silicon is **verified on real hardware** (macOS 26.6, M2 Max, 2026-11-15). Linux and Intel macOS are **new, not yet tested on real machines**; their operating-system calls are covered by injected tests. Passing unit tests does not establish desktop integration or render performance on another operating system.
+VideoHub supports macOS and Linux. macOS on Apple Silicon is **verified on real hardware** (macOS 26.6, M2 Max, 2026-11-15). Linux and Intel macOS are **new, not yet tested on real machines**; their operating-system calls are covered by injected tests. Passing unit tests does not establish desktop integration or render performance on another operating system.
 
 `server/platform.js` owns operating-system integrations. The queue, cleanup, UI and MCP tools keep the same public contracts. Everything stays local: the hub listens on `127.0.0.1`.
 
-| Feature | Windows 10/11 | Linux desktop | macOS |
-|---|---|---|---|
-| Workspace, scan, notes and live preview | Supported | Implemented; real desktop verification pending | Verified on Apple Silicon |
-| Settings location | Existing `%APPDATA%/RenderGuard` protection settings; install `data/` for hub data | `$XDG_CONFIG_HOME/videohub` or `~/.config/videohub` protection settings; install `data/` for hub data | `~/Library/Application Support/VideoHub` protection settings; install `data/` for hub data |
-| Desktop and Documents | Existing OneDrive-aware lookup | `xdg-user-dir`, then `~/Desktop` and `~/Documents` | `~/Desktop` and `~/Documents` |
-| ffmpeg and ffprobe | PATH and existing `C:/ffmpeg/bin` fallback | Native executables on PATH | Native executables on PATH (including Homebrew paths supplied by the launcher) |
-| Browser discovery | Existing Edge and Chrome locations | Native Chrome, Chromium and Edge on PATH; `VIDEOHUB_BROWSER` override | Chrome, Edge and Chromium in `/Applications` or `~/Applications`; `VIDEOHUB_BROWSER` override |
-| App-style hub window | Edge or Chrome; default browser fallback | Native browser `--app`; `xdg-open` fallback | Chrome/Edge via `open -na` with `--app`; default-browser `open` fallback |
-| Open media and folders | File associations and Explorer | `xdg-open` | `open` with default application |
-| Reveal a selected file | Explorer selection | FileManager1 D-Bus where available; parent folder fallback | `open -R` |
-| Folder dialog | Installed WinForms folder dialog in front of the app window; typed-path UI fallback if unavailable | `zenity` or `kdialog`; typed-path UI fallback if neither exists | AppleScript `choose folder`; cancellation leaves the selection unchanged |
-| Reversible deletion | Installed .NET Recycle Bin API with disabled/capacity checks; refuse unsafe operations or failures | `gio trash`, `trash-put`, then freedesktop Trash in Node; refuse if no safe destination is available | Finder Trash via AppleScript (file passed as an alias); Put Back works; Automation permission may be requested on first use; refusal preserves source |
-| Volume information | Windows volume query and Bin capacity | `df -kP`; no Windows Bin capacity limit | `df -kP`; no Windows Bin capacity limit |
-| Render notifications | Existing Windows toast | `notify-send` if available; otherwise in-app notices only | AppleScript desktop notification; best effort |
-| Process list and RAM hogs | Windows CIM | `/proc`, with `ps` fallback; Linux system processes excluded | `ps -axo`; macOS system processes excluded |
-| Render tree stop | `taskkill /T /F` | Freeze the render root (SIGSTOP), then TERM its process tree and KILL after a grace period, then KILL the root | Freeze the render root (SIGSTOP), then TERM its process tree and KILL after a grace period, then KILL the root; no orphaned headless Chrome after Stop |
-| Render priority | Existing priority classes | Per-process niceness | Per-process niceness; `taskpolicy` background QoS in slow mode |
-| CPU core limit | Existing processor affinity | `taskset` if available; priority and RAM protection remain available without it | Unavailable: no supported affinity API; CPU sliders and presets hidden with explanation |
-| RAM protection | Available memory and existing thresholds | Available memory and existing thresholds | `vm_stat`: free + inactive + speculative pages × page size |
-| Autostart | HKCU Run entry launches installed Node and the server-only launcher directly | XDG `autostart/videohub.desktop` | `~/Library/LaunchAgents/com.videohub.hub.plist`; `launchctl bootstrap` / `bootout`; update stops the hub but does not restart it, so open VideoHub or log in again |
-| Custom render commands | Existing `cmd.exe` arguments and approval | `/bin/sh -c`, with the same approval step | `/bin/sh -c`, with the same approval step |
-| Video encoders | NVENC, AMF, QSV, x264; short encode probes decide availability | NVENC, VAAPI, QSV, x264; short encode probes decide availability | VideoToolbox and x264; Apple Silicon quality / Intel bitrate candidates probed; VideoToolbox measured on Apple Silicon |
-| Render template browser lookup | Existing paths plus `VIDEOHUB_BROWSER` | Native browser paths plus `VIDEOHUB_BROWSER` | Application browser paths plus `VIDEOHUB_BROWSER` |
-| Install, update and uninstall | Shared Node lifecycle installer; `.cmd` entry points and optional policy-respecting `.ps1` forwarders | `setup.sh`, `update.sh`, `uninstall.sh` | Same Bash scripts with macOS paths and Homebrew hints; setup installs dependencies with pnpm (Windows pnpm install is verified by tests only) |
-| Desktop launcher | Node-based shortcut (minimized) or `open.cmd`; a console may appear briefly | Desktop entry with SVG icon | Optional executable `VideoHub.command`; no `.app` bundle; opens without a Gatekeeper prompt on Apple Silicon |
-| Claude Code integration | CLI MCP registration, skill and managed global rule | Same integrations through shared Node helper | Same integrations through shared Node helper |
-| OpenCode integration | CLI MCP registration; JSONC-tolerant fallback only if CLI is absent; skill and managed rule | Same integrations through shared Node helper | Same integrations through shared Node helper |
-
-## Windows security behavior
-
-Windows lifecycle and runtime paths do not add execution-policy overrides. Setup/update/uninstall call the shared Node installer directly; PowerShell compatibility wrappers respect existing script policy. Runtime integrations do not compile inline C#, use custom P/Invoke or generate PowerShell scripts. Folder selection loads the installed WinForms dialog and has a typed-path fallback; reversible deletion uses an installed .NET API while retaining the Bin safety checks. Normal launch, shortcuts and login startup use the installed Node runtime directly. The old VBScript/PowerShell launchers are no longer shipped; update migrates owned shortcuts/startup entries and recycles those files only after safe reference checks. Unknown/unreadable entries or migration failures retain the old launcher files with a warning; migration does not execute retired helper binaries.
-
-This reduces unnecessary launch/compiler machinery. It does not certify the source or a downloaded archive as malware-free, establish a false-positive verdict, provide a trusted publisher signature or guarantee SmartScreen, Smart App Control or antivirus acceptance. Execution-policy errors, reputation warnings and malware detections need their exact messages to be assessed. No security-tool exclusions, policy downgrades or automatic file submissions are part of VideoHub. Older distributed copies need an explicit update; local source changes do not alter them. See [Windows security guidance](WINDOWS-SECURITY.md).
+| Feature | Linux desktop | macOS |
+|---|---|---|
+| Workspace, scan, notes and live preview | Implemented; real desktop verification pending | Verified on Apple Silicon |
+| Settings location | `$XDG_CONFIG_HOME/videohub` or `~/.config/videohub` protection settings; install `data/` for hub data | `~/Library/Application Support/VideoHub` protection settings; install `data/` for hub data |
+| Desktop and Documents | `xdg-user-dir`, then `~/Desktop` and `~/Documents` | `~/Desktop` and `~/Documents` |
+| ffmpeg and ffprobe | Native executables on PATH | Native executables on PATH (including Homebrew paths supplied by the launcher) |
+| Browser discovery | Native Chrome, Chromium and Edge on PATH; `VIDEOHUB_BROWSER` override | Chrome, Edge and Chromium in `/Applications` or `~/Applications`; `VIDEOHUB_BROWSER` override |
+| App-style hub window | Native browser `--app`; `xdg-open` fallback | Chrome/Edge via `open -na` with `--app`; default-browser `open` fallback |
+| Open media and folders | `xdg-open` | `open` with default application |
+| Reveal a selected file | FileManager1 D-Bus where available; parent folder fallback | `open -R` |
+| Folder dialog | `zenity` or `kdialog`; typed-path UI fallback if neither exists | AppleScript `choose folder`; cancellation leaves the selection unchanged |
+| Reversible deletion | `gio trash`, `trash-put`, then freedesktop Trash in Node; refuse if no safe destination is available | Finder Trash via AppleScript (file passed as an alias); Put Back works; Automation permission may be requested on first use; refusal preserves source |
+| Volume information | `df -kP` | `df -kP` |
+| Render notifications | `notify-send` if available; otherwise in-app notices only | AppleScript desktop notification; best effort |
+| Process list and RAM hogs | `/proc`, with `ps` fallback; Linux system processes excluded | `ps -axo`; macOS system processes excluded |
+| Render tree stop | Freeze the render root (SIGSTOP), then TERM its process tree and KILL after a grace period, then KILL the root | Freeze the render root (SIGSTOP), then TERM its process tree and KILL after a grace period, then KILL the root; no orphaned headless Chrome after Stop |
+| Render priority | Per-process niceness | Per-process niceness; `taskpolicy` background QoS in slow mode |
+| CPU core limit | `taskset` if available; priority and RAM protection remain available without it | Unavailable: no supported affinity API; CPU sliders and presets hidden with explanation |
+| RAM protection | Available memory and existing thresholds | `vm_stat`: free + inactive + speculative pages × page size |
+| Autostart | XDG `autostart/videohub.desktop` | `~/Library/LaunchAgents/com.videohub.hub.plist`; `launchctl bootstrap` / `bootout`; update stops the hub but does not restart it, so open VideoHub or log in again |
+| Custom render commands | `/bin/sh -c`, with the same approval step | `/bin/sh -c`, with the same approval step |
+| Video encoders | NVENC, VAAPI, QSV, x264; short encode probes decide availability | VideoToolbox and x264; Apple Silicon quality / Intel bitrate candidates probed; VideoToolbox measured on Apple Silicon |
+| Render template browser lookup | Native browser paths plus `VIDEOHUB_BROWSER` | Application browser paths plus `VIDEOHUB_BROWSER` |
+| Install, update and uninstall | `setup.sh`, `update.sh`, `uninstall.sh` | Same Bash scripts with macOS paths and Homebrew hints; setup installs dependencies with pnpm |
+| Desktop launcher | Desktop entry with SVG icon | Optional executable `VideoHub.command`; no `.app` bundle; opens without a Gatekeeper prompt on Apple Silicon |
+| Claude Code integration | CLI MCP registration, skill and managed global rule, through the shared Node helper | Same integrations through shared Node helper |
+| OpenCode integration | CLI MCP registration; JSONC-tolerant fallback only if CLI is absent; skill and managed rule, through the shared Node helper | Same integrations through shared Node helper |
 
 ## Optional Linux tools
 
@@ -61,10 +55,10 @@ Setup can target Claude Code, OpenCode or both. Skills share one source file and
 - Snap and Flatpak browser wrappers are not used for Puppeteer renders; install a native browser executable.
 - Linux CPU affinity without `taskset`, and CPU affinity on macOS; priority and RAM protection still work.
 - Guaranteed restoration of Unix niceness without the required privileges; no elevated helper is installed.
-- Permanent deletion as a fallback for an unavailable Trash or Recycle Bin.
+- Permanent deletion as a fallback for an unavailable Trash.
 - Native modules, compiled helper programs and unsigned `.app` bundles.
 - Renders made from an older template are not rewritten. Their own browser lookup may need updating or the script may need to honor `VIDEOHUB_BROWSER`.
 
 ## Real-machine acceptance still required
 
-On Ubuntu 24.04 desktop, install from a fresh clone, open the example in live preview, send a note, render once with sound after approving the preview, inspect priority and `taskset`, stop a render with children, restore a deleted folder from Trash, update while retaining data, and uninstall. Apple Silicon macOS (macOS 26.6, M2 Max) completed this list on 2026-11-15: installation, live preview, notes, a VideoToolbox render, priority/background QoS, whole-tree Stop, Trash and Put Back, LaunchAgent login startup, data-preserving update, uninstall and Claude Code integration. Repeat it on Intel macOS if available. Still unverified on real machines: Linux, Intel macOS, other macOS versions, a real OpenCode session exposing the `hub_*` tools, and the Windows pnpm install path (tests only).
+On Ubuntu 24.04 desktop, install from a fresh clone, open the example in live preview, send a note, render once with sound after approving the preview, inspect priority and `taskset`, stop a render with children, restore a deleted folder from Trash, update while retaining data, and uninstall. Apple Silicon macOS (macOS 26.6, M2 Max) completed this list on 2026-11-15: installation, live preview, notes, a VideoToolbox render, priority/background QoS, whole-tree Stop, Trash and Put Back, LaunchAgent login startup, data-preserving update, uninstall and Claude Code integration. Repeat it on Intel macOS if available. Still unverified on real machines: Linux, Intel macOS, other macOS versions, a real OpenCode session exposing the `hub_*` tools.

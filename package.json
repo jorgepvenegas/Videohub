@@ -15,7 +15,6 @@
     "puppeteer",
     "ffmpeg",
     "review",
-    "windows",
     "linux",
     "macos",
     "opencode"
@@ -24,7 +23,6 @@
   "type": "module",
   "main": "server/hub.js",
   "os": [
-    "win32",
     "linux",
     "darwin"
   ],

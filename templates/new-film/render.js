@@ -37,9 +37,7 @@ function loadPuppeteer() {
 }
 // the browser: CHROME env (the film's own choice), else the hub's browser (VIDEOHUB_BROWSER), else Edge/Chrome/Chromium
 function browserPath() {
-  const c = [process.env.CHROME, process.env.VIDEOHUB_BROWSER,
-    'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', 'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
-    'C:/Program Files/Google/Chrome/Application/chrome.exe', path.join(os.homedir(), 'AppData/Local/Google/Chrome/Application/chrome.exe')].filter(Boolean);
+  const c = [process.env.CHROME, process.env.VIDEOHUB_BROWSER].filter(Boolean);
   for (const dir of (process.env.PATH || '').split(path.delimiter)) for (const name of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'microsoft-edge', 'microsoft-edge-stable']) { if (dir && !/snap|flatpak/i.test(dir)) c.push(path.join(dir, name)); }
   for (const dir of ['/Applications', path.join(os.homedir(), 'Applications')]) for (const name of ['Google Chrome', 'Microsoft Edge', 'Chromium']) c.push(path.join(dir, name + '.app', 'Contents', 'MacOS', name));
   const f = c.find(x => {
@@ -69,7 +67,7 @@ const ENCODER_ARGS = {
   x264: [['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16']],
   lossless: [['-c:v', 'libx264rgb', '-preset', 'ultrafast', '-qp', '0']],   // for checks only (huge files)
 };
-const probe = args => spawnSync(FFMPEG, ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=gray:s=640x360:r=30', '-frames:v', '5', '-pix_fmt', 'yuv420p', ...args, '-f', 'null', '-'], { stdio: 'ignore', timeout: 20000, windowsHide: true }).status === 0;
+const probe = args => spawnSync(FFMPEG, ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=gray:s=640x360:r=30', '-frames:v', '5', '-pix_fmt', 'yuv420p', ...args, '-f', 'null', '-'], { stdio: 'ignore', timeout: 20000 }).status === 0;
 function pickEncoder() {
   const want = String(process.env.VIDEOHUB_ENCODER || 'auto').toLowerCase();
   const works = n => { const candidates = ENCODER_ARGS[n] || []; return (n === 'videotoolbox' && os.arch?.() !== 'arm64' ? [...candidates].reverse() : candidates).find(probe) || null; };
@@ -89,7 +87,7 @@ function encoder(input, out) {
   const encodeArgs = [...ENC.args], filterAt = encodeArgs.indexOf('-vf'), extraFilter = filterAt >= 0 ? encodeArgs.splice(filterAt, 2)[1] : '';
   const pix = ENC.name === 'lossless' ? ['-pix_fmt', 'rgb24'] : ['-vf', `scale=${size}out_color_matrix=bt601:out_range=tv${extraFilter ? ',' + extraFilter : ''}`, '-pix_fmt', 'yuv420p', '-colorspace', 'smpte170m', '-color_range', 'tv'];
   if (ENC.name === 'lossless' && size) pix.unshift('-vf', `scale=${size.slice(0, -1)}`);
-  return spawn(FFMPEG, ['-y', '-loglevel', 'error', ...inArgs, ...encodeArgs, ...pix, '-r', String(fps), out], { stdio: ['pipe', 'inherit', 'inherit'], windowsHide: true });
+  return spawn(FFMPEG, ['-y', '-loglevel', 'error', ...inArgs, ...encodeArgs, ...pix, '-r', String(fps), out], { stdio: ['pipe', 'inherit', 'inherit'] });
 }
 
 // ---------- page side of the raw path (runs in the page): is the canvas the whole picture? then read it every frame

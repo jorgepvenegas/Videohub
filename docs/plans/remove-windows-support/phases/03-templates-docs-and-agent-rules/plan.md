@@ -7,10 +7,10 @@
 - Status: in_progress
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-17
-- Commit: pending
+- Commit: see git log (commit "P3: Templates, docs and agent rules")
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: p3-worker
+- Implemented at: 2026-11-17
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -85,8 +85,8 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `examples/hello-film/render.js` (modify) — same change, byte-equal result
 - Change: drop the `C:/Program Files...` and `AppData/Local` candidates. Keep `CHROME`, `VIDEOHUB_BROWSER`, PATH names and the macOS `/Applications` lookup, plus the Snap/Flatpak checks. Do not touch the backslash classes in the Snap/Flatpak regexes; they are harmless on Unix.
 - Acceptance:
-  - [ ] `cmp templates/new-film/render.js examples/hello-film/render.js` exits 0
-  - [ ] `grep -nE "win32|\.exe\b|Program Files|AppData" templates examples` prints nothing
+  - [x] `cmp templates/new-film/render.js examples/hello-film/render.js` exits 0 (cmp: same)
+  - [x] `grep -nE "win32|\.exe\b|Program Files|AppData" templates examples` prints nothing (empty)
 - Verification: `node --check templates/new-film/render.js && cmp templates/new-film/render.js examples/hello-film/render.js` — expected: exit 0
 - Rollback: `git checkout HEAD -- templates/new-film/render.js examples/hello-film/render.js`
 
@@ -97,8 +97,8 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `package.json` (modify) — `os` becomes `["linux", "darwin"]`; drop the `windows` keyword
 - Change: no other field changes. `pnpm-lock.yaml` must not change.
 - Acceptance:
-  - [ ] `node -p "require('./package.json').os"` prints `[ 'linux', 'darwin' ]`
-  - [ ] `pnpm install --frozen-lockfile` succeeds and `git diff --quiet pnpm-lock.yaml` exits 0
+  - [x] `node -p "require('./package.json').os"` prints `[ 'linux', 'darwin' ]` (printed as stated)
+  - [x] `pnpm install --frozen-lockfile` succeeds and `git diff --quiet pnpm-lock.yaml` exits 0 (Already up to date; lock-unchanged)
 - Verification: the two commands above — expected: as stated
 - Rollback: `git checkout HEAD -- package.json`
 
@@ -109,7 +109,7 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `docs/WINDOWS-SECURITY.md` (delete)
 - Change: `git rm` it. S4 and S5 remove the links to it.
 - Acceptance:
-  - [ ] `git ls-files docs/WINDOWS-SECURITY.md` prints nothing and `grep -rn "WINDOWS-SECURITY" --exclude-dir=node_modules --exclude-dir=plans .` prints nothing after S4–S5
+  - [x] `git ls-files docs/WINDOWS-SECURITY.md` prints nothing and `grep -rn "WINDOWS-SECURITY" --exclude-dir=node_modules --exclude-dir=plans .` prints nothing after S4–S5
 - Verification: the commands above — expected: no output
 - Rollback: `git checkout HEAD -- docs/WINDOWS-SECURITY.md`
 
@@ -122,8 +122,8 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `skill/videohub/SKILL.md` (modify) — "Recycle Bin" → "Trash"
 - Change: apply the writing rules above.
 - Acceptance:
-  - [ ] `grep -nE "Windows|PowerShell|winget|\.cmd\b|\.ps1\b|%APPDATA%|Recycle Bin|Explorer|SmartScreen|USERPROFILE|LOCALAPPDATA" CLAUDE.md AGENTS.md skill/videohub/SKILL.md` prints nothing
-  - [ ] Every non-Windows rule in CLAUDE.md is still present (review the diff; the closeout lists removed clauses)
+  - [x] `grep -nE "Windows|PowerShell|winget|\.cmd\b|\.ps1\b|%APPDATA%|Recycle Bin|Explorer|SmartScreen|USERPROFILE|LOCALAPPDATA" CLAUDE.md AGENTS.md skill/videohub/SKILL.md` prints nothing (empty)
+  - [x] Every non-Windows rule in CLAUDE.md is still present (review the diff; the closeout lists removed clauses)
 - Verification: the grep plus `git diff CLAUDE.md` review — expected: no grep output
 - Rollback: `git checkout HEAD -- CLAUDE.md AGENTS.md skill/videohub/SKILL.md`
 
@@ -138,7 +138,7 @@ If a step reveals work outside this phase, report it and continue the approved s
   - `docs/MIGRATING.md` (modify) — delete the Windows script-name line
 - Change: apply the writing rules above.
 - Acceptance:
-  - [ ] `grep -rnE "Windows|PowerShell|winget|\.cmd\b|\.ps1\b|%APPDATA%|Recycle Bin|Explorer|SmartScreen" README.md docs --exclude-dir=plans` prints only the RENDER-SPEED historical note
+  - [x] `grep -rnE "Windows|PowerShell|winget|\.cmd\b|\.ps1\b|%APPDATA%|Recycle Bin|Explorer|SmartScreen" README.md docs --exclude-dir=plans` prints only the RENDER-SPEED historical note (docs/RENDER-SPEED.md:67)
 - Verification: the grep — expected: only the allowed hit
 - Rollback: `git checkout HEAD -- README.md docs/PLATFORMS.md docs/ARCHITECTURE.md docs/RENDER-SPEED.md docs/MIGRATING.md`
 
@@ -148,26 +148,26 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Files: none (verification only)
 - Change: run each master D1–D6 verification command exactly as written in `master.md` (D2 as amended by L7). For D3, run the `bash setup.sh --dry-run --yes` from a scratch copy per L3. For D5, run `node --check` on every `.js`/`.mjs` changed since the plan base commit `9b122eb`. Record each command and its result in the closeout.
 - Acceptance:
-  - [ ] All six DoD checks pass, with only the two recorded exceptions (L7 for D2, RENDER-SPEED for D4)
+  - [x] All six DoD checks pass, with only the two recorded exceptions (L7 for D2, RENDER-SPEED for D4)
 - Verification: as described — expected: as stated
 - Rollback: none
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — D1 holds — verify: `git ls-files '*.cmd' '*.ps1' '*.bat' '*.vbs' 'scripts/windows-*' 'server/platform.win32.test.js' 'docs/WINDOWS-SECURITY.md'` prints nothing
-- [ ] A2 — D2 holds — verify: the master D2 grep prints only the L7 `exe: null` lines
-- [ ] A3 — D3 holds — verify: `pnpm test` installer/agents/init-config tests pass; scratch-copy `bash setup.sh --dry-run --yes` exits 0
-- [ ] A4 — D4 holds — verify: the master D4 grep shows only the RENDER-SPEED historical note
-- [ ] A5 — D5 holds — verify: `pnpm install --frozen-lockfile && pnpm test` — 0 failures; `package.json` `os` is `[ 'linux', 'darwin' ]`; `node --check` clean on every `.js`/`.mjs` changed since `9b122eb`
-- [ ] A6 — D6 holds — verify: `cmp templates/new-film/render.js examples/hello-film/render.js` exits 0 and the D2 grep has no hit in either file
+- [x] A1 — D1 holds — verify: `git ls-files '*.cmd' '*.ps1' '*.bat' '*.vbs' 'scripts/windows-*' 'server/platform.win32.test.js' 'docs/WINDOWS-SECURITY.md'` prints nothing
+- [x] A2 — D2 holds — verify: the master D2 grep prints only the L7 `exe: null` lines
+- [x] A3 — D3 holds — verify: `pnpm test` installer/agents/init-config tests pass; scratch-copy `bash setup.sh --dry-run --yes` exits 0
+- [x] A4 — D4 holds — verify: the master D4 grep shows only the RENDER-SPEED historical note
+- [x] A5 — D5 holds — verify: `pnpm install --frozen-lockfile && pnpm test` — 0 failures; `package.json` `os` is `[ 'linux', 'darwin' ]`; `node --check` clean on every `.js`/`.mjs` changed since `9b122eb`
+- [x] A6 — D6 holds — verify: `cmp templates/new-film/render.js examples/hello-film/render.js` exits 0 and the D2 grep has no hit in either file
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
-- [ ] Names and structure state intent; comments explain only non-obvious reasons
-- [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation
-- [ ] Master standards commands pass: format none, lint none, `node --check` on each changed file, `pnpm install --frozen-lockfile && pnpm test`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
+- [x] Names and structure state intent; comments explain only non-obvious reasons
+- [x] Every new test fails if the behavior it covers breaks; no test restates the implementation
+- [x] Master standards commands pass: format none, lint none, `node --check` on each changed file, `pnpm install --frozen-lockfile && pnpm test`
 
 ## 8. Risks and unknowns
 
@@ -182,36 +182,65 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 
+- 2026-11-17, S1: also removed `windowsHide: true` from the two spawn calls in both `render.js` files (lines 70 and 90). The master D2 grep matches it and D6 requires no D2 hit in either template; the S1 file list already covers both files. No approval needed (same files, same acceptance).
+- 2026-11-17, S5: in `docs/MIGRATING.md`, after deleting the script-name line, the next line ("The installed skill ...") was an indented continuation of that bullet, so it became its own bullet (`- The installed skill`). No other wording changed.
+- 2026-11-17, S5: in `docs/PLATFORMS.md` the Claude Code and OpenCode integration rows had Linux/macOS cells reading "Same integrations" (referring to the removed Windows cell); the Windows cell text was moved into them. In `docs/ARCHITECTURE.md` the `fs.watch` pitfall kept (code still has `reallyChanged`), reworded as "`fs.watch` can report reads as changes".
+- 2026-11-17, S5: README line about hardware encoders points to RENDER-SPEED as "the existing measurements (an older PC; see the note there)" so the only D4 hit is the RENDER-SPEED note.
+
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
 
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
+- Date: 2026-11-17
+- Session: p3-worker
+- Verdict: addressed
+- Steps complete: S1, S2, S3, S4, S5, S6
 - Verification run:
+  - S1: `node --check templates/new-film/render.js && cmp templates/new-film/render.js examples/hello-film/render.js` - exit 0
+  - S2: `node -p "require('./package.json').os"` - `[ 'linux', 'darwin' ]`; `pnpm install --frozen-lockfile` - Already up to date; `git diff --quiet pnpm-lock.yaml` - exit 0
+  - S3: `git ls-files docs/WINDOWS-SECURITY.md` - empty; `grep -rn "WINDOWS-SECURITY" --exclude-dir=node_modules --exclude-dir=plans --exclude-dir=.git .` - empty
+  - S4: grep on CLAUDE.md AGENTS.md skill/videohub/SKILL.md - empty
+  - S5: README/docs grep - only docs/RENDER-SPEED.md:67
+  - S6 D1: `git ls-files '*.cmd' '*.ps1' '*.bat' '*.vbs' 'scripts/windows-*' 'server/platform.win32.test.js' 'docs/WINDOWS-SECURITY.md'` - empty
+  - S6 D2: master D2 grep (as amended) over server scripts ui templates examples engine-hooks skill package.json setup.sh update.sh uninstall.sh open.sh - only `server/guard.js:37 out.exe = null` (L7; `server/hub.js` `exe: null` does not match the pattern). First run also hit `windowsHide: true` in both render.js files; removed (section 9), re-run clean apart from L7
+  - S6 D3: `pnpm test` (includes install/agents/init-config tests) 299 tests, 298 pass, 0 fail, 1 skipped; `bash setup.sh --dry-run --yes --workspace <scratch>` from a scratch repo copy at `.test-tmp/p3-scratch/repo` with fake HOME/XDG_CONFIG_HOME/XDG_DATA_HOME/TMPDIR/VIDEOHUB_DATA_DIR/VIDEOHUB_BASE_DIR under `.test-tmp/p3-scratch`, VIDEOHUB_PORT=7799, VIDEOHUB_NO_WINDOW=1, real node dir (asdf install, not the shim) first on PATH - exit 0, all steps listed as dry run
+  - S6 D4: master D4 grep - only docs/RENDER-SPEED.md:67
+  - S6 D5: `pnpm install --frozen-lockfile && pnpm test` - 299/298/0 fail/1 skipped; os is `[ 'linux', 'darwin' ]`; `node --check` on every .js/.mjs in `git diff --name-only 9b122eb HEAD` plus staged that still exists - no errors (the 5 Windows test/script files from that diff no longer exist)
+  - S6 D6: `cmp templates/new-film/render.js examples/hello-film/render.js` - same; D2 grep has no hit in either file
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | pending | |
-| A2 | pending | |
-| A3 | pending | |
-| A4 | pending | |
-| A5 | pending | |
-| A6 | pending | |
-| D1 (master) | pending | |
-| D2 (master) | pending | |
-| D3 (master) | pending | |
-| D4 (master) | pending | |
-| D5 (master) | pending | |
-| D6 (master) | pending | |
+| A1 | met | D1 command prints nothing |
+| A2 | met | D2 grep prints only `server/guard.js:37` (`exe: null`, L7) |
+| A3 | met | pnpm test 0 fail; scratch-copy `setup.sh --dry-run --yes` exit 0 |
+| A4 | met | D4 grep only RENDER-SPEED.md:67 historical note |
+| A5 | met | frozen install + 299/298/0/1; os `[ 'linux', 'darwin' ]`; node --check clean |
+| A6 | met | cmp same; no D2 hit in templates/examples |
+| D1 (master) | met | A1 evidence, full plan |
+| D2 (master) | met | A2 evidence, only the L7 exception |
+| D3 (master) | met | A3 evidence |
+| D4 (master) | met | A4 evidence, only the allowed RENDER-SPEED note |
+| D5 (master) | met | A5 evidence |
+| D6 (master) | met | A6 evidence |
+
+**CLAUDE.md clauses removed:** "Windows" from the platform list in the intro; Windows `winget` hints (step 1); "Windows: node scripts/install.mjs setup --dry-run" and the Windows setup command (steps 2, 4); "legacy Windows parameter spellings remain compatibility aliases"; `open.cmd` (step 5); `UPDATE.cmd` / `node scripts/install.mjs update` Windows command and "Windows update also retires a recognized old render-protection helper ..."; `UNINSTALL.cmd` Windows uninstall command and the `.ps1` wrapper / execution-policy sentences; "preserve Windows behavior" (Map); "shared Windows/Unix" (Map); `USERPROFILE`, `APPDATA`, `LOCALAPPDATA` from the test isolation list; "inline C#/custom P/Invoke, generated PowerShell runtime files or encoded PowerShell commands", Windows Node-launch/.NET libraries/execution-policy/PowerShell-wrapper sentences; the Windows security-warning paragraph and its WINDOWS-SECURITY.md link. All other rules kept. Also `skill/videohub/SKILL.md`: "Recycle Bin" to "Trash".
+
+**Allowed residual hits:**
+- D2: `server/guard.js:37` `out.exe = null` (and `exe: null` in `server/hub.js`), legacy `/api/guard/settings` field (L7).
+- D4: `docs/RENDER-SPEED.md:67` "Windows 11" in the historical measurement, with a note added above it that it predates the macOS and Linux only codebase and that AMF is no longer probed.
+- L8 known remnants (not matched by D2, left as is): backslash/drive-letter normalization in `server/janitor.js` (archiveOne) and `server/outputs.js` (guardPath); `vmmem`/WSL names in `server/ramhogs.js`. The Snap/Flatpak backslash classes in `render.js` are also kept per S1. `docs/RENDER-SPEED.md` still has an AMF row (historical).
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| P3-1 | Both `render.js` files also carried `windowsHide: true` (2 spawn calls); the plan's S1 text listed only the browser paths, but master D2/D6 match it | phase-amend | P3 | Removed within S1 files; section 9 |
+| P3-2 | The master D2 grep does not match the `exe: null` in `server/hub.js` (pattern is `\.exe\b`); only `server/guard.js:37` shows up | note | closeout | Recorded above; no action |
+| P3-3 | Several docs cells (PLATFORMS integration rows, MIGRATING bullet) depended on the Windows text for their meaning, so a pure deletion would have left dangling text | note | none | Fixed in place (section 9) |
+| P3-4 | The first `cp --parents` scratch copy fallback worked via rsync and `node` on the dev machine is an asdf shim; D3 needed the real node dir on PATH (L3 already) | note | none | Used the real binary path |
 
-**Master updates written:** none yet
-**Next-phase updates written:** none yet
-**Remaining work and handoff:** none yet
+No master updates written (coordinator owns master.md). Nothing in earlier evidence looks suspect: baseline 299/298/0/1 held across P2 and P3; template edits changed no test count.
+
+**Master updates written:** none (coordinator owns master.md)
+**Next-phase updates written:** none (final phase)
+**Remaining work and handoff:** Close the plan in the coordinator (record commit, mark P3 done and the master complete). Real-hardware Linux and Intel macOS verification stays out of scope (master non-goals). L8 remnants remain for a future cleanup if wanted.

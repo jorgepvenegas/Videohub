@@ -62,6 +62,8 @@ the same.
    `VIDEOHUB_ENCODER=lossless`, then compare `ffmpeg -i video.mp4 -pix_fmt rgb24 -f framemd5 -` of both: every line equal.
 
 ## What was measured (one test PC)
+This is a historical measurement. It predates the macOS and Linux only codebase, and AMF is no longer probed.
+
 A desktop PC with a 12-thread processor and an AMD RDNA2-class graphics card (no NVIDIA, no Intel GPU), Windows 11,
 Edge headless, ffmpeg 8.1 with libvmaf. Scratch copies of `examples/hello-film`, renders one at a time.
 
