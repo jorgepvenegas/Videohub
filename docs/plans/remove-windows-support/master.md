@@ -92,7 +92,7 @@ flowchart LR
 | ID | Phase | Outcome | Depends on | Status | Plan |
 |---|---|---|---|---|---|
 | P1 | Installer and agent integration | Setup, update, uninstall, open and agent registration run only the Unix lifecycle; Windows entry points, wrappers and Windows-only installer tests are gone; pnpm test stays green. | none | done | [plan](phases/01-installer-and-agent-integration/plan.md) |
-| P2 | Runtime platform layer | `server/platform.js` has no Windows branch or Windows-only exports; server, UI and test runner use only Unix integrations; Windows-named identifiers renamed; pnpm test green. | P1 | planned | pending |
+| P2 | Runtime platform layer | `server/platform.js` has no Windows branch or Windows-only exports; server, UI and test runner use only Unix integrations; Windows-named identifiers renamed; pnpm test green. | P1 | planned | [plan](phases/02-runtime-platform-layer/plan.md) |
 | P3 | Templates, docs and agent rules | Render templates drop Windows browser paths; README, CLAUDE.md, AGENTS.md, docs and skill describe macOS + Linux only; WINDOWS-SECURITY.md removed; package.json metadata updated; final D1–D6 sweep. | P2 | planned | pending |
 
 Status: `planned`, `ready`, `in_progress`, `done`, `blocked`, `needs_replan`, `superseded`.
@@ -145,9 +145,9 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 
 ## 12. Resume brief
 
-- Current phase: P1 (plan in draft)
-- Last verdict: none
-- Next action: user reviews P1 plan and approves or requests changes
+- Current phase: P2 (plan in draft)
+- Last verdict: P1 addressed
+- Next action: user reviews P2 plan and approves or requests changes
 - Open decisions: none
 - PR: declined (2026-11-17)
 - Last updated: 2026-11-17
