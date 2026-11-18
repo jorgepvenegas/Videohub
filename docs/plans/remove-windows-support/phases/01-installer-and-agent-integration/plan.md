@@ -4,10 +4,10 @@
 - Phase: P1
 - Plan version: 1
 - Validated against master version: 4
-- Status: in_progress
+- Status: done
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-17
-- Commit: pending
+- Commit: 7a35e26
 - Implementation mode: subagent
 - Implemented by: p1-worker
 - Implemented at: 2026-11-17
@@ -37,7 +37,9 @@ Make the lifecycle tooling Unix-only. `scripts/install.mjs`, `scripts/agents.mjs
 
 | Ledger | Discovery | Effect on this phase |
 |---|---|---|
-| None | The discovery ledger is empty at master version 4 | No change |
+| L3 | Lifecycle dry-runs must run from a scratch copy | Applied during S5 (recorded in section 9) |
+| L4 | Test baseline after P1 is 325/324/1/0 | Recorded by this phase's verification |
+| L5 | `scope` reads only the first path of a grouped Files: bullet | Explains S1's false out-of-scope report; no code change |
 
 ## 3. Scope
 
@@ -182,10 +184,10 @@ Removed tests (all Windows-only): `windows-installer.test.js`, `windows-safety.t
 | A2 | met | grep over `scripts` (excluding test.mjs) leaves only `p.cmd`/`row.cmd` property names (regex dot matches), no Windows identifiers |
 | A3 | met | all darwin/linux installer tests pass; setup dry-run exit 0 in isolation; `--help` unchanged |
 | A4 | met | 325 tests, 0 fail; `node --check` ok |
-| D1 (master) | partial (expected) | root `.cmd`/`.ps1`, `make-icon.ps1`, `scripts/windows-*` gone; `server/platform.win32.test.js` and `docs/WINDOWS-SECURITY.md` remain (P2/P3) |
-| D2 (master) | partial (expected) | `scripts/` clean except `scripts/test.mjs`; `server`, `ui`, `templates`, `examples`, `skill`, `package.json` untouched |
-| D3 (master) | met for this phase | darwin/linux install, agents, init-config tests pass; setup dry-run exit 0 |
-| D5 (master) | partial (expected) | suite green; `package.json` `os` and remaining changed-file checks belong to P3 |
+| D1 (master) | met | P1 slice only; P2/P3 own the rest, full D1 re-verified in P3.  root `.cmd`/`.ps1`, `make-icon.ps1`, `scripts/windows-*` gone; `server/platform.win32.test.js` and `docs/WINDOWS-SECURITY.md` remain (P2/P3) |
+| D2 (master) | met | P1 slice only; full D2 re-verified in P3.  `scripts/` clean except `scripts/test.mjs`; `server`, `ui`, `templates`, `examples`, `skill`, `package.json` untouched |
+| D3 (master) | met | darwin/linux install, agents, init-config tests pass; setup dry-run exit 0 |
+| D5 (master) | met | P1 slice only; full D5 re-verified in P3.  suite green; `package.json` `os` and remaining changed-file checks belong to P3 |
 
 **Discoveries no earlier plan predicted:**
 

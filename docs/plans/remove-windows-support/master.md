@@ -1,7 +1,7 @@
 # Master Plan — Remove Windows support
 
 - Plan ID: `remove-windows-support`
-- Master version: 4
+- Master version: 10
 - Status: active
 - Created: 2026-11-17
 - Source: user request (2026-11-17): "I want to get rid of all windows related code and support"
@@ -91,7 +91,7 @@ flowchart LR
 
 | ID | Phase | Outcome | Depends on | Status | Plan |
 |---|---|---|---|---|---|
-| P1 | Installer and agent integration | Setup, update, uninstall, open and agent registration run only the Unix lifecycle; Windows entry points, wrappers and Windows-only installer tests are gone; pnpm test stays green. | none | in_progress | [plan](phases/01-installer-and-agent-integration/plan.md) |
+| P1 | Installer and agent integration | Setup, update, uninstall, open and agent registration run only the Unix lifecycle; Windows entry points, wrappers and Windows-only installer tests are gone; pnpm test stays green. | none | done | [plan](phases/01-installer-and-agent-integration/plan.md) |
 | P2 | Runtime platform layer | `server/platform.js` has no Windows branch or Windows-only exports; server, UI and test runner use only Unix integrations; Windows-named identifiers renamed; pnpm test green. | P1 | planned | pending |
 | P3 | Templates, docs and agent rules | Render templates drop Windows browser paths; README, CLAUDE.md, AGENTS.md, docs and skill describe macOS + Linux only; WINDOWS-SECURITY.md removed; package.json metadata updated; final D1–D6 sweep. | P2 | planned | pending |
 
@@ -118,6 +118,12 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 
 | ID | Date | Phase | Affects | Discovery | Type | Action taken | Status |
 |---|---|---|---|---|---|---|---|
+| L1 | 2026-11-17 | P1 | P2 | server/platform.js:206-207 still names open.cmd/open.ps1/open.vbs legacy launchers; IS_WIN, getShortcut, setShortcut, getAutostartState, cleanupLegacyAutostart, shellCommand now have no consumer in scripts/ | next-phase-amend | P2 removes them with the Windows branch, after grepping server/ and ui/ for remaining consumers | open |
+| L2 | 2026-11-17 | P1 | P2 | scripts/agents.mjs still does hub.replace(/\\/g, '/') when writing rule text; Windows-only, harmless on Unix, not caught by the D2 grep | next-phase-amend | P2 removes it (single-line edit in scripts/agents.mjs added to P2 file list) | open |
+| L3 | 2026-11-17 | P1 | all | Installer dry-runs refuse a workspace inside the program folder, so isolated setup runs must use a scratch copy of the repo under .test-tmp with real node first on PATH (asdf shim fails under fake HOME) | note | Later phases run lifecycle checks from a scratch copy | open |
+| L4 | 2026-11-17 | P1 | all | Test baseline after P1: 325 tests, 324 pass, 1 skipped, 0 fail (25 Windows-only tests removed) | note | Later phases compare against this baseline | open |
+| L5 | 2026-11-17 | P1 | all | scope command reads only the first path of a multi-file Files: bullet, so S1's grouped deletions showed as out of scope | plan-defect | Later phase plans list one file per Files: bullet | open |
+| L6 | 2026-11-17 | P1 | P3 | close requires every traced master DoD row to read met; P1 marks D1/D2/D5 met for its slice only, with the remaining slice named in the evidence | note | P3 closeout re-verifies D1-D6 in full with the master commands | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
@@ -135,6 +141,7 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 
 | Phase | Date | Verdict | Criteria met | Commit | Report |
 |---|---|---|---|---|---|
+| P1 | 2026-11-17 | addressed | A1, A2, A3, A4 | 7a35e26 | [report](phases/01-installer-and-agent-integration/plan.md) |
 
 ## 12. Resume brief
 
