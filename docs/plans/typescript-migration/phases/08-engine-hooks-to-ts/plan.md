@@ -9,8 +9,8 @@
 - Approved at: 2026-11-22
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: p8-worker
+- Implemented at: 2026-11-22
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -79,10 +79,10 @@ Out of scope:
 
 ## 4. Entry conditions
 
-- [ ] P7 `done`; standards green — verify: `progressive_plan.py status docs/plans/typescript-migration`, then `pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test`
-- [ ] Working tree clean and pushed — verify: `git status -sb`
-- [ ] Phase plan revalidated against current master version (58)
-- [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
+- [x] P7 `done`; standards green — verify: `progressive_plan.py status docs/plans/typescript-migration`, then `pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test`
+- [x] Working tree clean and pushed — verify: `git status -sb`
+- [x] Phase plan revalidated against current master version (58)
+- [x] User approved this phase plan — verify: `Approved by` is set and status is `ready`
 
 ## 5. Steps
 
@@ -101,7 +101,7 @@ Commit after each step with subject `P8:` followed by the step title, and push. 
 - Files: `engine-hooks/vh2d.js` → `vh2d.ts`, `engine-hooks/vhtweaks.js` → `vhtweaks.ts` (temporary first-line `// @ts-nocheck`); `server/edit2d.ts`, `ui/review/edit2d.ts` (comment paths only)
 - Change: Pure rename. Grep the whole repo (excluding `docs/`) for other mentions of the two file names and report any that are not comments.
 - Acceptance:
-  - [ ] `git log --follow` tracks both; `pnpm build`, `pnpm typecheck` and `pnpm test` pass with the same counts
+  - [x] `git log --follow` tracks both; `pnpm build`, `pnpm typecheck` and `pnpm test` pass with the same counts
 - Verification: `git show -M --summary HEAD | grep -c '^ rename'` (2); `git ls-files engine-hooks` lists only `.ts`; `pnpm build && pnpm typecheck && pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -111,7 +111,7 @@ Commit after each step with subject `P8:` followed by the step title, and push. 
 - Files: `engine-hooks/vh2d.ts`, `vhtweaks.ts`, `three.d.ts` (create)
 - Change: Remove `@ts-nocheck` and add strict types. The `three` declaration covers only what the hook uses, with signatures that match three's real API for those members (so engines that type-check against real three see no conflict). Update the header comments' self-references as described in §3. Run the AST comparison of both hooks against the S1 commit, using a script under `.test-tmp/p8-strip/` (`.test-tmp/p6-strip/cmp.mjs` is a working reference).
 - Acceptance:
-  - [ ] No `@ts-nocheck`; `pnpm typecheck` passes; the AST comparison shows 0 differences; the hooks import nothing but `three`
+  - [x] No `@ts-nocheck`; `pnpm typecheck` passes; the AST comparison shows 0 differences; the hooks import nothing but `three`
 - Verification: `grep -l "@ts-nocheck" engine-hooks/*.ts` (no output); the L8 grep; `pnpm typecheck && pnpm test 2>&1 | tail -8`; AST result in §9
 - Rollback: `git revert HEAD`
 
@@ -121,10 +121,10 @@ Commit after each step with subject `P8:` followed by the step title, and push. 
 - Files: `vite.hooks.config.ts` (create), `package.json`, `scripts/install.ts`, `scripts/install.test.ts`
 - Change: Add the hooks build described in §3 and chain it in `build`. Add the config to `ITEMS` and extend the existing installer copy test so that it fails without that entry.
 - Acceptance:
-  - [ ] `pnpm build` emits the UI as before and `dist/engine-hooks/vh2d.js` and `vhtweaks.js`, unminified, with `import … from 'three'` kept as an import
-  - [ ] Importing `dist/engine-hooks/vh2d.js` in Node gives the same export names and the same `VH2D` keys as importing `engine-hooks/vh2d.ts`
-  - [ ] `vhtweaks.js` exports `loadTweaks` and `makeTweaks` (checked by parsing the built file, since `three` is not installed)
-  - [ ] The installer test fails when the `ITEMS` entry is removed (recorded in §9)
+  - [x] `pnpm build` emits the UI as before and `dist/engine-hooks/vh2d.js` and `vhtweaks.js`, unminified, with `import … from 'three'` kept as an import
+  - [x] Importing `dist/engine-hooks/vh2d.js` in Node gives the same export names and the same `VH2D` keys as importing `engine-hooks/vh2d.ts`
+  - [x] `vhtweaks.js` exports `loadTweaks` and `makeTweaks` (checked by parsing the built file, since `three` is not installed)
+  - [x] The installer test fails when the `ITEMS` entry is removed (recorded in §9)
 - Verification: `pnpm build && ls dist/ui dist/engine-hooks && grep -n "from 'three'" dist/engine-hooks/vhtweaks.js`; the export comparison script under `.test-tmp/p8-build/`; `node --test scripts/install.test.ts`
 - Rollback: `git revert HEAD`
 
@@ -134,26 +134,26 @@ Commit after each step with subject `P8:` followed by the step title, and push. 
 - Files: the P8 phase plan (modify) — §7, §9 and §10
 - Change: Run the standards commands and `pnpm build`. Export `HEAD` with `git archive` into a sibling scratch folder under `.test-tmp/p8-export/` (L23). In it, run `pnpm install --frozen-lockfile` and `pnpm build`, and confirm that both `dist/ui/index.html` and `dist/engine-hooks/*.js` exist. No setup, update or hub run. Record the evidence and the L3 warning counts.
 - Acceptance:
-  - [ ] The export builds both outputs with exit 0; standards are green
+  - [x] The export builds both outputs with exit 0; standards are green
 - Verification: the recorded commands and their output
 - Rollback: n/a (scratch only)
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — No tracked JS under `engine-hooks/`; renames keep history — verify: `git ls-files engine-hooks | grep -E '\.js$'` (empty); `git log --follow --oneline engine-hooks/vhtweaks.ts | wc -l` > 1
-- [ ] A2 — `pnpm typecheck` is strict-clean; no `@ts-nocheck` in the hooks; any `any` is commented; S2 is runtime-identical — verify: `pnpm typecheck`, the greps and the §9 AST comparison
-- [ ] A3 — `pnpm test` has 0 failures and ≥ 312 passing, with the extended installer test shown to fail without its change — verify: `pnpm test` and §9
-- [ ] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
-- [ ] A5 — `pnpm build` exits 0 and emits readable `dist/engine-hooks/vh2d.js` and `vhtweaks.js` with the same exports as the sources and `three` external — verify: S3 evidence
-- [ ] A6 — The installer ships `vite.hooks.config.ts`, and a clean `git archive` export builds both outputs — verify: the S3 test and S4 evidence
+- [x] A1 — No tracked JS under `engine-hooks/`; renames keep history — verify: `git ls-files engine-hooks | grep -E '\.js$'` (empty); `git log --follow --oneline engine-hooks/vhtweaks.ts | wc -l` > 1
+- [x] A2 — `pnpm typecheck` is strict-clean; no `@ts-nocheck` in the hooks; any `any` is commented; S2 is runtime-identical — verify: `pnpm typecheck`, the greps and the §9 AST comparison
+- [x] A3 — `pnpm test` has 0 failures and ≥ 312 passing, with the extended installer test shown to fail without its change — verify: `pnpm test` and §9
+- [x] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
+- [x] A5 — `pnpm build` exits 0 and emits readable `dist/engine-hooks/vh2d.js` and `vhtweaks.js` with the same exports as the sources and `three` external — verify: S3 evidence
+- [x] A6 — The installer ships `vite.hooks.config.ts`, and a clean `git archive` export builds both outputs — verify: the S3 test and S4 evidence
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] The `three` declaration covers only members the hook uses; no duplicated hook types
-- [ ] Names and structure state intent; comments explain only non-obvious reasons (for example, why `three` is declared locally)
-- [ ] Every new or changed test fails if the behavior it covers breaks (installer `ITEMS` revert check in §9)
-- [ ] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`, plus `pnpm build`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] The `three` declaration covers only members the hook uses; no duplicated hook types
+- [x] Names and structure state intent; comments explain only non-obvious reasons (for example, why `three` is declared locally)
+- [x] Every new or changed test fails if the behavior it covers breaks (installer `ITEMS` revert check in §9)
+- [x] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`, plus `pnpm build`
 
 ## 8. Risks and unknowns
 
@@ -169,36 +169,44 @@ Commit after each step with subject `P8:` followed by the step title, and push. 
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 
+- 2026-11-22, S1 (commit P8: Rename the engine hooks): `git show -M --summary HEAD | grep -c '^ rename'` = 2; `git ls-files engine-hooks` lists only `.ts`; format, lint, build, typecheck and test pass (312 pass, 0 fail). No non-comment mention of the hook names outside docs/ and the hooks themselves (grep: `server/edit2d.ts`, `ui/review/edit2d.ts` comments only; `vh2d/` folder names are unrelated film data paths).
+- 2026-11-22, S2 AST comparison: script `.test-tmp/p8-strip/cmp.mjs` (copy of the P6 one) compares the S1 commit sources against the stripped S2 sources: `same engine-hooks/vh2d.ts`, `same engine-hooks/vhtweaks.ts`, `different: 0`. `grep -l "@ts-nocheck" engine-hooks/*.ts` empty; hooks import only `three` (vhtweaks) and nothing (vh2d). L8 grep hits: `engine-hooks/three.d.ts` the `userData` record type (three's own type, commented) and `vhtweaks.ts` `VH_EDIT?: any` (commented: the editor object's methods call each other through `this`, so the literal needs a loose contextual type).
+- 2026-11-22, S2 type choices (no runtime change): `Item` and `ActorTweak` numeric fields are typed `number | string` and required, because tweaks.json is user data and every use coerces with unary plus (TypeScript rejects `+undefined`); `makeTweaks` takes `data` with `cuts` and `sound` required although it fills them itself (a `loadTweaks` result is typed with them optional), since the closures read them without checks; non-null assertions (`free!`, `rec!`, `s.objects!`) replace narrowing the original relied on; function overloads on `tw` and `objTweak`.
+- 2026-11-22, S3 build: `pnpm build` emits `dist/ui` as before and `dist/engine-hooks/vh2d.js` (7.18 kB) and `vhtweaks.js` (16.21 kB), unminified, unhashed. Built `vhtweaks.js` starts with `import * as THREE from "three";` (double quotes, so the plan's `grep "from 'three'"` matches nothing; use `grep -n "from \"three\""`) and ends with `export { loadTweaks, makeTweaks };`. `.test-tmp/p8-build/cmp.mjs`: `vh2d` exports `VH2D,default` for both source and built; `VH2D` keys identical (`version,use,load,ready,data,onRedraw,begin,actor,actors,itemsAt,draw,box`); built default is `VH2D`.
+- 2026-11-22, S3 installer test: `node --test scripts/install.test.ts` passes 30/0 with the entry; with the `vite.hooks.config.ts` ITEMS line removed it fails (29 pass, 1 fail); entry restored afterwards.
+- 2026-11-22, S4: `git archive HEAD` extracted to `.test-tmp/p8-export/` (created this session); `pnpm install --frozen-lockfile` and `pnpm build` ran there, exit 0; `dist/ui/index.html`, `dist/engine-hooks/vh2d.js` and `vhtweaks.js` exist. Standards on the branch: `pnpm format:check`, `pnpm lint` (0 errors; 166 warnings in all, one in the hooks: `unicorn/no-useless-spread` at `vh2d.ts:106`, left as is, since the plan asks for no warning cleanup), `pnpm typecheck`, `pnpm build` and `pnpm test` (312 pass, 0 fail, 1 skipped) all exit 0.
+
 ## 10. Closeout
 
-Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
-
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-22
+- Session: p8-worker (subagent)
+- Verdict: addressed
+- Steps complete: S1, S2, S3, S4
+- Verification run: S1 rename count and `git ls-files`; S2 AST comparison (0 differences), L8 grep, typecheck; S3 `pnpm build`, export comparison, installer test with and without the ITEMS entry; S4 clean `git archive` export build; `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test` (312 pass, 0 fail)
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | pending | |
-| A2 | pending | |
-| A3 | pending | |
-| A4 | pending | |
-| A5 | pending | |
-| A6 | pending | |
-| D1 (master) | pending | |
-| D2 (master) | pending | |
-| D3 (master) | pending | |
-| D4 (master) | pending | |
-| D5 (master) | pending | |
-| D6 (master) | pending | |
+| A1 | met | `git ls-files engine-hooks | grep -E '\.js$'` empty; `git log --follow --oneline` shows 4 commits for each hook |
+| A2 | met | `pnpm typecheck` exit 0; no `@ts-nocheck`; the two `any` hits carry comments; AST comparison `different: 0` (section 9) |
+| A3 | met | `pnpm test`: 312 pass, 0 fail; installer test fails (29/1) without the ITEMS entry (section 9) |
+| A4 | met | `pnpm lint` 0 errors; `pnpm format:check` exit 0 |
+| A5 | met | `pnpm build` exit 0; readable `dist/engine-hooks/vh2d.js` and `vhtweaks.js`; same exports and `VH2D` keys; `three` stays an import |
+| A6 | met | `vite.hooks.config.ts` in ITEMS and asserted by the installer copy test; a clean `git archive` export builds both outputs |
+| D1 (master) | met | This phase's share: no tracked JS under `engine-hooks/`, history kept. D stays open until P9 |
+| D2 (master) | met | This phase's share: both hooks type-check strictly with `three` typed by `engine-hooks/three.d.ts`. D stays open until P9 |
+| D3 (master) | met | This phase's share: lint 0 errors, format clean. D stays open until P9 |
+| D4 (master) | met | This phase's share: suite at 312 pass, 0 fail. D stays open until P9 |
+| D5 (master) | met | This phase's share: `pnpm build` also emits the two hooks. D stays open until P9 |
+| D6 (master) | met | This phase's share: setup and update ship the hooks build config. D stays open until P9 |
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| P8-1 | Rolldown drops the hooks' long header comments (usage documentation) from `dist/engine-hooks/*.js`; engines copy the built file | next-phase-amend | P9 | Docs must point engine authors to the `.ts` source for the API notes, or P9 may decide to keep the header |
+| P8-2 | Built import uses double quotes, so the plan's grep for `from 'three'` matches nothing | note | P9 | Not applicable |
+| P8-3 | 3D engines that copy the old `engine-hooks/*.js` path (docs, skill, README) now need `dist/engine-hooks/*.js` after a build | next-phase-amend | P9 | Update docs, README and skill paths |
 
-**Master updates written:** none yet
-**Next-phase updates written:** none yet
-**Remaining work and handoff:** none yet
+**Master updates written:** none (coordinator owns master)
+**Next-phase updates written:** none; P8-1 and P8-3 reported to the coordinator
+**Remaining work and handoff:** P9 (docs, README, skill paths) and P10 (film starter, example)
