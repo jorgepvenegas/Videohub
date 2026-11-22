@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { activeRenders, elapsedSeconds, timeText, remainingText } from './render-status.ts';

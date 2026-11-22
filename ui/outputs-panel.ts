@@ -1,8 +1,8 @@
-// @ts-nocheck
 // Recent render files, shared by the home page and the full history page.
 import { h, api, toast, AGO, DUR, GB, onHubEvent } from './app.ts';
+import type { Json } from './app.ts';
 
-const MODE = {
+const MODE: Record<string, string> = {
   full: 'Full film',
   partial: 'Partial render',
   preview: 'Preview',
@@ -11,29 +11,29 @@ const MODE = {
   manual: 'Saved manually',
   command: 'Custom render'
 };
-const SRC = { kuyruk: 'VideoHub queue', sohbet: 'Saved by chat', tarama: 'Found in folder', RenderGuard: 'Outside VideoHub' };
-const filename = file =>
+const SRC: Record<string, string> = { kuyruk: 'VideoHub queue', sohbet: 'Saved by chat', tarama: 'Found in folder', RenderGuard: 'Outside VideoHub' };
+const filename = (file: Json) =>
   String(file || '')
     .split(/[\\/]/)
     .pop();
-const dateText = value => {
+const dateText = (value: Json) => {
   const d = new Date(value);
   return Number.isFinite(d.getTime()) ? d.toLocaleString('en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Unknown date';
 };
 
 // Use the same explicit actions on completion notices and in the persistent list.
 export function outputActions(
-  it,
+  it: Json,
   {
     compact = false,
-    seen = async it => {
+    seen = async (it: Json) => {
       const r = await api('/api/outputs/seen', { method: 'POST', body: { key: it.key || it.file } });
       window.__vhNewCount?.(r.unseen);
     }
   } = {}
 ) {
   const actions = h('div', { class: 'output-actions' });
-  const button = (label, task, cls = '') => {
+  const button = (label: Json, task: Json, cls = '') => {
     const b = h(
       'button',
       {
@@ -43,7 +43,7 @@ export function outputActions(
           b.disabled = true;
           try {
             await task();
-          } catch (e) {
+          } catch (e: Json) {
             toast(e.message, true);
           } finally {
             b.disabled = false;
@@ -95,12 +95,12 @@ export function outputActions(
 }
 
 export function outputsPanel({ compact = false } = {}) {
-  let data = null,
+  let data: Json = null,
     filter = 'done',
     query = '',
     visible = 30,
     stopped = false,
-    pending = null;
+    pending: Promise<void> | null = null;
   const el = h('section', { class: 'recent-outputs' + (compact ? ' compact' : ''), 'aria-label': 'Recent renders' });
   const list = h('div', { class: 'output-list', 'aria-live': 'polite' });
   const count = h('span', { class: 'sub' });
@@ -108,7 +108,7 @@ export function outputsPanel({ compact = false } = {}) {
     type: 'search',
     placeholder: 'Search projects or files…',
     'aria-label': 'Search recent renders',
-    oninput: e => {
+    oninput: (e: Json) => {
       query = e.target.value;
       visible = 30;
       draw();
@@ -118,7 +118,7 @@ export function outputsPanel({ compact = false } = {}) {
     'select',
     {
       'aria-label': 'Filter by render status',
-      onchange: e => {
+      onchange: (e: Json) => {
         filter = e.target.value;
         visible = 30;
         draw();
@@ -140,7 +140,7 @@ export function outputsPanel({ compact = false } = {}) {
         try {
           await api('/api/outputs/seen', { method: 'POST', body: { all: true } });
           await refresh();
-        } catch (e) {
+        } catch (e: Json) {
           toast(e.message, true);
         }
       }
@@ -199,13 +199,13 @@ export function outputsPanel({ compact = false } = {}) {
     );
   el.append(list, more);
   list.append(h('div', { class: 'empty' }, 'Loading recent renders…'));
-  async function seen(it) {
+  async function seen(it: Json) {
     const r = await api('/api/outputs/seen', { method: 'POST', body: { key: it.key || it.file } });
     it.isNew = false;
     window.__vhNewCount?.(r.unseen);
     draw();
   }
-  function row(it) {
+  function row(it: Json) {
     const ready = it.state === 'done' && it.file && it.exists;
     const label =
       it.state === 'cancelled'
@@ -254,7 +254,7 @@ export function outputsPanel({ compact = false } = {}) {
     if (!data || stopped) return;
     const q = query.trim().toLocaleLowerCase('en-US');
     const rows = data.items.filter(
-      it =>
+      (it: Json) =>
         (compact
           ? it.state === 'done' && it.exists
           : filter === 'all' || (filter === 'done' ? it.state === 'done' : filter === 'new' ? it.isNew : it.state !== 'done')) &&
@@ -288,7 +288,7 @@ export function outputsPanel({ compact = false } = {}) {
         window.__vhNewCount?.(r.unseen);
         draw();
         cikInfo();
-      } catch (e) {
+      } catch (e: Json) {
         if (!stopped && !data) list.replaceChildren(h('div', { class: 'empty' }, 'Could not load the render list. Click Refresh to try again.'));
         if (!stopped && manual) toast(e.message, true);
       } finally {
@@ -297,10 +297,10 @@ export function outputsPanel({ compact = false } = {}) {
     })();
     return pending;
   }
-  const offJob = onHubEvent('job', ev => {
+  const offJob = onHubEvent('job', (ev: Json) => {
     if (['done', 'failed', 'cancelled'].includes(ev?.type)) refresh();
   });
-  const offScan = onHubEvent('scan', ev => {
+  const offScan = onHubEvent('scan', (ev: Json) => {
     if (ev?.phase === 'done' || ev?.type === 'project') refresh();
   });
   const timer = setInterval(() => {

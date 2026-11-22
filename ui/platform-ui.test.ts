@@ -1,35 +1,35 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import vm from 'node:vm';
+import { readSource } from '../scripts/test-source.ts';
+import type { Json } from './app.ts';
 
-const source = fs.readFileSync(new URL('./app.ts', import.meta.url), 'utf8');
-function element(tag, attrs = {}, ...children) {
+const source = readSource(new URL('./app.ts', import.meta.url));
+function element(tag: Json, attrs: Json = {}, ...children: Json[]) {
   return {
     tag,
     ...attrs,
     value: attrs.value || '',
     children: children.flat(Infinity).filter(c => c != null),
-    append(...next) {
+    append(...next: Json[]) {
       this.children.push(...next.flat(Infinity));
     },
     replaceWith() {}
   };
 }
-const descendants = node => (typeof node === 'object' && node ? [node, ...(node.children || []).flatMap(descendants)] : []);
-const textOf = node => (typeof node === 'object' && node ? (node.children || []).map(textOf).join(' ') : String(node ?? ''));
+const descendants = (node: Json) => (typeof node === 'object' && node ? [node, ...(node.children || []).flatMap(descendants)] : []);
+const textOf = (node: Json) => (typeof node === 'object' && node ? (node.children || []).map(textOf).join(' ') : String(node ?? ''));
 const event = { preventDefault() {}, stopPropagation() {} };
 
-function picker(result, answer = true, entered = '/home/me/films') {
-  const picked = [],
-    dialogs = [],
-    errors = [];
-  const ctx = {
+function picker(result: Json, answer = true, entered = '/home/me/films') {
+  const picked: Json[] = [],
+    dialogs: Json[] = [],
+    errors: Json[] = [];
+  const ctx: Json = {
     h: element,
     api: async () => result,
-    toast: message => errors.push(message),
-    confirmBox: async (title, body) => {
+    toast: (message: Json) => errors.push(message),
+    confirmBox: async (title: Json, body: Json) => {
       dialogs.push({ title, body });
       descendants(body).find(n => n.tag === 'input').value = entered;
       return answer;
@@ -39,7 +39,7 @@ function picker(result, answer = true, entered = '/home/me/films') {
   vm.runInContext(source.slice(source.indexOf('export function folderButton')).replace('export function', 'function'), ctx);
   const button = ctx.folderButton(
     () => '/home/me/start',
-    value => picked.push(value)
+    (value: Json) => picked.push(value)
   );
   return { picked, dialogs, errors, button, click: () => button.onclick(event) };
 }
@@ -65,10 +65,10 @@ test('native cancellation and text entry cancellation leave the folder unchanged
   assert.equal(p.dialogs.length, 0);
 });
 
-function panel(capabilities) {
-  const ctx = { h: element, navigator: { hardwareConcurrency: 8 }, api: async () => ({}), toast() {}, setTimeout, clearTimeout };
+function panel(capabilities: Json) {
+  const ctx: Json = { h: element, navigator: { hardwareConcurrency: 8 }, api: async () => ({}), toast() {}, setTimeout, clearTimeout };
   vm.createContext(ctx);
-  vm.runInContext(source.slice(source.indexOf('const PRESETS ='), source.indexOf('// ---------- Disk')), ctx);
+  vm.runInContext(source.slice(source.indexOf('const PRESETS'), source.indexOf('// ---------- Disk')), ctx);
   return ctx.guardPanel({ CapActive: 90, SlowCapPct: 5, PauseMB: 2000, CriticalMB: 500, LowPrio: true, capabilities }, { full: true });
 }
 

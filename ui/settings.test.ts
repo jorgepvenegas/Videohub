@@ -1,20 +1,20 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import vm from 'node:vm';
+import { readSource } from '../scripts/test-source.ts';
+import type { Json } from './app.ts';
 import { agentName, setAgentName } from './agent.ts';
 import { sameFolder, setSystemCapabilities } from './system.ts';
 
-const source = fs.readFileSync(new URL('./app.ts', import.meta.url), 'utf8');
+const source = readSource(new URL('./app.ts', import.meta.url));
 const settingsCode = source.slice(source.indexOf('async function settingsPage'), source.indexOf('// One picker serves'));
-function element(tag, attrs = {}, ...children) {
+function element(tag: Json, attrs: Json = {}, ...children: Json[]) {
   const el = {
     tag,
     ...attrs,
     value: String(attrs.value || ''),
     children: children.flat(Infinity).filter(x => x != null),
-    append(...next) {
+    append(...next: Json[]) {
       this.children.push(...next.flat(Infinity));
     }
   };
@@ -25,12 +25,12 @@ function element(tag, attrs = {}, ...children) {
   });
   return el;
 }
-const walk = node => (typeof node === 'object' && node ? [node, ...(node.children || []).flatMap(walk)] : []);
+const walk = (node: Json) => (typeof node === 'object' && node ? [node, ...(node.children || []).flatMap(walk)] : []);
 
 async function settings({ platform = 'linux', roots = ['/home/me/film'], failSave = false } = {}) {
-  const calls = [],
-    messages = [],
-    pickers = [];
+  const calls: Json[] = [],
+    messages: Json[] = [],
+    pickers: Json[] = [];
   const config = {
     capabilities: { platform },
     agentName: 'Claude',
@@ -41,13 +41,13 @@ async function settings({ platform = 'linux', roots = ['/home/me/film'], failSav
     tools: {},
     thumbstudio: {}
   };
-  const ctx = {
+  const ctx: Json = {
     h: element,
     sameFolder,
     setSystemCapabilities,
     setAgentName,
-    toast: (message, error) => messages.push({ message, error }),
-    api: async (url, options) => {
+    toast: (message: Json, error: Json) => messages.push({ message, error }),
+    api: async (url: Json, options: Json) => {
       if (url === '/api/guard/settings') throw new Error('not needed');
       if (url === '/api/hidden') return [];
       if (!options) return config;
@@ -56,7 +56,7 @@ async function settings({ platform = 'linux', roots = ['/home/me/film'], failSav
       return { ...config, ...options.body, agentName: String(options.body.agentName || '').trim() || 'Claude' };
     },
     renderSpeedControl: () => element('span'),
-    folderButton: (start, pick, title, label) => {
+    folderButton: (start: Json, pick: Json, title: Json, label: Json) => {
       const el = element('button', {}, label);
       pickers.push({ start, pick, title, el });
       return el;
@@ -66,7 +66,7 @@ async function settings({ platform = 'linux', roots = ['/home/me/film'], failSav
   vm.runInContext(settingsCode, ctx);
   const page = element('div');
   await ctx.settingsPage(page);
-  const button = text => walk(page).find(n => n.tag === 'button' && n.children.includes(text));
+  const button = (text: Json) => walk(page).find(n => n.tag === 'button' && n.children.includes(text));
   return {
     page,
     calls,
@@ -89,7 +89,7 @@ test('case-distinct Unix watch folders can be added with either entry method', a
     }
     await s.save();
     assert.deepEqual(
-      s.calls[0].roots.map(r => r.path),
+      s.calls[0].roots.map((r: Json) => r.path),
       ['/home/me/film', '/home/me/Film']
     );
   }

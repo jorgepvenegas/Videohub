@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { trashName, setSystemCapabilities, sameFolder } from './system.ts';
 import { agentName, setAgentName } from './agent.ts';
 // VideoHub UI: hash router + pages. No build step.
@@ -8,10 +7,22 @@ import { activeRenders, elapsedSeconds, timeText, remainingText } from './render
 import { thumbnailStudioPage } from './thumbstudio/page.js';
 import { NOTE_STATUS_LABEL, NOTE_KIND_LABEL, PROJECT_STATUS_LABEL, THUMB_STATUS_LABEL } from './values.ts';
 
+// any: the hub's JSON replies and the pages' loose objects have no shared schema yet; typing each is a redesign, not a conversion
+export type Json = any;
+declare global {
+  interface Window {
+    __vhNewCount?: (n?: number) => void;
+  }
+}
+type Kid = Node | string | number | boolean | null | undefined | Kid[];
+
 // ---------- tiny helpers
-export const $ = (s, el = document) => el.querySelector(s);
-export function h(tag, attrs = {}, ...kids) {
-  const el = document.createElement(tag);
+// the pages only query elements they just built, so a missing one is a bug that should throw where it is used
+export const $ = (s: string, el: ParentNode = document) => el.querySelector<HTMLElement>(s) as HTMLElement;
+export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs?: Json, ...kids: Kid[]): HTMLElementTagNameMap[K];
+export function h(tag: string, attrs?: Json, ...kids: Kid[]): HTMLElement;
+export function h(tag: string, attrs: Json = {}, ...kids: Kid[]) {
+  const el = document.createElement(tag) as Json;
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v == null || v === false) continue;
     if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
@@ -20,10 +31,10 @@ export function h(tag, attrs = {}, ...kids) {
     else if (k === 'value' && tag === 'textarea') el.value = v;
     else el.setAttribute(k, v === true ? '' : v);
   }
-  for (const c of kids.flat(Infinity)) if (c != null && c !== false) el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  for (const c of (kids as Json[]).flat(Infinity)) if (c != null && c !== false) el.append(c instanceof Node ? c : document.createTextNode(String(c)));
   return el;
 }
-export async function api(path, opts = {}) {
+export async function api(path: string, opts: Json = {}): Promise<Json> {
   const r = await fetch(path, {
     ...opts,
     headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
@@ -33,7 +44,7 @@ export async function api(path, opts = {}) {
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
 }
-export const GB = b =>
+export const GB = (b: number) =>
   !b
     ? '0'
     : b >= 1073741824
@@ -41,18 +52,18 @@ export const GB = b =>
       : b >= 1048576
         ? Math.round(b / 1048576) + ' MB'
         : Math.max(1, Math.round(b / 1024)) + ' KB';
-export const DUR = s => {
+export const DUR = (s: number) => {
   if (!s && s !== 0) return '—';
   s = Math.round(s);
   const m = Math.floor(s / 60);
   return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` : `${m}:${String(s % 60).padStart(2, '0')}`;
 };
-export const TC = s => {
+export const TC = (s: number) => {
   const m = Math.floor(s / 60),
     r = s - m * 60;
   return `${m}:${r.toFixed(2).padStart(5, '0')}`;
 };
-export function AGO(ms) {
+export function AGO(ms: number | string | null | undefined) {
   if (!ms) return '—';
   const d = (Date.now() - (typeof ms === 'number' ? ms : Date.parse(ms))) / 1000;
   if (d < 60) return 'just now';
@@ -61,13 +72,13 @@ export function AGO(ms) {
   if (d < 86400 * 30) return Math.floor(d / 86400) + ' days ago';
   return new Date(typeof ms === 'number' ? ms : Date.parse(ms)).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-export function toast(msg, err) {
+export function toast(msg: Kid, err?: boolean) {
   const el = h('div', { class: err ? 'err' : '' }, msg);
   $('#toast').append(el);
   setTimeout(() => el.remove(), err ? 7000 : 4000);
 }
-export function confirmBox(title, body, okText = 'OK') {
-  return new Promise(res => {
+export function confirmBox(title: Kid, body: Kid, okText = 'OK') {
+  return new Promise<boolean>(res => {
     const bg = h(
       'div',
       { class: 'modal-bg' },
@@ -108,7 +119,7 @@ export function confirmBox(title, body, okText = 'OK') {
   });
 }
 const STATUSES = ['in-progress', 'review', 'revision', 'approved', 'published', 'archived'];
-const FAMILY = {
+const FAMILY: Record<string, string> = {
   A: 'chunked',
   B: 'worker chunks',
   C: 'segmented',
@@ -118,15 +129,15 @@ const FAMILY = {
   code: 'code',
   other: 'other'
 };
-const ROLE = { final: 'final with audio', web: 'web copy', preview: 'preview', clip: 'test clip', silent: 'silent', broken: 'broken' };
-export const pill = (cls, text) => h('span', { class: 'pill ' + String(cls).replace(/\s/g, '-') }, text);
+const ROLE: Record<string, string> = { final: 'final with audio', web: 'web copy', preview: 'preview', clip: 'test clip', silent: 'silent', broken: 'broken' };
+export const pill = (cls: unknown, text?: Kid) => h('span', { class: 'pill ' + String(cls).replace(/\s/g, '-') }, text);
 
 // ---------- live data (SSE)
-let rendersCache = null;
-const renderSubs = new Set();
+let rendersCache: Json = null;
+const renderSubs = new Set<(d: Json) => void>();
 const es = new EventSource('/api/events');
 // VideoHub closes itself when unused; if this window outlived it, say how to bring it back (EventSource keeps retrying)
-let downTimer = null;
+let downTimer: ReturnType<typeof setTimeout> | null = null;
 const downBar = h(
   'div',
   { class: 'downbar', hidden: true },
@@ -140,13 +151,13 @@ es.addEventListener('error', () => {
     }, 4000);
 });
 es.addEventListener('open', () => {
-  clearTimeout(downTimer);
+  clearTimeout(downTimer!);
   downTimer = null;
   if (!downBar.hidden) location.reload();
 });
 // no pop-up messages for things the user did not just do: lists and badges update silently
 let userScan = false,
-  uiVersion = null,
+  uiVersion: string | null = null,
   reloadPending = false;
 export const markUserScan = () => {
   userScan = true;
@@ -218,14 +229,14 @@ es.addEventListener('job', e => {
     longToast(h('span', {}, `❌ Render failed: ${j.projectName} — ${j.error || ''} `, h('a', { href: '#/renders' }, 'Details')), true);
   if (ev && ['done', 'failed', 'cancelled'].includes(ev.type)) refreshNewCount();
 });
-function longToast(node, err) {
+function longToast(node: Json, err?: boolean) {
   const el = h('div', { class: err ? 'err' : '' }, node);
   $('#toast').append(el);
   setTimeout(() => el.remove(), 15000);
 }
 // "new" (not yet watched) render outputs on the Projects and Renders tabs
-function refreshNewCount(n) {
-  const set = k => {
+function refreshNewCount(n?: number) {
+  const set = (k: Json) => {
     for (const id of ['#newOutP', '#newOutR', '#newOutO']) {
       const c = $(id);
       if (c) {
@@ -274,8 +285,8 @@ async function refreshProjectList() {
   main.scrollTop = y;
 }
 // pages subscribe to other server events (e.g. 'proxy') through this
-const hubSubs = {};
-export function onHubEvent(type, fn) {
+const hubSubs: Record<string, Set<(d: Json) => void>> = {};
+export function onHubEvent(type: Json, fn: Json) {
   if (!hubSubs[type]) {
     hubSubs[type] = new Set();
     es.addEventListener(type, e => {
@@ -291,14 +302,14 @@ export function onHubEvent(type, fn) {
 }
 function updateLive() {
   const g = rendersCache?.guard,
-    n = activeRenders(rendersCache).filter(r => r.state !== 'queued').length;
+    n = activeRenders(rendersCache).filter((r: Json) => r.state !== 'queued').length;
   const c = $('#renderCount');
   c.hidden = !n;
   c.textContent = n;
   $('#live').innerHTML = '';
   $('#live').append(
     g?.running ? h('div', {}, `RAM ${(g.ramAvailMB / 1024).toFixed(1)} GB free`) : h('div', { class: 'dim' }, 'Render protection is off'),
-    g?.running && g.renders?.some(r => r.slow) ? h('div', { class: 'accent' }, '🐢 a render is slowed down') : ''
+    g?.running && g.renders?.some((r: Json) => r.slow) ? h('div', { class: 'accent' }, '🐢 a render is slowed down') : ''
   );
 }
 
@@ -313,11 +324,13 @@ const pages = {
   settings: settingsPage,
   thumbstudio: thumbnailStudioPage
 };
-let cleanup = null;
+let cleanup: (() => void) | null = null;
 async function render() {
   await agentReady;
   const [name = 'projects', ...args] = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-  document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === (name === 'p' || name === 'review' ? 'projects' : name)));
+  document
+    .querySelectorAll<HTMLElement>('[data-nav]')
+    .forEach(a => a.classList.toggle('on', a.dataset.nav === (name === 'p' || name === 'review' ? 'projects' : name)));
   if (cleanup) {
     try {
       cleanup();
@@ -329,8 +342,8 @@ async function render() {
   const page = h('div', { class: 'page' });
   main.append(page);
   try {
-    cleanup = (await (pages[name] || projectsPage)(page, ...args.map(decodeURIComponent))) || null;
-  } catch (e) {
+    cleanup = (await ((pages as Json)[name] || projectsPage)(page, ...args.map(decodeURIComponent))) || null;
+  } catch (e: Json) {
     page.append(h('div', { class: 'empty' }, 'Error: ' + e.message));
   }
 }
@@ -346,7 +359,7 @@ render();
 // ---------- first run: no projects yet → where films go, the example film, adding a folder
 async function welcomePanel() {
   const c = await api('/api/config').catch(() => ({ roots: [] }));
-  const on = (c.roots || []).filter(r => r.enabled !== false),
+  const on = (c.roots || []).filter((r: Json) => r.enabled !== false),
     ex = c.example || {};
   const box = h(
     'div',
@@ -362,7 +375,7 @@ async function welcomePanel() {
       ? h(
           'ul',
           { style: { margin: '4px 0 10px' } },
-          on.map(r => h('li', { class: 'mono', style: { fontSize: '12.5px' } }, r.path))
+          on.map((r: Json) => h('li', { class: 'mono', style: { fontSize: '12.5px' } }, r.path))
         )
       : null,
     h(
@@ -373,14 +386,14 @@ async function welcomePanel() {
             'button',
             {
               class: 'primary',
-              onclick: async e => {
+              onclick: async (e: Json) => {
                 e.target.disabled = true;
                 e.target.textContent = 'Adding…';
                 try {
                   const r = await api('/api/example/install', { method: 'POST' });
                   toast('Example film added: ' + r.path);
                   render();
-                } catch (err) {
+                } catch (err: Json) {
                   toast('Could not add the example: ' + err.message, true);
                   e.target.disabled = false;
                 }
@@ -417,7 +430,7 @@ async function welcomePanel() {
 
 // the encoder renders use (config render.encoder → VIDEOHUB_ENCODER for render scripts): a select that saves at once,
 // with what this PC can use (GET /api/encoders probes once, then it is cached)
-function renderSpeedControl(c) {
+function renderSpeedControl(c: Json) {
   const cur = c.render?.encoder || 'auto';
   const sel = h('select', { disabled: true, title: 'Which encoder turns the frames into the MP4' }, h('option', { value: cur }, cur));
   const note = h('span', { class: 'dim', style: { fontSize: '12.5px' } }, 'checking this PC…');
@@ -448,7 +461,7 @@ function renderSpeedControl(c) {
     try {
       await api('/api/config', { method: 'POST', body: { render: { encoder: sel.value } } });
       toast('Render speed saved: ' + sel.selectedOptions[0].textContent);
-    } catch (err) {
+    } catch (err: Json) {
       toast('Could not save: ' + err.message, true);
     }
   };
@@ -456,8 +469,8 @@ function renderSpeedControl(c) {
 }
 
 // ---------- Projects
-const state = { q: '', status: '', family: '', root: '', sort: 'updated' };
-async function projectsPage(page) {
+const state: Record<string, string> = { q: '', status: '', family: '', root: '', sort: 'updated' };
+async function projectsPage(page: Json) {
   const recent = outputsPanel({ compact: true });
   page.append(
     h(
@@ -481,8 +494,8 @@ async function projectsPage(page) {
   );
   const data = await api('/api/projects');
   const ps = data.projects;
-  const total = ps.reduce((s, p) => s + (p.sizes?.total || 0), 0);
-  const open = ps.reduce((s, p) => s + (p.notesOpen || 0), 0);
+  const total = ps.reduce((s: Json, p: Json) => s + (p.sizes?.total || 0), 0);
+  const open = ps.reduce((s: Json, p: Json) => s + (p.notesOpen || 0), 0);
   const tiles = h(
     'div',
     { class: 'tiles' },
@@ -495,23 +508,23 @@ async function projectsPage(page) {
   if (!ps.length && !data.scanning) page.append(await welcomePanel());
   api('/api/disk')
     .then(d => {
-      const s = d.candidates.filter(c => c.preset === 'safe').reduce((a, c) => a + c.size, 0);
+      const s = d.candidates.filter((c: Json) => c.preset === 'safe').reduce((a: Json, c: Json) => a + c.size, 0);
       const el = $('#cleanTile');
       if (el) el.textContent = GB(s);
     })
     .catch(() => {});
 
-  const roots = [...new Set(ps.map(p => p.root))];
-  const sel = (key, opts) =>
+  const roots = [...new Set<string>(ps.map((p: Json) => p.root))];
+  const sel = (key: Json, opts: Json) =>
     h(
       'select',
       {
-        onchange: e => {
+        onchange: (e: Json) => {
           state[key] = e.target.value;
           draw();
         }
       },
-      opts.map(([v, t]) => h('option', { value: v, selected: state[key] === v }, t))
+      opts.map(([v, t]: Json) => h('option', { value: v, selected: state[key] === v }, t))
     );
   page.append(
     h(
@@ -521,12 +534,12 @@ async function projectsPage(page) {
         type: 'search',
         placeholder: 'Search…',
         value: state.q,
-        oninput: e => {
+        oninput: (e: Json) => {
           state.q = e.target.value;
           draw();
         }
       }),
-      sel('status', [['', 'All statuses'], ...STATUSES.concat('done').map(s => [s, PROJECT_STATUS_LABEL[s] || s])]),
+      sel('status', [['', 'All statuses'], ...STATUSES.concat('done').map((s: string) => [s, PROJECT_STATUS_LABEL[s] || s])]),
       sel('family', [['', 'All types'], ...Object.entries(FAMILY)]),
       sel('root', [['', 'All folders'], ...roots.map(r => [r, r.split(/[\\/]/).slice(-2).join('/')])]),
       sel('sort', [
@@ -544,20 +557,20 @@ async function projectsPage(page) {
     thumbObserver.disconnect();
     const q = state.q.toLocaleLowerCase('en-US');
     let list = ps.filter(
-      p =>
+      (p: Json) =>
         (!q || (p.title + ' ' + p.label).toLocaleLowerCase('en-US').includes(q)) &&
         (!state.status || p.status === state.status) &&
         (!state.family || p.family === state.family) &&
         (!state.root || p.root === state.root)
     );
-    const bloat = p => (p.finalSize ? p.sizes.total / p.finalSize : 0);
+    const bloat = (p: Json) => (p.finalSize ? p.sizes.total / p.finalSize : 0);
     list.sort(
       {
-        updated: (a, b) => b.updated - a.updated,
-        size: (a, b) => b.sizes.total - a.sizes.total,
-        bloat: (a, b) => bloat(b) - bloat(a),
-        notes: (a, b) => b.notesOpen - a.notesOpen,
-        name: (a, b) => a.title.localeCompare(b.title, 'en-US')
+        updated: (a: Json, b: Json) => b.updated - a.updated,
+        size: (a: Json, b: Json) => b.sizes.total - a.sizes.total,
+        bloat: (a: Json, b: Json) => bloat(b) - bloat(a),
+        notes: (a: Json, b: Json) => b.notesOpen - a.notesOpen,
+        name: (a: Json, b: Json) => a.title.localeCompare(b.title, 'en-US')
       }[state.sort]
     );
     grid.innerHTML = '';
@@ -575,7 +588,7 @@ const thumbObserver = new IntersectionObserver(
   entries => {
     for (const e of entries) {
       if (!e.isIntersecting) continue;
-      const el = e.target;
+      const el = e.target as HTMLElement;
       thumbObserver.unobserve(el);
       if (!el.isConnected) continue;
       const img = new Image();
@@ -595,10 +608,10 @@ const thumbObserver = new IntersectionObserver(
   },
   { rootMargin: '200px' }
 );
-function tile(k, v, onclick) {
+function tile(k: Json, v: Json, onclick?: Json) {
   return h('div', { class: 'tile' + (onclick ? ' click' : ''), onclick }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v));
 }
-function projectCard(p) {
+function projectCard(p: Json) {
   const out = p.sizes?.output || 0,
     junk = (p.sizes?.total || 0) - out;
   const ratio = p.finalSize ? p.sizes.total / p.finalSize : 0;
@@ -608,7 +621,7 @@ function projectCard(p) {
     {
       class: 'thumb' + (p.outputsCount ? ' playable' : ''),
       title: p.live ? 'Live preview from the latest code' : p.outputsCount ? 'Play the latest render' : null,
-      onclick: e => {
+      onclick: (e: Json) => {
         e.stopPropagation();
         openProject(p);
       }
@@ -656,7 +669,7 @@ function projectCard(p) {
               'button',
               {
                 class: 'ghost cardlink',
-                onclick: e => {
+                onclick: (e: Json) => {
                   e.stopPropagation();
                   openProject(p);
                 }
@@ -670,7 +683,7 @@ function projectCard(p) {
               {
                 class: 'ghost cardlink',
                 title: 'Latest saved MP4; may differ from the live code',
-                onclick: e => {
+                onclick: (e: Json) => {
                   e.stopPropagation();
                   location.hash = `#/review/${p.id}/${encodeURIComponent(p.latest)}`;
                 }
@@ -684,7 +697,7 @@ function projectCard(p) {
           {
             class: 'cardbtn',
             title: 'Open folder in file manager',
-            onclick: e => {
+            onclick: (e: Json) => {
               e.stopPropagation();
               openFolder(p.id);
             }
@@ -696,7 +709,7 @@ function projectCard(p) {
           {
             class: 'cardbtn',
             title: `Remove project… (from the list or to the ${trashName()})`,
-            onclick: e => {
+            onclick: (e: Json) => {
               e.stopPropagation();
               removeProject(p, () => render());
             }
@@ -715,16 +728,16 @@ function projectCard(p) {
 }
 
 // a project opens where the work happens: its live preview, else its newest video, else the project page
-async function openProject(p) {
+async function openProject(p: Json) {
   const li = await api(`/api/project/${p.id}/live?probe=1`).catch(() => null);
   if (li?.ok) location.hash = `#/review/${p.id}/~live`;
   else if (p.outputsCount && p.latest) location.hash = `#/review/${p.id}/${encodeURIComponent(p.latest)}`;
   else location.hash = '#/p/' + p.id;
 }
 // "Remove": hide it from the list (no file touched, restore from Settings) or send its folder to the system Trash
-export async function removeProject(p, after) {
+export async function removeProject(p: Json, after: Json) {
   let mode = 'hide';
-  const opt = (m, label, sub) =>
+  const opt = (m: Json, label: Json, sub: Json) =>
     h(
       'label',
       { class: 'row', style: { gap: '8px', alignItems: 'flex-start', margin: '8px 0' } },
@@ -768,7 +781,7 @@ export async function removeProject(p, after) {
       if (r.ok) toast(`Sent to ${trashName()} · ${GB(p.sizes?.total || 0)} freed`);
       else toast('Could not delete: ' + (r.error || ''), true);
     }
-  } catch (e) {
+  } catch (e: Json) {
     toast(e.message, true);
     return false;
   }
@@ -778,10 +791,10 @@ export async function removeProject(p, after) {
 
 // ---------- Project
 // the project folder (or a video's folder with the video selected) in the file manager
-export const openFolder = (id, file) =>
+export const openFolder = (id: Json, file?: Json) =>
   api(`/api/project/${id}/open-folder`, { method: 'POST', body: file ? { file } : {} }).catch(e => toast(e.message, true));
 // "🖼 Thumbnail" on a project: its newest thumbnail, or a new one for it
-async function openProjectThumbnail(p) {
+async function openProjectThumbnail(p: Json) {
   try {
     const list = await api('/api/thumbstudio/list?project=' + encodeURIComponent(p.id));
     if (list.length) {
@@ -790,14 +803,14 @@ async function openProjectThumbnail(p) {
     }
     const t = await api('/api/thumbstudio/new', { method: 'POST', body: { project: p.id, title: p.title || p.name, format: '16:9' } });
     location.hash = `#/thumbstudio/${t.pid}/${t.tid}`;
-  } catch (e) {
+  } catch (e: Json) {
     toast('Could not open thumbnail: ' + e.message, true);
   }
 }
 
-async function projectPage(page, id) {
+async function projectPage(page: Json, id: Json) {
   const p = await api('/api/project/' + id);
-  const latest = p.outputs.find(o => o.rel === p.latest);
+  const latest = p.outputs.find((o: Json) => o.rel === p.latest);
   // live preview: watch the film from its code, no render (shown only when the film page supports it)
   const liveBtn = h(
     'button',
@@ -819,7 +832,7 @@ async function projectPage(page, id) {
   const statusSel = h(
     'select',
     {
-      onchange: async e => {
+      onchange: async (e: Json) => {
         await api(`/api/project/${id}/meta`, { method: 'POST', body: { status: e.target.value } });
         toast('Status saved');
       }
@@ -878,7 +891,7 @@ async function projectPage(page, id) {
         h(
           'div',
           { class: 'row', style: { gap: '10px', flexWrap: 'wrap' } },
-          list.map(t =>
+          list.map((t: Json) =>
             h(
               'a',
               { href: `#/thumbstudio/${t.pid}/${t.id}`, class: 'ts-project-thumb', title: t.title },
@@ -917,7 +930,7 @@ async function projectPage(page, id) {
             h('th', { class: 'num' }, 'Date'),
             h('th', {})
           ),
-          p.outputs.map(o =>
+          p.outputs.map((o: Json) =>
             h(
               'tr',
               {},
@@ -995,7 +1008,7 @@ async function projectPage(page, id) {
                 notes
                   .slice()
                   .reverse()
-                  .map(n =>
+                  .map((n: Json) =>
                     h(
                       'tr',
                       { style: { cursor: 'pointer' }, onclick: () => (location.hash = `#/review/${id}/${encodeURIComponent(n.file || p.latest)}?n=${n.id}`) },
@@ -1020,7 +1033,7 @@ async function projectPage(page, id) {
                 { class: 't' },
                 p.history
                   .slice(0, 25)
-                  .map(x =>
+                  .map((x: Json) =>
                     h(
                       'tr',
                       {},
@@ -1061,10 +1074,10 @@ async function projectPage(page, id) {
 
 // "Tidy up this project": what the films take vs what can go; the safe items and the deep ones the rules
 // pre-select (chunks of a film marked finished by the user, old QA) are ticked
-function tidyBlock(p, after) {
+function tidyBlock(p: Json, after: Json) {
   const cands = p.cleanup,
-    film = p.outputs.filter(o => o.role === 'final' || o.role === 'web').reduce((t, o) => t + (o.size || 0), 0);
-  const left = cands.filter(c => c.preset).reduce((t, c) => t + c.size, 0);
+    film = p.outputs.filter((o: Json) => o.role === 'final' || o.role === 'web').reduce((t: Json, o: Json) => t + (o.size || 0), 0);
+  const left = cands.filter((c: Json) => c.preset).reduce((t: Json, c: Json) => t + c.size, 0);
   const inReview = !['approved', 'published', 'archived', 'done'].includes(p.status);
   return h(
     'div',
@@ -1118,9 +1131,9 @@ function tidyBlock(p, after) {
     cleanupBlock(cands, after, c => c.preset === 'safe' || (c.preset === 'deep' && c.checked), false)
   );
 }
-function cleanupBlock(cands, after, pre = c => c.checked, title = true) {
-  const checked = new Set(cands.filter(pre).map(c => c.id));
-  const sum = () => cands.filter(c => checked.has(c.id)).reduce((s, c) => s + c.size, 0);
+function cleanupBlock(cands: Json, after: Json, pre = (c: Json) => c.checked, title = true) {
+  const checked = new Set(cands.filter(pre).map((c: Json) => c.id));
+  const sum = () => cands.filter((c: Json) => checked.has(c.id)).reduce((s: Json, c: Json) => s + c.size, 0);
   const btn = h('button', { class: 'primary', 'data-clean': '1' });
   const upd = () => {
     btn.textContent = `Clean selected (${GB(sum())})`;
@@ -1129,28 +1142,28 @@ function cleanupBlock(cands, after, pre = c => c.checked, title = true) {
   };
   btn.onclick = () =>
     runClean(
-      cands.filter(c => checked.has(c.id)),
+      cands.filter((c: Json) => checked.has(c.id)),
       after
     );
   upd();
   return h(
     'div',
     {},
-    title ? h('h2', {}, `Available to clean · ${GB(cands.reduce((s, c) => s + c.size, 0))}`) : null,
+    title ? h('h2', {}, `Available to clean · ${GB(cands.reduce((s: Json, c: Json) => s + c.size, 0))}`) : null,
     h(
       'div',
       { class: 'rule' },
       h(
         'div',
         { class: 'items', style: { borderTop: 0 } },
-        cands.map(c =>
+        cands.map((c: Json) =>
           h(
             'label',
             { class: 'item' },
             h('input', {
               type: 'checkbox',
               checked: checked.has(c.id),
-              onchange: e => {
+              onchange: (e: Json) => {
                 e.target.checked ? checked.add(c.id) : checked.delete(c.id);
                 upd();
               }
@@ -1172,18 +1185,18 @@ function cleanupBlock(cands, after, pre = c => c.checked, title = true) {
 
 // Cleaning runs on the hub in the background, one run at a time. A panel shows its progress (SSE 'clean') and,
 // at the end, what went where and what could not go and why. Clean buttons are locked while a run is going.
-let cleanState = null,
-  cleanBox = null,
-  cleanAfter = null;
+let cleanState: Json = null,
+  cleanBox: Json = null,
+  cleanAfter: { fn: () => void; hash: string } | null = null;
 const cleanRunning = () => cleanState && cleanState.state === 'running';
 const lockCleanButtons = () =>
-  document.querySelectorAll('button[data-clean]').forEach(b => {
+  document.querySelectorAll<HTMLButtonElement>('button[data-clean]').forEach(b => {
     b.disabled = cleanRunning() || b.dataset.empty === '1';
     b.title = cleanRunning() ? 'Cleanup in progress' : '';
   });
-const STATUS_TR = { ok: 'done', error: 'failed', skipped: 'skipped', gone: 'already gone' };
+const STATUS_TR: Record<string, string> = { ok: 'done', error: 'failed', skipped: 'skipped', gone: 'already gone' };
 // Element.append prints null as text: skip empty parts
-const putClean = (...kids) => cleanBox.append(...kids.filter(k => k != null && k !== false));
+const putClean = (...kids: Json[]) => cleanBox.append(...kids.filter(k => k != null && k !== false));
 function drawCleanBox() {
   const st = cleanState;
   if (!st || st.state === 'none') {
@@ -1211,8 +1224,8 @@ function drawCleanBox() {
     );
   } else {
     const rs = st.results || [],
-      bad = rs.filter(r => r.status === 'error'),
-      other = rs.filter(r => r.status === 'skipped' || r.status === 'gone');
+      bad = rs.filter((r: Json) => r.status === 'error'),
+      other = rs.filter((r: Json) => r.status === 'skipped' || r.status === 'gone');
     putClean(
       h('b', {}, `Cleanup finished · ${GB(st.freed)} freed`),
       h(
@@ -1257,7 +1270,7 @@ function drawCleanBox() {
     );
   }
 }
-function onCleanState(st) {
+function onCleanState(st: Json) {
   if (st && cleanState && st.id === cleanState.id && cleanState.state === 'done' && st.state !== 'done') return;
   const was = cleanRunning();
   cleanState = st;
@@ -1276,27 +1289,31 @@ api('/api/disk/clean')
   })
   .catch(() => {});
 
-export async function runClean(items, after) {
+export async function runClean(items: Json, after: Json) {
   if (cleanRunning()) {
     toast('Cleanup is already running; try again when it finishes.', true);
     return;
   }
   if (!items.length) return;
-  const rec = items.filter(c => c.action === 'recycle'),
-    arc = items.filter(c => c.action === 'archive');
+  const rec = items.filter((c: Json) => c.action === 'recycle'),
+    arc = items.filter((c: Json) => c.action === 'archive');
   const ok = await confirmBox(
     'Cleanup',
     h(
       'div',
       { class: 'sub', style: { fontSize: '14px' } },
       rec.length
-        ? h('p', {}, `${rec.length} items (${GB(rec.reduce((s, c) => s + c.size, 0))}) will go to the ${trashName()}. You can restore them from there.`)
+        ? h(
+            'p',
+            {},
+            `${rec.length} items (${GB(rec.reduce((s: Json, c: Json) => s + c.size, 0))}) will go to the ${trashName()}. You can restore them from there.`
+          )
         : null,
       arc.length
         ? h(
             'p',
             {},
-            `${arc.length} old versions (${GB(arc.reduce((s, c) => s + c.size, 0))}) will move to the archive folder and be removed here after the copy is verified.`
+            `${arc.length} old versions (${GB(arc.reduce((s: Json, c: Json) => s + c.size, 0))}) will move to the archive folder and be removed here after the copy is verified.`
           )
         : null,
       h('p', { class: 'dim' }, 'Runs in the background; progress appears at the bottom right.')
@@ -1306,15 +1323,15 @@ export async function runClean(items, after) {
   if (!ok) return;
   try {
     cleanAfter = after ? { fn: after, hash: location.hash } : null;
-    onCleanState(await api('/api/disk/clean', { method: 'POST', body: { ids: items.map(c => c.id) } }));
-  } catch (e) {
+    onCleanState(await api('/api/disk/clean', { method: 'POST', body: { ids: items.map((c: Json) => c.id) } }));
+  } catch (e: Json) {
     cleanAfter = null;
     toast('Cleanup did not start: ' + e.message, true);
   }
 }
 
 // ---------- Renders
-async function rendersPage(page) {
+async function rendersPage(page: Json) {
   page.append(h('h1', {}, 'Renders'), h('div', { class: 'sub' }, 'Running jobs, elapsed time and speed settings. Finished videos are below.'));
   const live = h('div', { class: 'current-renders' }),
     hist = h('div', {}),
@@ -1322,7 +1339,7 @@ async function rendersPage(page) {
   let timedRows = new Map();
   const tickTimers = () => {
     const now = Date.now();
-    for (const cell of live.querySelectorAll('[data-render-timer]')) {
+    for (const cell of live.querySelectorAll<HTMLElement>('[data-render-timer]')) {
       const row = timedRows.get(cell.dataset.rowKey);
       if (!row) continue;
       cell.textContent = cell.dataset.renderTimer === 'elapsed' ? timeText(elapsedSeconds(row, now)) : remainingText(row, now);
@@ -1340,11 +1357,11 @@ async function rendersPage(page) {
   api('/api/guard/settings')
     .then(gs => settings.append(guardPanel(gs)))
     .catch(() => settings.append(h('div', { class: 'empty' }, 'Could not load render settings.')));
-  const draw = d => {
+  const draw = (d: Json) => {
     if (!d) return;
     const g = d.guard || {},
       active = activeRenders(d);
-    timedRows = new Map(active.map(r => [r.key, r]));
+    timedRows = new Map(active.map((r: Json) => [r.key, r]));
     live.innerHTML = '';
     live.append(
       h(
@@ -1362,7 +1379,7 @@ async function rendersPage(page) {
                 : g.capNow + '%'
               : '—'
         ),
-        tile('Running', active.filter(r => r.state === 'running').length)
+        tile('Running', active.filter((r: Json) => r.state === 'running').length)
       )
     );
     // slow every render down at once (and back): frees the computer for a moment without stopping anything
@@ -1376,14 +1393,14 @@ async function rendersPage(page) {
         )
       );
     // programs that hold RAM next to the renders (only shown; closing them is the user's call)
-    const hogs = (d.hogs || []).filter(x => x.bytes >= 1024 ** 3);
+    const hogs = (d.hogs || []).filter((x: Json) => x.bytes >= 1024 ** 3);
     if (hogs.length)
       live.append(
         h(
           'div',
           { class: 'panel hogs' },
           h('b', {}, 'Programs using RAM: '),
-          hogs.map((x, i) => [i ? ', ' : '', h('span', { class: x.bytes >= 3 * 1024 ** 3 ? 'red' : 'accent' }, `${x.name} ${GB(x.bytes)}`)]),
+          hogs.map((x: Json, i: Json) => [i ? ', ' : '', h('span', { class: x.bytes >= 3 * 1024 ** 3 ? 'red' : 'accent' }, `${x.name} ${GB(x.bytes)}`)]),
           h(
             'div',
             { class: 'dim' },
@@ -1391,7 +1408,7 @@ async function rendersPage(page) {
           )
         )
       );
-    const rows = active.map(row => {
+    const rows = active.map((row: Json) => {
       const r = row.native,
         j = row.job;
       const label = j?.projectName || r?.project || r?.cwd || 'Render';
@@ -1401,7 +1418,7 @@ async function rendersPage(page) {
         started && Number.isFinite(started.getTime())
           ? 'Started ' + started.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
           : '';
-      const timerCell = (kind, title) =>
+      const timerCell = (kind: Json, title: Json) =>
         h(
           'td',
           { class: 'num render-time', 'data-render-timer': kind, 'data-row-key': row.key, title },
@@ -1425,14 +1442,16 @@ async function rendersPage(page) {
             ? h(
                 'div',
                 { class: 'dim' },
-                {
-                  prepare: 'Preparing',
-                  render: 'Drawing frames',
-                  validate: 'Checking chunks',
-                  concat: 'Joining video',
-                  audio: 'Adding audio',
-                  register: 'Saving output'
-                }[j.phase] || ''
+                (
+                  {
+                    prepare: 'Preparing',
+                    render: 'Drawing frames',
+                    validate: 'Checking chunks',
+                    concat: 'Joining video',
+                    audio: 'Adding audio',
+                    register: 'Saving output'
+                  } as Record<string, string>
+                )[j.phase] || ''
               )
             : null
         ),
@@ -1553,7 +1572,7 @@ async function rendersPage(page) {
           )
         : h('div', { class: 'empty' }, 'No renders are running.')
     );
-    const sn = (d.snipp || []).filter(s => s.state === 'running' || Date.now() - s.updated < 864e5);
+    const sn = (d.snipp || []).filter((s: Json) => s.state === 'running' || Date.now() - s.updated < 864e5);
     if (sn.length)
       live.append(
         h('h2', {}, 'Snipp exports'),
@@ -1563,7 +1582,7 @@ async function rendersPage(page) {
           h(
             'table',
             { class: 't' },
-            sn.map(s =>
+            sn.map((s: Json) =>
               h(
                 'tr',
                 {},
@@ -1577,7 +1596,7 @@ async function rendersPage(page) {
         )
       );
   };
-  const cmd = async (action, rootPid) => {
+  const cmd = async (action: Json, rootPid?: Json) => {
     const r = await api('/api/renders/cmd', { method: 'POST', body: { action, rootPid } });
     if (r.note) toast(r.note, true);
   };
@@ -1587,9 +1606,9 @@ async function rendersPage(page) {
     throw e;
   });
   draw(d);
-  const jobsDone = (d.jobs || []).filter(j => !['queued', 'running'].includes(j.state)).slice(0, 15);
+  const jobsDone = (d.jobs || []).filter((j: Json) => !['queued', 'running'].includes(j.state)).slice(0, 15);
   const hrows = [
-    ...jobsDone.map(j => ({
+    ...jobsDone.map((j: Json) => ({
       at: j.finishedAt || j.createdAt,
       event: j.state === 'done' ? 'FINISHED' : j.state.toUpperCase(),
       session: j.session?.title || '',
@@ -1624,7 +1643,7 @@ async function rendersPage(page) {
         )
       : h('div', { class: 'empty' }, 'No history yet.')
   );
-  const sub = x => draw(x);
+  const sub = (x: Json) => draw(x);
   renderSubs.add(sub);
   return () => {
     clearInterval(clock);
@@ -1634,7 +1653,7 @@ async function rendersPage(page) {
 }
 
 // ---------- dedicated recent-render history
-async function outputsPage(page) {
+async function outputsPage(page: Json) {
   const panel = outputsPanel();
   page.append(
     h('div', { class: 'row' }, h('h1', {}, 'Recent renders'), h('span', { class: 'spacer' }), h('a', { href: '#/renders' }, 'Running renders →')),
@@ -1645,33 +1664,33 @@ async function outputsPage(page) {
 }
 
 // ---------- render settings (RenderGuard): presets, a temporary full-power window, and the sliders
-const PRESETS = [
+const PRESETS: [string, string, Json][] = [
   ['Full power', 'every core, normal priority', { CapActive: 100, LowPrio: false }],
   ['Balanced', '90% of the cores, low priority (default)', { CapActive: 90, LowPrio: true }],
   ['Quiet', 'half of the cores; keeps your computer responsive', { CapActive: 50, LowPrio: true }]
 ];
-function guardPanel(gs, { full = false } = {}) {
+function guardPanel(gs: Json, { full = false } = {}) {
   const box = h('div', { class: 'panel gpanel' });
   const redraw = async () => {
     const fresh = await api('/api/guard/settings').catch(() => null);
     if (fresh) box.replaceWith(guardPanel(fresh, { full }));
   };
-  let timer = null;
-  const pending = {};
-  const save = (k, v) => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const pending: Record<string, Json> = {};
+  const save = (k: Json, v: Json) => {
     pending[k] = v;
-    clearTimeout(timer);
+    clearTimeout(timer!);
     timer = setTimeout(async () => {
       const body = { ...pending };
       for (const x in pending) delete pending[x];
       try {
         await api('/api/guard/settings', { method: 'POST', body });
-      } catch (e) {
+      } catch (e: Json) {
         toast('Could not save: ' + e.message, true);
       }
     }, 400);
   };
-  const slider = (key, label, min, max, step, fmt, help) => {
+  const slider = (key: Json, label: Json, min: Json, max: Json, step: Json, fmt: Json, help?: Json) => {
     const out = h('b', { style: { minWidth: '150px', display: 'inline-block' } }, fmt(gs[key]));
     const inp = h('input', {
       type: 'range',
@@ -1681,7 +1700,7 @@ function guardPanel(gs, { full = false } = {}) {
       step,
       value: gs[key],
       style: { width: '280px' },
-      oninput: e => {
+      oninput: (e: Json) => {
         out.textContent = fmt(+e.target.value);
         save(key, +e.target.value);
       }
@@ -1695,19 +1714,19 @@ function guardPanel(gs, { full = false } = {}) {
       help ? h('span', { class: 'dim', style: { fontSize: '12px' } }, help) : null
     );
   };
-  const toggle = (key, label, help) =>
+  const toggle = (key: Json, label: Json, help: Json) =>
     h(
       'label',
       { class: 'row', style: { margin: '6px 0', cursor: 'pointer' } },
-      h('input', { type: 'checkbox', 'data-guard-setting': key, checked: !!gs[key], onchange: e => save(key, e.target.checked) }),
+      h('input', { type: 'checkbox', 'data-guard-setting': key, checked: !!gs[key], onchange: (e: Json) => save(key, e.target.checked) }),
       h('span', {}, label),
       help ? h('span', { class: 'dim', style: { fontSize: '12px' } }, help) : null
     );
   const affinity = gs.capabilities?.cpuAffinity !== false;
   const limitReason = gs.capabilities?.cpuLimitReason || 'CPU limit not available on this system. Renders still use priority and RAM protection.';
   const cores = gs.cores || navigator.hardwareConcurrency || 12;
-  const pct = v => (v >= 100 ? '100% · unlimited' : `${v}% · ≈${((v * cores) / 100).toFixed(1)} cores`);
-  const same = p => Object.entries(p).every(([k, v]) => (typeof v === 'boolean' ? !!gs[k] === v : +gs[k] === v));
+  const pct = (v: Json) => (v >= 100 ? '100% · unlimited' : `${v}% · ≈${((v * cores) / 100).toFixed(1)} cores`);
+  const same = (p: Json) => Object.entries(p).every(([k, v]) => (typeof v === 'boolean' ? !!gs[k] === v : +gs[k] === v));
   const presets = h(
     'div',
     { class: 'row', style: { gap: '8px', margin: '2px 0 10px' } },
@@ -1730,7 +1749,7 @@ function guardPanel(gs, { full = false } = {}) {
   );
   // full power for a while, then the current settings come back by themselves (also after a restart)
   const temp = gs.temp && Date.parse(gs.temp.until) > Date.now() ? gs.temp : null;
-  const hhmm = iso => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const hhmm = (iso: Json) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const tempRow = h(
     'div',
     { class: 'row', style: { gap: '8px', margin: '0 0 10px' } },
@@ -1787,11 +1806,11 @@ function guardPanel(gs, { full = false } = {}) {
       300,
       Math.max(4000, Math.round((gs.ramTotalMB || 16384) / 4 / 100) * 100),
       100,
-      v => `${(v / 1024).toFixed(1)} GB free`,
+      (v: Json) => `${(v / 1024).toFixed(1)} GB free`,
       'the newest render slows down; the oldest continues'
     ),
-    ...(affinity ? [slider('SlowCapPct', 'Speed in slow mode', 1, 30, 1, v => `${v}% CPU`, 'rendering continues at a lower speed')] : []),
-    slider('CriticalMB', 'Critical RAM', 200, 2000, 100, v => `${(v / 1024).toFixed(1)} GB`, 'below this, the oldest render also slows down'),
+    ...(affinity ? [slider('SlowCapPct', 'Speed in slow mode', 1, 30, 1, (v: Json) => `${v}% CPU`, 'rendering continues at a lower speed')] : []),
+    slider('CriticalMB', 'Critical RAM', 200, 2000, 100, (v: Json) => `${(v / 1024).toFixed(1)} GB`, 'below this, the oldest render also slows down'),
     toggle(
       'Startup',
       'Start VideoHub at login and keep it running',
@@ -1818,7 +1837,7 @@ function guardPanel(gs, { full = false } = {}) {
 }
 
 // ---------- Disk
-async function diskPage(page) {
+async function diskPage(page: Json) {
   page.append(
     h('h1', {}, 'Disk'),
     h('div', { class: 'sub' }, `See what can be safely removed and why. Deleted files go to the ${trashName()}; old versions go to the archive.`)
@@ -1861,8 +1880,8 @@ async function diskPage(page) {
       )
     )
   );
-  const safeBytes = d.candidates.filter(c => c.preset === 'safe').reduce((n, c) => n + c.size, 0);
-  const heldChunks = (d.projects || []).filter(p => p.chunksKept).reduce((n, p) => n + (p.chunks || 0), 0);
+  const safeBytes = d.candidates.filter((c: Json) => c.preset === 'safe').reduce((n: Json, c: Json) => n + c.size, 0);
+  const heldChunks = (d.projects || []).filter((p: Json) => p.chunksKept).reduce((n: Json, p: Json) => n + (p.chunks || 0), 0);
   page.append(
     h(
       'div',
@@ -1884,13 +1903,13 @@ async function diskPage(page) {
     )
   );
   // presets: "Safe" (never needed again), "Deep" (+ recent QA, old versions to the archive, chunks of finished films), "Custom"
-  const inPreset = (c, k) => (k === 'safe' ? c.preset === 'safe' : c.preset === 'safe' || c.preset === 'deep');
-  const presetSum = k => d.candidates.filter(c => inPreset(c, k)).reduce((s, c) => s + c.size, 0);
-  const checked = new Set(d.candidates.filter(c => inPreset(c, 'safe')).map(c => c.id));
-  const setPreset = k => {
+  const inPreset = (c: Json, k: Json) => (k === 'safe' ? c.preset === 'safe' : c.preset === 'safe' || c.preset === 'deep');
+  const presetSum = (k: Json) => d.candidates.filter((c: Json) => inPreset(c, k)).reduce((s: Json, c: Json) => s + c.size, 0);
+  const checked = new Set(d.candidates.filter((c: Json) => inPreset(c, 'safe')).map((c: Json) => c.id));
+  const setPreset = (k: Json) => {
     checked.clear();
     for (const c of d.candidates) if (inPreset(c, k)) checked.add(c.id);
-    document.querySelectorAll('.items input[data-id]').forEach(i => {
+    document.querySelectorAll<HTMLInputElement>('.items input[data-id]').forEach(i => {
       i.checked = checked.has(i.dataset.id);
     });
     presetBtns.forEach(b => b.classList.toggle('primary', b.dataset.k === k));
@@ -1917,11 +1936,11 @@ async function diskPage(page) {
     'data-clean': '1',
     onclick: () =>
       runClean(
-        d.candidates.filter(c => checked.has(c.id)),
+        d.candidates.filter((c: Json) => checked.has(c.id)),
         () => render()
       )
   });
-  const rows = (d.projects || []).filter(r => r.deep >= 50 << 20 || r.chunks >= 50 << 20);
+  const rows = (d.projects || []).filter((r: Json) => r.deep >= 50 << 20 || r.chunks >= 50 << 20);
   page.append(
     h('h2', {}, 'Render leftovers · all projects'),
     h(
@@ -1938,7 +1957,7 @@ async function diskPage(page) {
             'div',
             { class: 'sub', style: { marginTop: '8px' } },
             '⏳ Projects currently excluded: ',
-            d.busy.map(b => `${b.name} (${b.reason})`).join(' · '),
+            d.busy.map((b: Json) => `${b.name} (${b.reason})`).join(' · '),
             '. They will appear in the list when rendering finishes.'
           )
         : null,
@@ -1957,7 +1976,7 @@ async function diskPage(page) {
               h('th', { class: 'num' }, 'Total'),
               h('th', {})
             ),
-            rows.map(r =>
+            rows.map((r: Json) =>
               h(
                 'tr',
                 {},
@@ -1982,37 +2001,39 @@ async function diskPage(page) {
         : null
     )
   );
-  const groups = {};
+  const groups: Record<string, Json[]> = {};
   for (const c of d.candidates) (groups[c.rule] ||= []).push(c);
   const bar = h('div', { class: 'stickybar' });
   const btn = h('button', { class: 'primary', 'data-clean': '1' });
   const info = h('span', {});
   const upd = () => {
-    const sel = d.candidates.filter(c => checked.has(c.id)),
-      size = GB(sel.reduce((s, c) => s + c.size, 0));
+    const sel = d.candidates.filter((c: Json) => checked.has(c.id)),
+      size = GB(sel.reduce((s: Json, c: Json) => s + c.size, 0));
     info.textContent = `${sel.length} items selected · ${size}`;
     btn.textContent = 'Clean selected';
     allBtn.textContent = `Clean render leftovers in all projects (${size})`;
     btn.dataset.empty = allBtn.dataset.empty = sel.length ? '0' : '1';
     lockCleanButtons();
-    document.querySelectorAll('[data-rule]').forEach(el => {
-      const g = groups[el.dataset.rule];
-      el.querySelector('.size').textContent =
-        `${GB(g.filter(c => checked.has(c.id)).reduce((s, c) => s + c.size, 0))} / ${GB(g.reduce((s, c) => s + c.size, 0))}`;
-      el.querySelector('input').checked = g.every(c => checked.has(c.id));
-      el.querySelector('input').indeterminate = !el.querySelector('input').checked && g.some(c => checked.has(c.id));
+    document.querySelectorAll<HTMLElement>('[data-rule]').forEach(el => {
+      const g = groups[el.dataset.rule!];
+      el.querySelector('.size')!.textContent =
+        `${GB(g.filter((c: Json) => checked.has(c.id)).reduce((s: Json, c: Json) => s + c.size, 0))} / ${GB(g.reduce((s: Json, c: Json) => s + c.size, 0))}`;
+      el.querySelector('input')!.checked = g.every((c: Json) => checked.has(c.id));
+      el.querySelector('input')!.indeterminate = !el.querySelector('input')!.checked && g.some((c: Json) => checked.has(c.id));
     });
   };
   btn.onclick = () =>
     runClean(
-      d.candidates.filter(c => checked.has(c.id)),
+      d.candidates.filter((c: Json) => checked.has(c.id)),
       () => render()
     );
   page.append(h('h2', {}, 'Detailed list'));
   if (!d.candidates.length) page.append(h('div', { class: 'empty' }, 'Nothing to clean.'));
-  for (const [rule, items] of Object.entries(groups).sort((a, b) => b[1].reduce((s, c) => s + c.size, 0) - a[1].reduce((s, c) => s + c.size, 0))) {
+  for (const [rule, items] of Object.entries(groups).sort(
+    (a, b) => b[1].reduce((s: Json, c: Json) => s + c.size, 0) - a[1].reduce((s: Json, c: Json) => s + c.size, 0)
+  )) {
     const list = h('div', { class: 'items', hidden: true });
-    for (const c of items.sort((a, b) => b.size - a.size))
+    for (const c of items.sort((a: Json, b: Json) => b.size - a.size))
       list.append(
         h(
           'label',
@@ -2021,7 +2042,7 @@ async function diskPage(page) {
             type: 'checkbox',
             checked: checked.has(c.id),
             'data-id': c.id,
-            onchange: e => {
+            onchange: (e: Json) => {
               e.target.checked ? checked.add(c.id) : checked.delete(c.id);
               upd();
             }
@@ -2040,7 +2061,7 @@ async function diskPage(page) {
       { 'data-rule': rule },
       h('input', {
         type: 'checkbox',
-        onclick: e => {
+        onclick: (e: Json) => {
           e.stopPropagation();
           const on = e.target.checked;
           for (const c of items) on ? checked.add(c.id) : checked.delete(c.id);
@@ -2066,7 +2087,7 @@ async function diskPage(page) {
 }
 
 // ---------- Settings
-async function settingsPage(page) {
+async function settingsPage(page: Json) {
   const [c, gs] = await Promise.all([api('/api/config'), api('/api/guard/settings').catch(() => null)]);
   setSystemCapabilities(c.capabilities);
   page.append(h('h1', {}, 'Settings'), h('div', { class: 'sub' }, 'Settings for this computer.'));
@@ -2083,7 +2104,7 @@ async function settingsPage(page) {
         h(
           'table',
           { class: 't' },
-          hidden.map(x =>
+          hidden.map((x: Json) =>
             h(
               'tr',
               {},
@@ -2112,7 +2133,7 @@ async function settingsPage(page) {
     );
   const agentIn = h('input', { value: c.agentName || 'Claude', maxlength: '40' });
   page.append(h('h2', {}, 'Agent name'), h('p', { class: 'sub' }, 'The name shown on review and thumbnail buttons.'), agentIn);
-  const roots = c.roots.map(r => ({ ...r }));
+  const roots = c.roots.map((r: Json) => ({ ...r }));
   const list = h('div', {});
   const draw = () => {
     list.innerHTML = '';
@@ -2124,7 +2145,7 @@ async function settingsPage(page) {
           'table',
           { class: 't' },
           h('tr', {}, h('th', {}, 'Enabled'), h('th', {}, 'Folder'), h('th', {}, 'Type'), h('th', {})),
-          roots.map((r, i) =>
+          roots.map((r: Json, i: Json) =>
             h(
               'tr',
               {},
@@ -2134,7 +2155,7 @@ async function settingsPage(page) {
                 h('input', {
                   type: 'checkbox',
                   checked: r.enabled !== false,
-                  onchange: e => {
+                  onchange: (e: Json) => {
                     r.enabled = e.target.checked;
                   }
                 })
@@ -2146,7 +2167,7 @@ async function settingsPage(page) {
                 ' ',
                 folderButton(
                   () => r.path,
-                  p => {
+                  (p: Json) => {
                     r.path = p;
                     draw();
                   },
@@ -2160,7 +2181,7 @@ async function settingsPage(page) {
                 h(
                   'select',
                   {
-                    onchange: e => {
+                    onchange: (e: Json) => {
                       r.type = e.target.value;
                     }
                   },
@@ -2194,10 +2215,10 @@ async function settingsPage(page) {
   };
   draw();
   const addIn = h('input', { placeholder: 'Absolute path to a folder', style: { width: '420px' } });
-  const addRoot = value => {
+  const addRoot = (value: Json) => {
     const folder = value.trim();
     if (!folder) return;
-    if (roots.some(r => sameFolder(r.path, folder))) {
+    if (roots.some((r: Json) => sameFolder(r.path, folder))) {
       toast('This folder is already in the list.');
       return;
     }
@@ -2220,7 +2241,7 @@ async function settingsPage(page) {
   );
   // the other folders VideoHub writes to or reads from (defaults under Documents\VideoHub)
   const ts = c.thumbstudio || {};
-  const dirField = (label, value, help) => {
+  const dirField = (label: Json, value: Json, help?: Json) => {
     const inp = h('input', { value: value || '', placeholder: 'not set', style: { width: '420px' } });
     return {
       inp,
@@ -2231,7 +2252,7 @@ async function settingsPage(page) {
         inp,
         folderButton(
           () => inp.value.trim(),
-          p => {
+          (p: Json) => {
             inp.value = p;
           },
           label
@@ -2248,7 +2269,7 @@ async function settingsPage(page) {
   const dStu = dirField('3D studio engine (optional)', c.studioDir, 'only for ready-made sound effects and studio scenes');
   const skipIn = h('input', { value: (c.skipFolders || []).join(', '), style: { width: '420px' } });
   const I = c.integrations || {};
-  const okRow = (name, ok, text) => [
+  const okRow = (name: Json, ok: Json, text: Json) => [
     h('div', { class: 'k' }, name),
     h('div', {}, ok ? h('span', { class: 'green' }, '✓ ') : h('span', { class: 'muted' }, '— '), text)
   ];
@@ -2313,7 +2334,7 @@ async function settingsPage(page) {
       arch,
       folderButton(
         () => arch.value.trim(),
-        p => {
+        (p: Json) => {
           arch.value = p;
         },
         'Choose archive folder'
@@ -2327,7 +2348,10 @@ async function settingsPage(page) {
     h(
       'div',
       { class: 'panel kv' },
-      Object.entries(c.tools).map(([k, v]) => [h('div', { class: 'k' }, k), h('div', { class: 'mono' }, v || h('span', { class: 'red' }, 'not found'))])
+      Object.entries(c.tools as Record<string, Json>).map(([k, v]) => [
+        h('div', { class: 'k' }, k),
+        h('div', { class: 'mono' }, v || h('span', { class: 'red' }, 'not found'))
+      ])
     ),
     h(
       'div',
@@ -2337,7 +2361,7 @@ async function settingsPage(page) {
         {
           class: 'primary',
           onclick: async () => {
-            const v = i => i.inp.value.trim() || null;
+            const v = (i: Json) => i.inp.value.trim() || null;
             try {
               const saved = await api('/api/config', {
                 method: 'POST',
@@ -2358,7 +2382,7 @@ async function settingsPage(page) {
               });
               agentIn.value = setAgentName(saved.agentName);
               toast('Saved, rescanning…');
-            } catch (err) {
+            } catch (err: Json) {
               toast('Could not save: ' + err.message, true);
             }
           }
@@ -2370,14 +2394,14 @@ async function settingsPage(page) {
 }
 
 // One picker serves Settings and the render dialog; desktops without a native picker use a text field.
-export function folderButton(getStart, onPick, title = 'Choose folder', label = '📂 Choose…') {
+export function folderButton(getStart: Json, onPick: Json, title = 'Choose folder', label = '📂 Choose…') {
   const b = h(
     'button',
     {
       type: 'button',
       class: 'ghost',
       title: 'Choose folder on this computer',
-      onclick: async e => {
+      onclick: async (e: Json) => {
         e.preventDefault();
         e.stopPropagation();
         const old = b.textContent;
@@ -2394,7 +2418,7 @@ export function folderButton(getStart, onPick, title = 'Choose folder', label = 
             );
             if (ok && input.value.trim()) onPick(input.value.trim());
           } else if (typeof r?.path === 'string' && r.path) onPick(r.path);
-        } catch (err) {
+        } catch (err: Json) {
           toast('Could not open folder dialog: ' + err.message, true);
         } finally {
           b.disabled = false;

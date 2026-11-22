@@ -1,22 +1,22 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import vm from 'node:vm';
+import { readSource } from '../scripts/test-source.ts';
+import type { Json } from './app.ts';
 
-const source = fs.readFileSync(new URL('./app.ts', import.meta.url), 'utf8');
+const source = readSource(new URL('./app.ts', import.meta.url));
 const loader = source.slice(source.indexOf("// load a card's picture"), source.indexOf('function tile('));
 
 function harness() {
-  let intersect;
-  const images = [],
-    unobserved = [];
+  let intersect: Json;
+  const images: Json[] = [],
+    unobserved: Json[] = [];
   const context = {
     IntersectionObserver: class {
-      constructor(fn) {
+      constructor(fn: Json) {
         intersect = fn;
       }
-      unobserve(el) {
+      unobserve(el: Json) {
         unobserved.push(el);
       }
     },
@@ -25,7 +25,7 @@ function harness() {
         images.push(this);
       }
     },
-    h: (tag, attrs, text) => ({ tag, ...attrs, text }),
+    h: (tag: Json, attrs: Json, text: Json) => ({ tag, ...attrs, text }),
     encodeURIComponent,
     // Catalog cards must never load a film, start a job or create background timers.
     document: {
@@ -43,13 +43,13 @@ function harness() {
   vm.createContext(context);
   vm.runInContext(loader, context);
   const card = (live = true) => {
-    const children = [];
+    const children: Json[] = [];
     return {
       dataset: { thumb: 'film-id', version: 'revision-1', ...(live ? { live: '1' } : {}) },
       isConnected: true,
-      style: {},
+      style: {} as Json,
       children,
-      append(el) {
+      append(el: Json) {
         children.push(el);
       },
       querySelector() {
@@ -57,7 +57,7 @@ function harness() {
       }
     };
   };
-  return { images, card, unobserved, intersect: entries => intersect(entries) };
+  return { images, card, unobserved, intersect: (entries: Json) => intersect(entries) };
 }
 
 test('many visible live cards load cached images without opening hidden films or refresh loops', () => {
