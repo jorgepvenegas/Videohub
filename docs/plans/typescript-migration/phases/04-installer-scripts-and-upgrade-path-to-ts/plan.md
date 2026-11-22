@@ -9,8 +9,8 @@
 - Approved at: 2026-11-21
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: p4-installer
+- Implemented at: 2026-11-21
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -78,10 +78,10 @@ Out of scope:
 
 ## 4. Entry conditions
 
-- [ ] P3 `done`; standards commands green — verify: `progressive_plan.py status docs/plans/typescript-migration`, then `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test`
-- [ ] Working tree clean and pushed — verify: `git status -sb`
-- [ ] Phase plan revalidated against current master version (30)
-- [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
+- [x] P3 `done`; standards commands green — verify: `progressive_plan.py status docs/plans/typescript-migration`, then `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test`
+- [x] Working tree clean and pushed — verify: `git status -sb`
+- [x] Phase plan revalidated against current master version (30)
+- [x] User approved this phase plan — verify: `Approved by` is set and status is `ready`
 
 ## 5. Steps
 
@@ -101,7 +101,7 @@ Commit after each step with subject `P4:` followed by the step title, and push. 
 - Files: `setup.sh`, `update.sh`, `uninstall.sh`, `open.sh` (modify)
 - Change: Before `exec node …`, each script reads `node -p process.versions.node` and refuses below 22.18 with the existing message style ("Node.js 22.18 or newer is required…", with the macOS/Linux variants `setup.sh` already has). The four scripts still call `scripts/install.mjs` in this commit. Then verify L6: download the official Node v22.18.0 darwin tarball for this machine's architecture into `.test-tmp/node-22.18`, verify its SHASUMS256 entry, and check three things. It must run `node scripts/test-source.ts`-style `.ts` code. A `.js` → `.ts` import must work. Any stderr warning must be recorded. Also confirm `setup.sh --dry-run` with a fake Node 22.17 (a stub script in a temp PATH that prints 22.17.0) refuses with the message.
 - Acceptance:
-  - [ ] Gate refuses 22.17 and accepts 22.18 and 24.x; Node 22.18 evidence in §9
+  - [x] Gate refuses 22.17 and accepts 22.18 and 24.x; Node 22.18 evidence in §9
 - Verification: run `PATH="$STUB_DIR:$PATH" bash setup.sh --dry-run`, then `.test-tmp/node-22.18/bin/node -e "…"` probes — both recorded in §9
 - Rollback: `git checkout HEAD~1 -- setup.sh update.sh uninstall.sh open.sh`
 
@@ -111,8 +111,8 @@ Commit after each step with subject `P4:` followed by the step title, and push. 
 - Files: the 11 files above (rename, with a temporary first-line `// @ts-nocheck`); `setup.sh`, `update.sh`, `uninstall.sh`, `open.sh`, `package.json`, `server/platform.ts:474`, `server/platform.linux.test.ts:436`, comment paths in `server/config.ts`, `hub.ts` and `encoders.ts`, and the `CLAUDE.md` command paths named in §3; relative importers in `server/**` and `ui/**` tests (specifiers only, L14)
 - Change: Do a pure rename and reference update. The launcher template text in `install.ts` names `install.ts`. `scripts/test.ts` keeps collecting both `.test.js` and `.test.ts`. No logic changes.
 - Acceptance:
-  - [ ] `grep -rnE "scripts/[a-z-]+\.mjs" setup.sh update.sh uninstall.sh open.sh package.json server scripts skill claude CLAUDE.md` prints nothing except `CLAUDE.md` map lines left for P9
-  - [ ] `git log --follow` tracks all 11 renames; `pnpm test` at baseline; `bash setup.sh --dry-run` (fake env) exits 0
+  - [x] `grep -rnE "scripts/[a-z-]+\.mjs" setup.sh update.sh uninstall.sh open.sh package.json server scripts skill claude CLAUDE.md` prints nothing except `CLAUDE.md` map lines left for P9
+  - [x] `git log --follow` tracks all 11 renames; `pnpm test` at baseline; `bash setup.sh --dry-run` (fake env) exits 0
 - Verification: the grep; `pnpm typecheck && pnpm test 2>&1 | tail -8`; the dry run recorded in §9
 - Rollback: `git revert HEAD`
 
@@ -122,7 +122,7 @@ Commit after each step with subject `P4:` followed by the step title, and push. 
 - Files: the 11 renamed `scripts/*.ts` files (modify); `server/types.ts` (modify only if a shape is shared with server code)
 - Change: Remove `@ts-nocheck` and add strict types with no runtime change. Type the injected `platform` with the interface P2 exported from `server/platform.ts`. Keep `install.ts` free of npm package imports: it must still run before `pnpm install` (C1).
 - Acceptance:
-  - [ ] No `@ts-nocheck` under `scripts/`; strict typecheck clean; `install.ts`, `agents.ts`, `init-config.ts` import only `node:*` and relative modules
+  - [x] No `@ts-nocheck` under `scripts/`; strict typecheck clean; `install.ts`, `agents.ts`, `init-config.ts` import only `node:*` and relative modules
 - Verification: `grep -rln "@ts-nocheck" scripts` (no output); `grep -nE "^import .* from '[^.n]" scripts/{install,agents,init-config}.ts` (no output); `pnpm typecheck && pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -136,7 +136,7 @@ Commit after each step with subject `P4:` followed by the step title, and push. 
   - **(c) Stale code to backup:** after the new code is copied, any target `.js`/`.mjs` file whose same-path `.ts` exists in the new source moves into this update's `data/update-backup/ (this update's timestamped folder)`. Nothing else is moved or deleted (no hard deletes, CLAUDE.md), and dry-run reports it.
   - **(d) Launcher refresh:** if this install's owned launchers exist (Desktop shortcut and Linux app entry, both detected by the existing `# VideoHub install:` / `X-VideoHub-Install=` ownership markers), update rewrites them with the current template. If autostart is enabled for this install, it is re-applied, so the LaunchAgent/autostart entry names `.ts`. Launchers that are absent or belong to another install are left alone.
 - Acceptance:
-  - [ ] New tests cover (a)–(d), each including a negative case (another install's process or launcher untouched; a stale file without a `.ts` sibling stays)
+  - [x] New tests cover (a)–(d), each including a negative case (another install's process or launcher untouched; a stale file without a `.ts` sibling stays)
 - Verification: `node --test scripts/install.test.ts`; `pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -146,7 +146,7 @@ Commit after each step with subject `P4:` followed by the step title, and push. 
 - Files: `scripts/agents.ts`, `scripts/agents.test.ts` (modify)
 - Change: Ownership of an MCP entry, in both the config-file and CLI paths, accepts this install's `server/mcp.ts` **or** `server/mcp.js`. `setup`/`refresh` replace an owned old entry with `mcp.ts`, and `uninstall` removes either. Entries naming another install's paths stay untouched. Rule blocks are already owned by install path (`ownedText`); add a test proving that a block containing `…/server/cli.js` is refreshed to `cli.ts`.
 - Acceptance:
-  - [ ] Tests for both agents: an own `mcp.js` entry is refreshed to `mcp.ts`; another install's `mcp.js` is unchanged; uninstall removes an own `mcp.js` entry; an own rule block naming `cli.js` is refreshed
+  - [x] Tests for both agents: an own `mcp.js` entry is refreshed to `mcp.ts`; another install's `mcp.js` is unchanged; uninstall removes an own `mcp.js` entry; an own rule block naming `cli.js` is refreshed
 - Verification: `node --test scripts/agents.test.ts`; `pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -170,7 +170,7 @@ Commit after each step with subject `P4:` followed by the step title, and push. 
   7. Record each command and result in §9.
 - If any safety precondition cannot be met, for example the old setup insists on a real agent CLI, stop and report instead of loosening the safety rules.
 - Acceptance:
-  - [ ] Every expectation in the change list above has recorded evidence
+  - [x] Every expectation in the change list above has recorded evidence
 - Verification: the recorded commands; final `lsof -i :7799` shows nothing listening
 - Rollback: `rm -rf .test-tmp/p4-e2e .test-tmp/p4-*` (scratch only)
 
@@ -180,27 +180,27 @@ Commit after each step with subject `P4:` followed by the step title, and push. 
 - Files: the P4 phase plan (modify) — §7, §9 and §10
 - Change: Run all standards commands, the runtime-equivalence comparison for S3 (types stripped, S2 vs S3 commits), and the warning counts. Fill in the closeout.
 - Acceptance:
-  - [ ] Standards green; equivalence result recorded
+  - [x] Standards green; equivalence result recorded
 - Verification: `pnpm install --frozen-lockfile && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test 2>&1 | tail -8`
 - Rollback: n/a
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — `git ls-files 'scripts/*.js' 'scripts/*.mjs'` prints nothing; renames keep history — verify: the command and `git log --follow --oneline scripts/install.ts | wc -l`
-- [ ] A2 — Strict typecheck clean with no `@ts-nocheck` in `scripts/`; S3 is runtime-identical to S2 — verify: `pnpm typecheck`, the S3 grep, and the S7 comparison
-- [ ] A3 — `pnpm test` has 0 failures, and passing tests are ≥ 298 plus the new upgrade tests — verify: `pnpm test`
-- [ ] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
-- [ ] A5 — The shell gate refuses Node < 22.18 with a clear message, and Node 22.18.0 runs the `.ts` entry points — verify: S1 evidence
-- [ ] A6 — Unit tests prove the upgrade behaviors (old hub match, install check, stale code to backup, owned launcher refresh, legacy MCP ownership, rule refresh) with negative cases — verify: `node --test scripts/install.test.ts scripts/agents.test.ts`
-- [ ] A7 — End-to-end: a JS-era install is stopped, updated, re-pointed and reopened on 7799 in a fake home, with data preserved — verify: S6 evidence
+- [x] A1 — `git ls-files 'scripts/*.js' 'scripts/*.mjs'` prints nothing; renames keep history — verify: the command and `git log --follow --oneline scripts/install.ts | wc -l`
+- [x] A2 — Strict typecheck clean with no `@ts-nocheck` in `scripts/`; S3 is runtime-identical to S2 — verify: `pnpm typecheck`, the S3 grep, and the S7 comparison
+- [x] A3 — `pnpm test` has 0 failures, and passing tests are ≥ 298 plus the new upgrade tests — verify: `pnpm test`
+- [x] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
+- [x] A5 — The shell gate refuses Node < 22.18 with a clear message, and Node 22.18.0 runs the `.ts` entry points — verify: S1 evidence
+- [x] A6 — Unit tests prove the upgrade behaviors (old hub match, install check, stale code to backup, owned launcher refresh, legacy MCP ownership, rule refresh) with negative cases — verify: `node --test scripts/install.test.ts scripts/agents.test.ts`
+- [x] A7 — End-to-end: a JS-era install is stopped, updated, re-pointed and reopened on 7799 in a fake home, with data preserved — verify: S6 evidence
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Upgrade logic reuses the existing ownership markers, backup folder and launcher templates; no parallel mechanism
-- [ ] Names and structure state intent; comments explain only non-obvious reasons
-- [ ] Every new test fails if the behavior it covers breaks (each upgrade test checked against a reverted implementation, recorded in §9)
-- [ ] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Upgrade logic reuses the existing ownership markers, backup folder and launcher templates; no parallel mechanism
+- [x] Names and structure state intent; comments explain only non-obvious reasons
+- [x] Every new test fails if the behavior it covers breaks (each upgrade test checked against a reverted implementation, recorded in §9)
+- [x] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`
 
 ## 8. Risks and unknowns
 
@@ -243,38 +243,47 @@ Append during implementation. One line per deviation: date, step, what changed, 
   5. `bash open.sh --server` from `old`: "VideoHub is available at http://127.0.0.1:7799", `/api/ping` -> pid 93077, process `.../old/server/hub.ts`.
   6. `bash uninstall.sh --dry-run` from `old` listed only: stop this install's server, remove OpenCode MCP entry, move OpenCode skill folder to Trash, remove VideoHub rule, disable autostart if present, move `p4-e2e/home/Desktop/VideoHub.command` and the install record to Trash. Nothing outside the fake home or install.
   7. Stop: `node scripts/install.ts stop --target p4-e2e/old` stopped pid 93077; `lsof -iTCP -sTCP:LISTEN -P | grep -E ":77(88|99)"` empty; no `~/Library/LaunchAgents` videohub entry; `~/Documents/VideoHub` does not exist.
+- S7: standards: `pnpm install --frozen-lockfile` up to date; `pnpm format:check` clean; `pnpm lint` exit 0 with 146 warnings (the same 146 as before P4, L3; no cleanup done); `pnpm typecheck` exit 0; `pnpm test` 308 / 307 pass / 1 skipped / 0 fail. Equivalence `node p4eq.mjs 1be5729 210482b` (S2 vs S3): `same` for agents, init-config, install, make-upload, test-source, test and upload-rules. `grep -rnE ':\s*any\b|\bas any\b' scripts`: no type-position `any` (only an English word in a comment); `Json` from `server/types.ts` is the existing commented alias. Scratch `.test-tmp/p4-e2e`, `p4-dry`, `p4-st`, probes removed; `.test-tmp/node-22.18`, `p4-bin` and `p4env.sh` kept (git-ignored).
 
 
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
 
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-21
+- Session: p4-installer (subagent, branch `plan/typescript-migration`)
+- Verdict: addressed
+- Steps complete: S1, S2, S3, S4, S5, S6, S7
+- Verification run: `pnpm install --frozen-lockfile` (up to date); `pnpm format:check` clean; `pnpm lint` exit 0, 0 errors, 146 warnings (same as before P4); `pnpm typecheck` exit 0; `pnpm test` 308 tests, 307 pass, 0 fail, 1 skipped; `git ls-files 'scripts/*.js' 'scripts/*.mjs'` empty; `grep -rln "@ts-nocheck" scripts` empty; stripped-source comparison S2 vs S3 `same` for all 7 non-test scripts; Node 22.18.0 probes and gate (S1); e2e in a fake home (S6); every new S4/S5 test checked against a reverted implementation (§9)
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | pending | |
-| A2 | pending | |
-| A3 | pending | |
-| A4 | pending | |
-| A5 | pending | |
-| A6 | pending | |
-| A7 | pending | |
-| D1 (master) | pending | |
-| D2 (master) | pending | |
-| D3 (master) | pending | |
-| D4 (master) | pending | |
-| D6 (master) | pending | |
+| A1 | met | `git ls-files 'scripts/*.js' 'scripts/*.mjs'` prints nothing; `git log --follow --oneline` finds history for all 11 files (install.ts 13 commits, agents.ts 9, init-config.ts 7, make-upload.ts 5, test.ts 8, upload-rules.ts 3; tests 6-9) |
+| A2 | met | `pnpm typecheck` exit 0 under `strict`; no `@ts-nocheck` in `scripts/`; `install.ts`, `agents.ts`, `init-config.ts` import only `node:*` and relative modules; `node p4eq.mjs 1be5729 210482b` (S2 vs S3, types stripped) `same` for all 7 non-test scripts |
+| A3 | met | `pnpm test`: 308 tests, 307 pass, 0 fail, 1 skipped (baseline 298 pass plus 9 new upgrade tests) |
+| A4 | met | `pnpm lint` exit 0 with 0 errors (146 warnings, unchanged); `pnpm format:check` exit 0 |
+| A5 | met | Stub Node 22.17 makes `setup.sh --dry-run` and `update.sh` print "Node.js 22.18 or newer is required (found 22.17.0)…" and exit 1; Node 24.16 and the official Node 22.18.0 (checksum verified) pass the gate; 22.18.0 runs a `.ts` entry, a `.js` importing `.ts`, `node --test` on a `.test.ts` and `scripts/test-source.ts`, with 0 bytes on stderr. Residual: the full suite was not run on 22.18 |
+| A6 | met | `node --test scripts/install.test.ts scripts/agents.test.ts`: 28 + 19 tests pass, including 4 + 5 new tests with negatives; revert checks in §9 |
+| A7 | met | S6 §9: 70cf504 install set up in a fake home, update stopped pid 92855, `hub.js` in `update-backup`, data and films kept, OpenCode config names `mcp.ts`, Desktop shortcut names `scripts/install.ts`, `open.sh --server` served `/api/ping` on 7799, uninstall dry-run listed only owned items, `lsof` clean afterwards |
+| D1 (master) | met | This phase's share: no `.js`/`.mjs` left under `scripts/` (79 tracked JS files remain elsewhere for P5-P9). D stays open until P9 |
+| D2 (master) | met | This phase's share: `scripts/*.ts` strict-clean. D stays open until P9 (`allowJs` still on) |
+| D3 (master) | met | This phase's share: lint 0 errors, format clean. D stays open until P9 |
+| D4 (master) | met | This phase's share: suite 307 pass, 0 fail (baseline 298). D stays open until P9 |
+| D6 (master) | met | This phase's share: update from a 70cf504 install proven in unit tests and one e2e; the "builds the UI" part arrives with P5. D stays open until P9 |
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| P4-1 | The real `server/platform.ts` never exported `desktopEntry`, which `scripts/install.ts` calls for the Linux app entry; only the install tests injected it, so a real Linux setup would throw a TypeError | phase-amend | P4 | Fixed in S4 by exporting it (the plan allowed one small platform helper); needs a real Linux check in the pending hardware acceptance |
+| P4-2 | `update` calls agents with `action: 'refresh'`, which never touched the MCP entry, so ownership alone would not have re-pointed `mcp.js` | phase-amend | P4 | S5 re-registers on refresh only for an own entry that names `mcp.js` |
+| P4-3 | The default platform's `hubDir` is the update source folder, so autostart and launcher ownership would name the downloaded copy | phase-amend | P4 | S4 builds `createPlatform({ hubDir: target, env })` for the target when the default platform is in use; injected platforms are used as given |
+| P4-4 | `update.sh` refuses a source that contains the target (`Source and target must be separate folders, not nested`), so an update test cannot run from the repo with its target under `.test-tmp` | next-phase-amend | P5, P8 | Later e2e or update checks export the branch with `git archive HEAD` into a sibling folder, as S6 did |
+| P4-5 | The 70cf504 installer stores `"port": 7788` in the scratch config and takes the test port only from `VIDEOHUB_PORT`; I set the scratch config to 7799 as well | note | P5 | Scratch e2e keeps `VIDEOHUB_PORT=7799` on every call and checks `lsof` first |
+| P4-6 | Node 22.18.0 prints no warning on stderr for `.ts` entries, `.js`→`.ts` imports or `node --test` on `.test.ts`; the full suite was not run on 22.18 | note | P9 | Answers the master unknown; P9 may state "Node >= 22.18" in docs; a full-suite run on 22.18 stays optional |
+| P4-7 | A macOS LaunchAgent re-apply (off then on) starts the new hub at once because of `RunAtLoad`; it was only tested with injected platforms, never on real launchd | note | P9 | P9 docs should say the hub restarts after an update with login startup; real-hardware acceptance pending |
+| P4-8 | During S1 an import probe of `server/hub.ts` without a scratch env started a hub on 7788 and created `data/` plus empty `~/Documents/VideoHub/{films,thumbnail-templates}`; both were removed (rmdir only, nothing else touched) | note | all | Never import an entry module in a probe; always use the p4env scratch environment |
 
-**Master updates written:** none yet
-**Next-phase updates written:** none yet
-**Remaining work and handoff:** none yet
+**Master updates written:** none (master not edited; the coordinator should add P4-1 to P4-8 to the ledger)
+**Next-phase updates written:** none written in plan files; P4-4 and P4-5 are for the P5 and P8 plans (see the table)
+**Remaining work and handoff:** `record-commit` and `close` are left to the coordinator. P5 should reuse `.test-tmp/p4env.sh` and `.test-tmp/p4-bin` (both ignored) or recreate them, and must add the Vite build to update/setup in `scripts/install.ts` without adding a package import. Real-hardware checks still pending: Linux setup (desktopEntry), real launchd re-apply, full suite on Node 22.18.
