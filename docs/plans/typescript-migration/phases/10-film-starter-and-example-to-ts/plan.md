@@ -181,7 +181,7 @@ Commit after each step with subject `P10:` followed by the step title, and push.
 - Files: the P10 phase plan (modify) — §9 and §10
 - Change: The coordinator, not the worker, runs this step, because it waits for the user. Start the S5 scratch hub with `VIDEOHUB_JOBS=on` (all other rule-1 settings unchanged) and ask the user to open `http://127.0.0.1:7799`, watch the example copy and the new starter film in live preview, and leave notes. Stop there. Only when the user explicitly asks, queue exactly one full render of the example copy through the scratch hub's queue on port 7799. Then check the output with `ffprobe` (duration about 10 s, video and audio streams), stop the hub and record the evidence. If the user reports a problem in the preview, fix it in code through a worker before any render.
 - Acceptance:
-  - [ ] The user reviewed the preview; one queued render completed after the user's explicit request; the output has the expected duration and streams
+  - [x] The user reviewed the preview; one queued render completed after the user's explicit request; the output has the expected duration and streams
 - Verification: the job record from the scratch hub, the `ffprobe` output and the user's request, quoted in §9
 - Rollback: n/a (scratch only)
 
@@ -192,7 +192,7 @@ Commit after each step with subject `P10:` followed by the step title, and push.
 - [ ] A3 — `pnpm test` has 0 failures and ≥ 312 passing, including the new `.ts`/legacy tests, each shown to fail without its change — verify: `pnpm test` and §9
 - [ ] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
 - [ ] A5 — The scratch hub's library and the live review pages of the example copy, a new starter film and a legacy `render.js` film load with zero console errors and failed requests — verify: S5 evidence
-- [ ] A6 — After the user's review and explicit request, one queued render of the example copy completes with the expected duration and streams — verify: S6 evidence
+- [x] A6 — After the user's review and explicit request, one queued render of the example copy completes with the expected duration and streams — verify: S6 evidence
 
 ## 7. Code standards check
 
@@ -272,13 +272,15 @@ S5 re-run after S4b (2026-11-22, same scratch base `.test-tmp/p10-hub`, same sta
 - Reload check (item 4), `.test-tmp/p10-browser/reload.mjs`: with the new starter film's live page open, the script changed one drawn value in the scratch `film.ts` (the opening scene background, one digit of its colour), waited 5 s, read `/api/project/96cfaa70e095/live`, then wrote the original text back and waited again. Result: the source revision changed (`6a212f6c7a8427b0` to `ffd499db363d6dcb`), the open page reloaded (the iframe `src` query changed), and it reloaded again after the restore (revision `7f3626061f4f2d89`); the file is byte-identical to `templates/new-film/film.ts` afterwards; no console error, page error or failed request. The revision does not return to its first value because it includes file times (existing behavior). Revert check: with `.ts` removed from the watcher filter in `server/live.ts` (hub restarted), the same edit changes the revision but the page does NOT reload; the filter was then restored.
 - Hub stopped; `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty. L3: 0 errors, 148 warnings.
 
+- 2026-11-22, S6 (coordinator): the scratch hub closes after 120 s without an open page, so it was started with `VIDEOHUB_IDLE_SEC=86400` (otherwise the rule-1 environment). Review with `VIDEOHUB_JOBS=off`; the user answered "Looks good, render it"; the hub was restarted with `VIDEOHUB_JOBS=on` and the render queued with `node server/cli.ts hub_render` on port 7799 in the same scratch environment. One full render of the scratch example copy (`b722b528f0c5`) after the user's review and explicit request (2026-11-22, answer "Looks good, render it"): job `jmwsagp7s-4d17eff9` on the scratch hub (port 7799, `VIDEOHUB_JOBS=on`, guard off, scratch HOME/XDG/TMPDIR, `PATH=.test-tmp/p4-bin:/usr/bin:/bin`), state `done`, took 6 s; the job log shows `node render.ts 2`, encoder `videotoolbox`, and `frames: raw canvas pixels` for both workers (the page server keeps the fast transport); `ffprobe hello-film_v1.mp4`: duration 10.000000, h264 1920x1080 at 30/1, aac audio. Hub stopped; nothing listens on 7799.
+
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
 
 - Date: 2026-11-22
-- Session: p10-worker (steps S1 to S5; S6 belongs to the coordinator and the user)
-- Verdict: partial (S6 pending)
+- Session: p10-worker (steps S1 to S5, S4b); coordinator (S6 with the user)
+- Verdict: addressed
 - Steps complete: S1, S2, S3, S4, S4b, S5 re-run after S4b (commits e762929, 4152faf, 713ddba, b9b398a snap fix, f493078, d6e13d2 hook fix, d8f976b S4b)
 - Verification run: `pnpm install --frozen-lockfile` (up to date), `pnpm format:check` (clean), `pnpm lint` (0 errors, 148 warnings), `pnpm typecheck`, `pnpm build`, `pnpm test` (324 tests, 323 pass, 0 fail, 1 skipped); `cmp` of the two `render.ts`; AST comparison of the six scripts (0 differences); scratch `make-audio.ts` runs; S2 page-server unit check; S5 browser check with the scratch hub (0 problems on four pages); `lsof` on 7799 empty.
 
@@ -289,12 +291,12 @@ Fill at the end of every implementation session. Do not mark the phase done unti
 | A3 | met | `pnpm test` 324 tests, 323 pass, 0 fail (baseline 312 pass); new tests in `server/film-ts.test.ts` and `server/jobs.test.ts` each fail with their change reverted (section 9, S1, the hook follow-up and S4b: source revision, film markers, container check; root discovery of a render.ts-only folder); the queued-command test is a pin that passes before and after because `recipe` already used the detected script |
 | A4 | met | `pnpm lint` 0 errors (148 warnings, unchanged); `pnpm format:check` exits 0 |
 | A5 | met | S5: library and live review pages of `hello-film`, `new-film` and `hello-legacy` load with zero console errors, page errors, failed requests and play events; each film frame reports `READY`, a 1920x1080 canvas and a drawn frame; scripts detected as `render.ts`, `render.ts`, `render.js`; no job, no render folder; re-run after S4b with the reload check: editing `film.ts` in the scratch starter film changes the revision and reloads the open page, and does not reload with the watcher change reverted |
-| A6 | pending | S6, user gate |
+| A6 | met | One full render of the scratch example copy (`b722b528f0c5`) after the user's review and explicit request (2026-11-22, answer "Looks good, render it"): job `jmwsagp7s-4d17eff9` on the scratch hub (port 7799, `VIDEOHUB_JOBS=on`, guard off, scratch HOME/XDG/TMPDIR, `PATH=.test-tmp/p4-bin:/usr/bin:/bin`), state `done`, took 6 s; the job log shows `node render.ts 2`, encoder `videotoolbox`, and `frames: raw canvas pixels` for both workers (the page server keeps the fast transport); `ffprobe hello-film_v1.mp4`: duration 10.000000, h264 1920x1080 at 30/1, aac audio |
 | D1 (master) | met | This phase's share: no `.js` is tracked under `templates/` or `examples/`, and `git ls-files '*.js' '*.mjs' '*.cjs' '*.jsx'` prints nothing now. D stays open until P9 |
 | D2 (master) | met | This phase's share: both film folders type-check strictly under the root config (no `@ts-nocheck`). D stays open until P9 |
 | D3 (master) | met | This phase's share: lint 0 errors and format clean with the six scripts as TypeScript. D stays open until P9 |
 | D4 (master) | met | This phase's share: 320 passing tests, above the 312 floor, with the new `.ts` and legacy tests. D stays open until P9 |
-| D7 (master) | pending | S6, user gate (the example and starter previews are verified; the user review and the one queued render are not) |
+| D7 (master) | met | This phase's share: the example copy and a new starter film open in live preview with no console errors (S5); the user reviewed the scratch preview and explicitly asked for the render; one queued render of the example copy completed (A6); template and example `render.ts` are byte-identical (`cmp`, identity test). D stays open until P9 |
 | D8 (master) | met | This phase's share: `render.js`/`film.js` films still preview (the `hello-legacy` copy in the S5 browser check, live-capable, `render.js` detected) and queue (the queued-command test for a legacy film). D stays open until P9 |
 
 **Discoveries no earlier plan predicted:**
@@ -305,11 +307,11 @@ Fill at the end of every implementation session. Do not mark the phase done unti
 | P10-2 | `hasHook` in `server/live.ts` followed only `.js`/`.mjs`, so `.ts` films were not live-capable. Found by the S5 check; fixed in d6e13d2 with a test | note | P10 | Fixed (section 9) |
 | P10-3 | More `.js`-only patterns mattered for `.ts` films (source revision, live watcher filter, scan film markers, render toast). Fixed in S4b (d8f976b) with tests; the S5 re-run confirms the reload | phase-amend | P10 | Done (L47) |
 | P10-8 | `server/config.ts` `hasRenderCode` matched only `render.(m?js|py)`, so root auto-discovery did not recognize a folder of films that have only `render.ts`. Fixed with a test (L50, plan v3) | phase-amend | P10 | Done |
-| P10-4 | The starter's page server (`serveFolder`) has no committed test; the plan allowed a scratch script (`.test-tmp/p10-server/check.mjs`). A committed test would extract it from `render.ts` by markers like `encoders.test.ts` does | phase-amend | P10 | Coordinator decision: add a test file entry to S2 |
+| P10-4 | The starter's page server (`serveFolder`) has no committed test; the plan allowed a scratch script (`.test-tmp/p10-server/check.mjs`). A committed test would extract it from `render.ts` by markers like `encoders.test.ts` does | phase-amend | P10 | Coordinator decision: accepted without a committed test; the S2 scratch check plus the S6 real render (page served over 127.0.0.1, raw frames) are the evidence; listed for P9's final report |
 | P10-5 | `stripTypeScriptTypes` prints an ExperimentalWarning to stderr on Node 24.16, once per process (hub, render script). On 22.18 L24 saw none | note | P9 or later | None written; harmless to the browser console, but visible in render job logs |
-| P10-6 | `ui/review/renderbtn.ts:63` toast text says "no render script (render.js)"; with `render.ts` as the default it should name both | note | P9 or later | None written (user-visible text, outside P10 files) |
+| P10-6 | `ui/review/renderbtn.ts:63` toast text named only render.js | note | P10 | Fixed in S4b (now names render.ts or render.js) |
 | P10-7 | The page server is now required for every render: if listening on 127.0.0.1 fails, the render fails (before, it fell back to PNG screenshots with the page on `file://`) | note | P10 | Recorded in section 9 (S2); no action |
 
 **Master updates written:** none (master.md is owned by the coordinator)
 **Next-phase updates written:** none
-**Remaining work and handoff:** S6, run by the coordinator after the user's review. Scratch hub: `VIDEOHUB_JOBS=on /Users/jorge/code/Videohub/.test-tmp/p10-hub/start-hub.sh` (section 9, S5; port 7799, hub stopped now). Project ids: example copy `b722b528f0c5` (`hello-film`), starter film `96cfaa70e095` (`new-film`), legacy copy `0f42bd1cce93` (`hello-legacy`). Ask the user to open http://127.0.0.1:7799, watch the example copy and the new film in live preview, and leave notes; queue exactly one render of `hello-film` only on the user's explicit request, then run ffprobe on the output (about 10 s, video and audio streams). Open decisions for the coordinator before S6: P10-3 and P10-4 above.
+**Remaining work and handoff:** none for P10. S6 done by the coordinator with the user (A6). The scratch base `.test-tmp/p10-hub/` stays (ignored). Notes for P9: L48 (render page server, no fallback), L49 (ExperimentalWarning on Node 24), P10-4 (page server has no committed test).
