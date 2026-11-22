@@ -1,7 +1,7 @@
 # Master Plan — TypeScript migration
 
 - Plan ID: `typescript-migration`
-- Master version: 58
+- Master version: 61
 - Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
@@ -171,6 +171,9 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L41 | 2026-11-22 | P7 | P9 | drawSubjectBlock in ui/thumbstudio/scene.ts is still unused; kept so the AST comparison stays exact | note | P9 removes it with the lint-rule decision | open |
 | L42 | 2026-11-22 | P7 | P8 | Source-reading tests whose whole-file import/export regexes already survive oxfmt needed only readSource, not marker slices | plan-defect | P8 requires marker slices only where a test extracts a fragment | open |
 | L43 | 2026-11-22 | P7 | P7 | layers.ts Brief type keeps layers and refs partial because prompt.test.ts passes partial briefs; pages use FullBrief. gen.ts fileUrl gained an optional 4th parameter (type-only) that editor.ts already passed | phase-amend | Accepted at coordinator review; AST comparison shows no runtime change | open |
+| L44 | 2026-11-22 | P8 | P9 | Rolldown drops the hooks' long header comments (usage docs) from the built dist/engine-hooks/*.js that engines copy | next-phase-amend | P9 docs point engine authors to the engine-hooks/*.ts source for usage, or P9 asks the user whether to preserve the header in the build | open |
+| L45 | 2026-11-22 | P8 | P9 | Docs, README and the skill that name engine-hooks/*.js must name dist/engine-hooks/*.js (built) and engine-hooks/*.ts (source) | next-phase-amend | P9 updates every engine-hooks path mention | open |
+| L46 | 2026-11-22 | P8 | P8 | Typing the hooks needed type-only stand-ins: Item/ActorTweak numeric fields typed number or string (unary plus on possibly-undefined), makeTweaks data typed with cuts and sound required, a few commented non-null assertions, VH_EDIT any with a comment; AST unchanged | phase-amend | Accepted at coordinator review; coordinator re-ran AST (0 different) and export comparison (equal) | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.

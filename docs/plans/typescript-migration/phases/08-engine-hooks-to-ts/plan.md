@@ -2,8 +2,8 @@
 
 - Plan ID: `typescript-migration`
 - Phase: P8
-- Plan version: 1
-- Validated against master version: 58
+- Plan version: 2
+- Validated against master version: 61
 - Status: in_progress
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-22
@@ -59,6 +59,7 @@ Convert the two page-side engine hooks, `engine-hooks/vh2d.js` (269 lines) and `
 | L38 | The coordinator's comparison loop wrote stray files into the repo root | Comparison scripts write only under `.test-tmp/p8-*`; check `git status --short` before every commit and stage explicit paths |
 | L40 | Renaming to `.ts` enables TypeScript-only lint rules | Expect them on both hooks; fix with types, or with a commented disable only if the fix would change runtime code |
 | L42 | Marker slices only where a test extracts a fragment | Not applicable: no source-reading test |
+| L46 | Typing the hooks needed type-only stand-ins (numeric fields typed number or string, `makeTweaks` data with `cuts` and `sound` required, commented non-null assertions) | Accepted by the coordinator at closeout; AST comparison 0 different |
 
 ## 3. Scope
 
