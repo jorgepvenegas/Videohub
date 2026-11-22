@@ -2,8 +2,8 @@
 
 - Plan ID: `typescript-migration`
 - Phase: P9
-- Plan version: 1
-- Validated against master version: 66
+- Plan version: 2
+- Validated against master version: 67
 - Status: in_progress
 - Approved by: Jorge Venegas (standing instruction 2026-11-22, C15)
 - Approved at: 2026-11-22
@@ -76,6 +76,7 @@ Finish the migration and prove it. The repo type-checks strictly without `allowJ
 | L45 | Docs naming `engine-hooks/*.js` | S3 updates them as in L44 |
 | L48 | The starter's render script needs its loopback page server for every render | S3 states it in `docs/RENDER-SPEED.md` and `docs/PROJECT-CONTRACT.md` |
 | L49 | `stripTypeScriptTypes` prints an ExperimentalWarning on Node 24 | S3 mentions it in `docs/ARCHITECTURE.md` (harmless, stderr only) |
+| L51 | A stray command created an empty `/tmp/x` | Removed by the coordinator at closeout (0 bytes, created during the run) |
 
 ## 3. Scope
 

@@ -1,7 +1,7 @@
 # Master Plan — TypeScript migration
 
 - Plan ID: `typescript-migration`
-- Master version: 66
+- Master version: 67
 - Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
@@ -179,6 +179,7 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L48 | 2026-11-22 | P10 | P9 | The starter's render script now needs its loopback page server for every render; before, a frame-server failure fell back to PNG screenshots over file:// | note | P9 docs (RENDER-SPEED, PROJECT-CONTRACT) state that render.ts serves the film folder over 127.0.0.1; list in the final report | open |
 | L49 | 2026-11-22 | P10 | P9 | stripTypeScriptTypes prints an ExperimentalWarning on stderr under Node 24.16 (hub log, film render logs) | note | P9 decides whether to note it in docs; harmless on stdout-based MCP | open |
 | L50 | 2026-11-22 | P10 | P10 | server/config.ts hasRenderCode (lines 31, 67, 75) matches only render.(m?js or py), so root auto-discovery misses folders whose films have only render.ts | phase-amend | Plan v3 adds server/config.ts and a test to S4b | open |
+| L51 | 2026-11-22 | P9 | P9 | P9 worker's stray command created an empty /tmp/x outside .test-tmp; reported, not deleted by the worker; coordinator inspected it (0 bytes, created during the run) and removed it | note | Removed by the coordinator; no other file outside .test-tmp touched | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
