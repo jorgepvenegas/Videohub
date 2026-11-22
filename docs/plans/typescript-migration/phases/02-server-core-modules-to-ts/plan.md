@@ -167,6 +167,8 @@ Commit after each step with subject `P2:` followed by the step title and push (d
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 
+- 2026-11-21 S1: `scripts/test-source.ts` created (`readSource(url)`). Check under `.test-tmp` with a scratch `.ts` (annotations): stripped output has equal line count, equal length and equal `return` offset (assumption (d) holds: whitespace replacement); `vm.runInNewContext` runs it; a `.js` input returns text unchanged; Node prints an ExperimentalWarning for `stripTypeScriptTypes` on stderr (harmless). `pnpm typecheck` exit 0, `pnpm lint` 0 errors. Lint baseline before P2: 40 warnings in the top-level `server/*` files of the P2 set (counted from `pnpm lint` output, excluding hub/mcp/cli/tools/mcp-selftest and their tests; 146 repo-wide).
+
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
