@@ -4,7 +4,7 @@
 - Phase: P6
 - Plan version: 1
 - Validated against master version: 43
-- Status: ready
+- Status: in_progress
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-22
 - Commit: pending
