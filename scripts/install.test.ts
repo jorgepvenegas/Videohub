@@ -74,7 +74,9 @@ function fixture(os = 'linux', installName = 'install') {
     log: () => {},
     launch: false,
     discover: () => [],
-    run: () => {
+    // the UI build is the only command a fixture run may start; it never touches the real tools
+    run: (file: string, args: string[]) => {
+      if (file === 'pnpm' && args[0] === 'build') return { status: 0 };
       throw new Error('No package or external command may run in this test');
     }
   };
@@ -168,8 +170,41 @@ test('macOS and Linux setup runs pnpm install --frozen-lockfile in the hub folde
         }
       }
     );
-    assert.deepEqual(commands, [{ file: 'pnpm', args: ['install', '--frozen-lockfile'], cwd: o.hub }]);
+    assert.deepEqual(commands, [
+      { file: 'pnpm', args: ['install', '--frozen-lockfile'], cwd: o.hub },
+      { file: 'pnpm', args: ['build'], cwd: o.hub }
+    ]);
   }
+});
+test('setup and update fail with a clear message when the UI build fails, and dry-run only reports it', async () => {
+  const failing = { run: () => ({ status: 1 }) };
+  const o = fixture(),
+    target = path.join(path.dirname(o.hub), 'target');
+  await assert.rejects(runInstaller({ action: 'setup', yes: true, workspace: o.workspace, agents: 'opencode' }, { ...o, ...failing }), /pnpm build failed/);
+  write(path.join(target, 'server', 'hub.ts'), '// old hub');
+  for (const m of ['@modelcontextprotocol/sdk', 'puppeteer-core']) write(path.join(target, 'node_modules', m, 'package.json'));
+  await assert.rejects(
+    runInstaller({ action: 'update', target }, { ...o, ...failing, env: { ...o.env, VIDEOHUB_DATA_DIR: '' }, request: async () => null }),
+    /pnpm build failed/
+  );
+  const commands: Json[] = [];
+  const r = await runInstaller(
+    { action: 'setup', yes: true, 'dry-run': true, workspace: o.workspace, agents: 'opencode' },
+    { ...o, run: (file: string, args: string[]) => (commands.push([file, args]), { status: 1 }) }
+  );
+  assert.ok(r.actions.some((s: string) => /pnpm build/.test(s)));
+  assert.deepEqual(commands, []);
+});
+test('update copies the build configuration with the code', async () => {
+  const o = fixture(),
+    target = path.join(path.dirname(o.hub), 'target');
+  write(path.join(o.hub, 'vite.config.ts'), '// vite');
+  write(path.join(o.hub, 'tsconfig.json'));
+  write(path.join(target, 'server', 'hub.ts'), '// old hub');
+  for (const m of ['@modelcontextprotocol/sdk', 'puppeteer-core']) write(path.join(target, 'node_modules', m, 'package.json'));
+  await runInstaller({ action: 'update', target }, { ...o, env: { ...o.env, VIDEOHUB_DATA_DIR: '' }, request: async () => null });
+  assert.equal(fs.readFileSync(path.join(target, 'vite.config.ts'), 'utf8'), '// vite');
+  assert.ok(fs.existsSync(path.join(target, 'tsconfig.json')));
 });
 test('missing pnpm stops setup with the OS hint before any change; dry-run only warns', async () => {
   for (const [os, hint] of [
@@ -209,7 +244,10 @@ test('updating an npm-era install installs with pnpm and keeps data', async () =
       }
     }
   );
-  assert.deepEqual(commands, [{ file: 'pnpm', args: ['install', '--frozen-lockfile'], cwd: target }]);
+  assert.deepEqual(commands, [
+    { file: 'pnpm', args: ['install', '--frozen-lockfile'], cwd: target },
+    { file: 'pnpm', args: ['build'], cwd: target }
+  ]);
   assert.equal(fs.readFileSync(path.join(target, 'data', 'config.json'), 'utf8'), '{"mine":true}');
   assert.ok(fs.existsSync(path.join(target, 'pnpm-lock.yaml')));
 });

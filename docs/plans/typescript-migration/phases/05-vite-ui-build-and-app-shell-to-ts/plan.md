@@ -130,7 +130,7 @@ Commit after each step with subject `P5:` followed by the step title, and push. 
 - Files: `scripts/install.ts`, `scripts/install.test.ts` (modify)
 - Change: After the package install in setup and update, spawn `pnpm build` in the install folder using the existing `run` helper (L25). On failure, throw a clear message that names `pnpm build`. Add `vite.config.ts` and `tsconfig.json` to `ITEMS`. Dry-run prints the build step. Tests with an injected runner prove that the build runs after install for both setup and update, and that a failure is reported.
 - Acceptance:
-  - [ ] New tests fail against the reverted change; `install.ts` still imports only `node:*` and relative modules
+  - [x] New tests fail against the reverted change; `install.ts` still imports only `node:*` and relative modules
 - Verification: `node --test scripts/install.test.ts`; `grep -nE "^import .* from '[^.n]" scripts/install.ts` (no output)
 - Rollback: `git revert HEAD`
 
@@ -236,3 +236,4 @@ Fill at the end of every implementation session. Do not mark the phase done unti
 **Master updates written:** none yet
 **Next-phase updates written:** none yet
 **Remaining work and handoff:** none yet
+- 2026-11-22 S3: `node --test scripts/install.test.ts` 30 pass; `grep -nE "^import .* from '[^.n]" scripts/install.ts` prints nothing; `pnpm test` 312 pass, 0 fail. Revert check (install.ts at HEAD, tests kept): 4 fail (the two updated command-list tests, the build-failure test, the config-copy test). `buildUi` runs after `packageInstall` in setup and update, including when packages are kept. The fixture's guard `run` now allows only `pnpm build` (it still throws on anything else), and the two exact-command tests expect install then build.

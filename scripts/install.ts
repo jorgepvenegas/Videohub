@@ -113,7 +113,9 @@ const ITEMS = [
   'uninstall.sh',
   'open.sh',
   'package.json',
-  'pnpm-lock.yaml'
+  'pnpm-lock.yaml',
+  'vite.config.ts',
+  'tsconfig.json'
 ];
 const casePath = (value: unknown, platform: CasePlatform) => (platform.casePath ? platform.casePath(value) : String(value));
 export function validateUpdatePaths(
@@ -323,6 +325,13 @@ export async function runInstaller(
       if (r.status !== 0) throw new Error('pnpm install failed; install Node dependencies before continuing');
     }
   };
+  const buildUi = (install: string) => {
+    say('build the browser interface with pnpm build');
+    if (dry) return;
+    const r = run('pnpm', ['build'], { cwd: install, env });
+    if (r.status !== 0)
+      throw new Error('pnpm build failed, so the VideoHub interface is not built. Fix the error above, then run ' + options.action + ' again.');
+  };
   const settings = (install: string): Json => {
     const f = path.join(env.VIDEOHUB_DATA_DIR || path.join(install, 'data'), 'config.json');
     if (!fs.existsSync(f)) return {};
@@ -422,6 +431,7 @@ export async function runInstaller(
       const st = state({ dataDir: data, ...(discover ? { discover } : {}) });
       if (st.error) throw new Error(st.error);
       packageInstall(hub);
+      buildUi(hub);
       const answersFile = path.join(data, 'setup-answers.json'),
         saved = read(answersFile, {}),
         answers = { ...saved };
@@ -587,6 +597,7 @@ export async function runInstaller(
         }
       const lockAfter = fs.existsSync(path.join(target, 'pnpm-lock.yaml')) ? fs.readFileSync(path.join(target, 'pnpm-lock.yaml'), 'utf8') : null;
       packageInstall(target, lockBefore !== lockAfter);
+      buildUi(target);
       // This install's own launchers and login startup name the entry points; rewrite them for the new code.
       const own = platform === platformDefault ? platformDefault.createPlatform({ hubDir: target, env }) : platform;
       for (const f of [...(own.IS_MAC ? [] : [entryFile]), desktopFile])
