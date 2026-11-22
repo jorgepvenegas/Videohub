@@ -1,7 +1,7 @@
 # Master Plan — TypeScript migration
 
 - Plan ID: `typescript-migration`
-- Master version: 30
+- Master version: 37
 - Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
@@ -88,7 +88,7 @@ flowchart LR
 | P1 | Toolchain and format baseline | TypeScript 7, oxlint and oxfmt are pinned and wired into `pnpm typecheck`/`lint`/`format:check`; `pnpm test` also runs `.test.ts`; Node ≥ 22.18 is declared; the repo is formatted once (Vite arrives in P5) | none | done | [plan](phases/01-toolchain-and-format-baseline/plan.md) |
 | P2 | Server core modules to TS | Every top-level `server/*.js` module except the entry/tool layer (`hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib.mjs`, `vhsound.mjs`) plus their tests are strict `.ts`; one shared test helper strips types for source-reading tests | P1 | done | [plan](phases/02-server-core-modules-to-ts/plan.md) |
 | P3 | Server entry points and thumbstudio to TS | `server/hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib`, `vhsound` and `server/thumbstudio/` (except tests importing `ui/thumbstudio`, which move in P7) are `.ts`; every in-repo reference to the entry points uses `.ts` | P2 | done | [plan](phases/03-server-entry-points-and-thumbstudio-to-ts/plan.md) |
-| P4 | Installer, scripts and upgrade path to TS | `scripts/` and the lifecycle entry points are `.ts`; shell scripts gate Node ≥ 22.18; setup registers `.ts` entries; update from a JS-era install stops the old hub and re-points MCP and login items | P3 | in_progress | [plan](phases/04-installer-scripts-and-upgrade-path-to-ts/plan.md) |
+| P4 | Installer, scripts and upgrade path to TS | `scripts/` and the lifecycle entry points are `.ts`; shell scripts gate Node ≥ 22.18; setup registers `.ts` entries; update from a JS-era install stops the old hub and re-points MCP and login items | P3 | done | [plan](phases/04-installer-scripts-and-upgrade-path-to-ts/plan.md) |
 | P5 | Vite UI build and app shell to TS | Vite builds `ui/` into ignored output that the hub serves; setup/update run the build; top-level `ui/*.js` modules (`app`, `agent`, `values`, `system`, `outputs-panel`, `render-status`) and their tests are converted | P4 | planned | pending |
 | P6 | Review UI to TS | `ui/review/` and `ui/review.js` are `.ts` and build with Vite; review pages work in a scratch hub | P5 | planned | pending |
 | P7 | Thumbnail studio UI to TS | `ui/thumbstudio/` (and the server tests importing it) are `.ts`; the thumbnail studio works in a scratch hub | P5 | planned | pending |
@@ -117,6 +117,7 @@ Append-only. Supersede a decision with a new row; never delete history.
 | C9 | 2026-11-19 | Upgrade compatibility is owned by P4: update/stop/uninstall recognize a running JS-era hub (`server/hub.js`) and re-point the install's own MCP registrations and login items to `.ts` entry points; P3 only changes in-repo references | Existing installs hold `.js` paths in agent configs and launchers | P3, P4 |
 | C10 | 2026-11-19 | Tooling versions pinned exactly in `devDependencies`: typescript 7.0.2, oxlint 1.94.0, oxfmt 0.79.0, vite 8.3.8, @types/node matching the supported Node line; `pnpm-lock.yaml` updated with them | oxfmt is pre-1.0; frozen-lockfile installs must be reproducible | all |
 | C11 | 2026-11-21 | The CLAUDE.md 'no native modules or compiled helpers' rule is narrowed to runtime: the hub, installer scripts and films use none; npm-distributed dev/build tools with prebuilt native binaries (TypeScript 7, oxlint, oxfmt, Vite/Rolldown) are allowed and setup keeps running full 'pnpm install' plus 'vite build'. P1 updates the CLAUDE.md wording; scripts/distribution-safety test stays (it skips node_modules). | User decision 2026-11-21; Vite 8, TS 7, oxlint and oxfmt are native npm packages | all |
+| C12 | 2026-11-21 | Every worker prompt from P5 on carries three hard rules: never import or run an entry module (hub, mcp, cli, install) outside the scratch environment; never delete anything outside .test-tmp (report it instead); before any removal inside the repo, show the coordinator the timestamps and wait | P4 incident: an unscoped probe started a real hub on 7788 and cleanup hard-deleted a pre-existing repo data/ folder (user confirmed it was scratch) | P5-P9 |
 
 ## 9. Discovery ledger
 
@@ -143,6 +144,12 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L17 | 2026-11-21 | P3 | P9 | MCP tool arguments are typed as a record of string to Json because per-tool zod inference would require lifting schemas out of the TOOLS literal (a runtime change) | note | Candidate follow-up after the migration; not in scope | open |
 | L18 | 2026-11-21 | P3 | P5,P7 | server/thumbstudio schema.ts and store.ts rely on Json and on types inferred from ui/values.js and the ui thumbstudio catalog | note | P5 and P7 tighten these once the UI modules are typed | open |
 | L19 | 2026-11-21 | P3 | P4,P9 | CLAUDE.md:27 map line still names server/hub.js; old-install recognition and the Node 22.18 shell gate untouched as planned | note | P4 handles old installs and the gate; P9 updates the map line | open |
+| L20 | 2026-11-21 | P4 | P5-P9 | Incident: a probe imported server/hub.ts without the scratch env, starting a real hub on 7788 for about 2 minutes and creating empty ~/Documents/VideoHub folders; cleanup rmdir'd those and ran rm -r on the pre-existing repo data/ folder without checking timestamps. User confirmed data/ was scratch | note | Decision C12 adds hard safety rules to every later worker prompt | open |
+| L21 | 2026-11-21 | P4 | P9 | server/platform.ts never exported desktopEntry, which install calls for the Linux app entry, so a real Linux setup would throw a TypeError; P4 exported it | note | Final report lists it for the pending real-Linux acceptance | open |
+| L22 | 2026-11-21 | P4 | P4 | update called agents refresh, which never touched the MCP entry; refresh now re-registers only an own entry naming server/mcp.js. Update also builds launchers with createPlatform using the target as hubDir, because the default platform's hubDir is the update source | note | Implemented and tested in P4 S4/S5 | open |
+| L23 | 2026-11-21 | P4 | P5-P9 | update.sh run from the repo is refused as nested (the repo contains .test-tmp), and an old install's saved config says port 7788; end-to-end runs need a sibling git-archive export as source and a scratch config set to 7799 | note | Later end-to-end steps export the branch with git archive to a sibling scratch folder and set the scratch config port to 7799 before starting anything | open |
+| L24 | 2026-11-21 | P4 | P9 | Node 22.18.0 runs .ts entries, mixed imports and node --test with no stderr warnings; the full suite was not run on 22.18. Re-applying a macOS LaunchAgent starts the new hub immediately, tested only with injected platforms | note | Final report lists the full-suite run on 22.18 and real-launchd re-apply as remaining verification | open |
+| L25 | 2026-11-21 | P4 | P5 | P5 adds a Vite build to setup and update; scripts/install.ts must keep importing only node builtins and relative modules (it runs before pnpm install) | next-phase-amend | P5 runs the build by spawning pnpm (pnpm build) from install.ts after package install, with no package import | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
@@ -168,6 +175,7 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 | P1 | 2026-11-21 | addressed | A1, A2, A3, A4, A5, A6 | f115aeb | [report](phases/01-toolchain-and-format-baseline/plan.md) |
 | P2 | 2026-11-21 | addressed | A1, A2, A3, A4, A5, A6 | cd8073c | [report](phases/02-server-core-modules-to-ts/plan.md) |
 | P3 | 2026-11-21 | addressed | A1, A2, A3, A4, A5, A6, A7 | 292c485 | [report](phases/03-server-entry-points-and-thumbstudio-to-ts/plan.md) |
+| P4 | 2026-11-21 | addressed | A1, A2, A3, A4, A5, A6, A7 | 10ad620 | [report](phases/04-installer-scripts-and-upgrade-path-to-ts/plan.md) |
 
 ## 12. Resume brief
 

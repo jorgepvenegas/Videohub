@@ -3,11 +3,11 @@
 - Plan ID: `typescript-migration`
 - Phase: P4
 - Plan version: 1
-- Validated against master version: 30
-- Status: in_progress
+- Validated against master version: 37
+- Status: done
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-21
-- Commit: pending
+- Commit: 10ad620
 - Implementation mode: subagent
 - Implemented by: p4-installer
 - Implemented at: 2026-11-21
@@ -56,6 +56,7 @@ The upgrade logic is the only intended behavior change in this plan (C9).
 | L9 | Rename similarity bar applies only to files over 15 lines | Same rule in S2 |
 | L14 | A bulk specifier rewrite hit a package import | S2 rewrites only relative specifiers (`./`, `../`) and runs the MCP self-test and `scripts/agents` tests afterwards |
 | L19 | Old-install recognition and Node gate were left for P4; `CLAUDE.md:27` map line for P9 | S1 (gate) and S4–S5 (old installs) deliver them; the map line stays for P9 |
+| L22 | Update's agents refresh never touched MCP; launchers needed the target as hubDir | Recorded during closeout; implemented and tested in S4/S5 |
 
 ## 3. Scope
 
