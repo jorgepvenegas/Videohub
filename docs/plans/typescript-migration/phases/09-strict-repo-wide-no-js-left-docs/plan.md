@@ -118,7 +118,7 @@ Commit after each step with subject `P9:` followed by the step title, and push. 
 - Files: `tsconfig.json`, `ui/tsconfig.json`, `scripts/no-js.test.ts` (create)
 - Change: As in §3. Run both configs separately once (L32). Run the L8 `any` grep repo-wide and list in §9 every remaining `any` with its comment, plus every lint-disable comment (L40).
 - Acceptance:
-  - [ ] Neither config has `allowJs` or `checkJs`; both configs pass; the new test passes, and fails when a scratch `.js` file is placed in `ui/` (then removed; recorded in §9)
+  - [x] Neither config has `allowJs` or `checkJs`; both configs pass; the new test passes, and fails when a scratch `.js` file is placed in `ui/` (then removed; recorded in §9)
 - Verification: `grep -nE "allowJs|checkJs" tsconfig.json ui/tsconfig.json` (no output); `npx tsc --noEmit -p tsconfig.json && npx tsc --noEmit -p ui/tsconfig.json`; `node --test scripts/no-js.test.ts`; `pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -128,7 +128,7 @@ Commit after each step with subject `P9:` followed by the step title, and push. 
 - Files: the `.ts` files whose comments name VideoHub's own renamed files (list them in §9)
 - Change: Comment text only (L36). Keep mentions of users' film scripts, JS-era install paths, fixtures and string literals. Prove comments-only with the AST comparison (L35) of every changed file against the S1 commit.
 - Acceptance:
-  - [ ] The AST comparison shows 0 differences for every changed file; a repo grep for VideoHub's own old file names in comments returns only intentional mentions, each listed in §9 with its reason
+  - [x] The AST comparison shows 0 differences for every changed file; a repo grep for VideoHub's own old file names in comments returns only intentional mentions, each listed in §9 with its reason
 - Verification: the AST result and the grep in §9; `pnpm typecheck && pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -145,7 +145,7 @@ Commit after each step with subject `P9:` followed by the step title, and push. 
   - **Contributor notes in `ARCHITECTURE.md`:** the `dist/ui` watcher (L30) and the ExperimentalWarning on Node 24 (L49).
   Keep each doc's voice and structure; change only what is wrong now. Keep the old-install recognition (`server/hub.js`, `mcp.js`) where the docs explain upgrades.
 - Acceptance:
-  - [ ] The D9 grep prints nothing; every remaining `.js`/`.mjs` mention in these files refers to users' films, JS-era installs or third-party files, listed in §9
+  - [x] The D9 grep prints nothing; every remaining `.js`/`.mjs` mention in these files refers to users' films, JS-era installs or third-party files, listed in §9
 - Verification: `grep -rnE "server/(hub|mcp|cli)\.js|scripts/[a-z-]+\.mjs|node --check" CLAUDE.md AGENTS.md README.md docs skill --exclude-dir=plans` (no output); `grep -rnE "\.m?js\b" CLAUDE.md AGENTS.md README.md docs skill claude --exclude-dir=plans` reviewed in §9
 - Rollback: `git revert HEAD`
 
@@ -162,7 +162,7 @@ Commit after each step with subject `P9:` followed by the step title, and push. 
   6. **D9:** the S3 grep prints nothing.
   Stop every scratch process and confirm `lsof -nP -iTCP:7799 -sTCP:LISTEN` is empty.
 - Acceptance:
-  - [ ] Every D item has recorded evidence; nothing listens on 7799 at the end
+  - [x] Every D item has recorded evidence; nothing listens on 7799 at the end
 - Verification: the recorded commands and their output in §9 and §10
 - Rollback: n/a (scratch only)
 
