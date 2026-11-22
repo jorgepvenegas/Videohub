@@ -120,7 +120,7 @@ Commit after each step with subject `P5:` followed by the step title, and push. 
   - a live film's `/assets/x.png` request still falls through to the film
   - test hubs use scratch dirs only (C12)
 - Acceptance:
-  - [ ] New tests pass and each fails against the reverted change (recorded in §9)
+  - [x] New tests pass and each fails against the reverted change (recorded in §9)
 - Verification: `node --test server/hub-ui.test.ts` (or the hub-paths file); `pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -201,6 +201,7 @@ Commit after each step with subject `P5:` followed by the step title, and push. 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 
 - 2026-11-22 S1: `pnpm install --frozen-lockfile && pnpm build && ls dist/ui dist/ui/_vh && pnpm typecheck` all exit 0; pnpm raised no build-script approval prompt; build emits index.html plus `_vh/index-*.js/.css`, `editor-*.js`, `figures-catalog-*.js`; `git check-ignore dist` prints `dist`; suite 307 pass. Root tsconfig `include` now lists `ui/values.*` and `ui/**/*.test.*` instead of all of `ui` (UI sources are checked by `ui/tsconfig.json`).
+- 2026-11-22 S2: `node --test server/hub-ui.test.ts` 3 pass; `pnpm test` 310 pass, 0 fail. Revert checks: with `server/hub.ts` restored to HEAD~ the 'serves dist/ui' and '503' tests fail; the film fall-through test is unchanged behavior, so it was checked by mutating the Referer branch to `if (false)` and it failed. Test slices the hub's real source (`const UI =` block and the GET fall-through body) into a vm with a scratch program folder under `.test-tmp/hub-ui`; no hub is started.
 
 ## 10. Closeout
 

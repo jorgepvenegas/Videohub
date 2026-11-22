@@ -34,7 +34,10 @@ import { ramHogs } from './ramhogs.ts';
 import * as thumbstudio from './thumbstudio/store.ts';
 import type { Json, Project, ReadBody, RouteFn, RouteHandler } from './types.ts';
 
-const UI = path.join(HUB_DIR, 'ui');
+// the built UI (pnpm build); setup and update run the build
+const UI = path.join(HUB_DIR, 'dist', 'ui');
+const UI_NOT_BUILT =
+  '<!doctype html><meta charset="utf-8"><title>VideoHub</title><body style="font:16px system-ui;margin:3em"><h1>The VideoHub interface is not built</h1><p>Run <code>update.sh</code> (or <code>pnpm build</code> in a source checkout), then reload this page.</p>';
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -776,6 +779,10 @@ const server = http.createServer(async (req, res) => {
       if (lp && fs.existsSync(path.join(lp.studio || lp.path, decodeURIComponent(url.pathname)))) return live.serve(req, res, lp, url.pathname.slice(1));
     }
     // static UI
+    if (!fs.existsSync(path.join(UI, 'index.html'))) {
+      res.writeHead(503, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store' });
+      return res.end(UI_NOT_BUILT);
+    }
     let f = path.join(UI, decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname));
     if (!isInside(f, UI) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) f = path.join(UI, 'index.html');
     res.writeHead(200, { 'Content-Type': MIME[path.extname(f).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });
