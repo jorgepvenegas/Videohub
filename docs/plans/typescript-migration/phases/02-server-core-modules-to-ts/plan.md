@@ -4,9 +4,9 @@
 - Phase: P2
 - Plan version: 1
 - Validated against master version: 17
-- Status: draft
-- Approved by: pending
-- Approved at: pending
+- Status: ready
+- Approved by: Jorge Venegas
+- Approved at: 2026-11-21
 - Commit: pending
 - Implementation mode: subagent
 - Implemented by: pending
@@ -28,7 +28,7 @@ Convert the core of the hub server to strict TypeScript: the 27 top-level `serve
 
 | Master item | How this phase advances it | Phase criterion |
 |---|---|---|
-| D1 | Removes 46 tracked `.js` files from `server/` (27 modules + 19 tests) | A1 |
+| D1 | Removes 46 tracked `.js` files from `server/` (27 modules + 19 tests), keeping their history | A1, A6 |
 | D2 | Every converted file passes `strict` with no `@ts-nocheck` and only justified `any` | A2 |
 | D3 | Converted files are lint-clean (0 errors) and oxfmt-formatted | A4 |
 | D4 | The suite stays at 299 tests, ≥ 298 pass, 0 fail | A3 |
@@ -69,7 +69,7 @@ Out of scope:
 
 If a step reveals work outside this phase, report it and continue the approved steps unless it blocks them. Do not add it to this plan or implement it here.
 
-Commit after each step with subject `P2: <step title>` and push (draft PR open). Every commit must leave `pnpm test` green.
+Commit after each step with subject `P2:` followed by the step title and push (draft PR open). Every commit must leave `pnpm test` green.
 
 ### S1 — Shared type-stripping source reader for tests
 
