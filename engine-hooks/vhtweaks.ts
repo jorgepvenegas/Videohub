@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Scene tweaks: small fixes the user makes in VideoHub's live editor, with no code change and no Claude.
 // They live in scenes/<name>/tweaks.json and every frame (preview and render alike) is drawn with them:
 //

@@ -1,4 +1,4 @@
-// 2D layers of the live editor ("🧩 2D layers", ui/review/edit2d.ts; page side engine-hooks/vh2d.js):
+// 2D layers of the live editor ("🧩 2D layers", ui/review/edit2d.ts; page side engine-hooks/vh2d.ts):
 // validation of tweaks.json "items2d" / "actors2d", and the pictures the user adds (<film>/vh2d/<name>).
 import fs from 'node:fs';
 import path from 'node:path';

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // VideoHub 2D layers (Nov 6): what the user adds or changes in a 2D film from VideoHub's live editor ("🧩 2D layers"),
 // with no code change and no Claude. Engine-neutral page side; master copy in VideoHub/engine-hooks/vh2d.js
 // (installed as 3D studio engine/vh2d.js and spotlight template2d src/vh2d.js — update those from here).

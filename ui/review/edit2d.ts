@@ -1,5 +1,5 @@
 // "🧩 2D layers" on the live preview (Nov 6, the user: "I need more control in 2D").
-// Pages with window.VH2D (engine-hooks/vh2d.js: the 3D studio's 2D films, spotlight template2d) draw what is edited
+// Pages with window.VH2D (engine-hooks/vh2d.ts: the 3D studio's 2D films, spotlight template2d) draw what is edited
 // here on every frame, previews and renders alike:
 //   items   pictures, texts, boxes, circles, arrows added over the film, each with its own time span and fades
 //   actors  the film's characters (drawn through the engine's actor()): moved, scaled or hidden, in one shot or the film
