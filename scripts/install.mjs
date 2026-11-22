@@ -140,7 +140,7 @@ export async function runInstaller(options, { hub = ROOT, platform = platformDef
     }
     if (options.action === 'open') { await open(hub); return { actions, warnings }; }
     if (options.action === 'setup') {
-      if (+process.versions.node.split('.')[0] < 22) throw new Error('Node.js 22 or newer is required');
+      { const [major, minor] = process.versions.node.split('.').map(Number); if (major < 22 || (major === 22 && minor < 18)) throw new Error('Node.js 22.18 or newer is required'); }
       const ffmpeg = platform.findTool('ffmpeg'), browser = platform.findBrowser().path;
       if (!ffmpeg) warn(platform.IS_MAC ? 'ffmpeg is missing. With Homebrew, run: brew install node ffmpeg.' : 'ffmpeg is missing. Install it using your distribution: sudo apt install ffmpeg; sudo dnf install ffmpeg; or sudo pacman -S ffmpeg.');
       if (!browser) warn(platform.IS_MAC ? 'Install Google Chrome from google.com/chrome or use: brew install --cask google-chrome.' : 'Install a native Chrome or Chromium package. Flatpak and Snap browsers cannot be driven reliably for renders.');

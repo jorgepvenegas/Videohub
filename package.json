@@ -30,14 +30,24 @@
     "start": "node server/hub.js",
     "mcp": "node server/mcp.js",
     "test": "node scripts/test.mjs",
-    "check": "node --check server/hub.js && node --check server/mcp.js"
+    "check": "node --check server/hub.js && node --check server/mcp.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "oxlint -c oxlintrc.json",
+    "format": "oxfmt --config oxfmtrc.json --no-error-on-unmatched-pattern '{server,scripts,ui,engine-hooks,templates,examples}/**/*.{js,mjs,ts}' '*.ts'",
+    "format:check": "oxfmt --config oxfmtrc.json --no-error-on-unmatched-pattern '{server,scripts,ui,engine-hooks,templates,examples}/**/*.{js,mjs,ts}' '*.ts' --check"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
     "puppeteer-core": "^25.17.0",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "oxfmt": "0.79.0",
+    "oxlint": "1.94.0",
+    "typescript": "7.0.2"
   }
 }
