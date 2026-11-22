@@ -1,10 +1,9 @@
-// @ts-nocheck
 // Writes a placeholder audio/mix.wav (a quiet chord bed, synthesized in code) so the film plays with sound in VideoHub's
 // live preview from the first minute. Replace it with your real mix (voice-over + music + effects) as audio/mix.wav.
-//   node make-audio.js            (DUR env = length in seconds, default 10)
+//   node make-audio.ts            (DUR env = length in seconds, default 10)
 'use strict';
-const fs = require('fs'),
-  path = require('path');
+const fs: typeof import('fs') = require('fs'),
+  path: typeof import('path') = require('path');
 const SR = 22050,
   DUR = +(process.env.DUR || 10),
   N = Math.round(SR * DUR);

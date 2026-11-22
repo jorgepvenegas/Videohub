@@ -1,19 +1,18 @@
-// @ts-nocheck
 // Writes audio/mix.wav: the film's sound, synthesized in code (no downloaded assets) — a soft pad that changes chord
 // with each scene, a typing tick under the title, little "pops" when the shapes land and a bell at the outro.
-//   node make-audio.js            (DUR env = length in seconds, default 10)
+//   node make-audio.ts            (DUR env = length in seconds, default 10)
 // VideoHub's live preview plays audio/mix.wav next to the picture; renders put the same file under the video.
 'use strict';
-const fs = require('fs'),
-  path = require('path');
+const fs: typeof import('fs') = require('fs'),
+  path: typeof import('path') = require('path');
 const SR = 22050,
   DUR = +(process.env.DUR || 10),
   N = Math.round(SR * DUR);
 const L = new Float32Array(N),
   R = new Float32Array(N);
-const midi = m => 440 * Math.pow(2, (m - 69) / 12);
+const midi = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
-function add(t0, len, fn, pan = 0) {
+function add(t0: number, len: number, fn: (t: number) => number, pan = 0) {
   // fn(local time) → sample
   const a = Math.max(0, Math.round(t0 * SR)),
     b = Math.min(N, Math.round((t0 + len) * SR));
@@ -26,7 +25,7 @@ function add(t0, len, fn, pan = 0) {
   }
 }
 // pad: three detuned sines per note, slow attack/release
-const chords = [
+const chords: [number, number, number[]][] = [
   [0, 3.5, [57, 60, 64, 69]],
   [3.5, 3.5, [53, 57, 60, 65]],
   [7, 3, [55, 59, 62, 67]]

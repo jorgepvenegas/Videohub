@@ -1,14 +1,13 @@
-// @ts-nocheck
 // Renders the film to MP4 in 2-second chunks with headless Edge/Chrome (puppeteer-core) + ffmpeg.
 //
-//   node render.js [workers]          → render/chunks/c_000.mp4 … (+ render/video.mp4 and render/<name>.mp4 when run by hand)
-//   ONLY=2,3 node render.js           → re-renders only chunks 2 and 3 (VideoHub's partial re-render)
-//   PREVIEW=1 node render.js          → half size, 30 fps, render/preview/video.mp4 (quick look)
-//   node render.js snap 1.5 4 8.2     → snaps/<t>.jpg stills
+//   node render.ts [workers]          → render/chunks/c_000.mp4 … (+ render/video.mp4 and render/<name>.mp4 when run by hand)
+//   ONLY=2,3 node render.ts           → re-renders only chunks 2 and 3 (VideoHub's partial re-render)
+//   PREVIEW=1 node render.ts          → half size, 30 fps, render/preview/video.mp4 (quick look)
+//   node render.ts snap 1.5 4 8.2     → snaps/<t>.jpg stills
 //
 // What VideoHub reads from this file (docs/PROJECT-CONTRACT.md): FPS, CH (frames per chunk) and the word "chunks" make
 // it a chunked ("family A") script; process.env.ONLY means it can re-render single chunks; VW/VH give the size;
-// PAGE is the page it opens. VideoHub runs it as `node render.js <workers>` in this folder with DUR, WK, ONLY, PREVIEW,
+// PAGE is the page it opens. VideoHub runs it as `node render.ts <workers>` in this folder with DUR, WK, ONLY, PREVIEW,
 // FPS and VIDEOHUB_ENCODER in the environment, then joins the chunks and adds the sound itself (audio/mix.wav, or
 // .videohub/project.json render.mux). Keep those names if you adapt this script.
 //
@@ -20,15 +19,30 @@
 // - Encoder: VIDEOHUB_ENCODER = auto | nvenc | amf | qsv | x264 (auto: the first graphics-card encoder whose test
 //   encode works, else x264). A named encoder that does not work here falls back to x264.
 'use strict';
-const fs = require('fs'),
-  path = require('path'),
-  os = require('os');
-const { spawn, spawnSync, execFileSync } = require('child_process');
+// typed requires: the script stays CommonJS (no ESM syntax) so Node runs it as it is, and the types still come through
+const fs: typeof import('fs') = require('fs'),
+  path: typeof import('path') = require('path'),
+  os: typeof import('os') = require('os');
+type Browser = import('puppeteer-core').Browser;
+type Page = import('puppeteer-core').Page;
+type Socket = import('net').Socket;
+type IncomingMessage = import('http').IncomingMessage;
+type ServerResponse = import('http').ServerResponse;
+const { spawn, spawnSync, execFileSync }: typeof import('child_process') = require('child_process');
+
+// the page's window names (type-only): film.ts sets renderOut, this script adds __vhRaw to the page it opens
+declare global {
+  interface Window {
+    renderOut: (t: number) => void;
+    __vhRaw: { open: () => Promise<void>; chunk: (a: number, b: number, fps: number) => Promise<string[]> };
+  }
+}
 
 // a package from this folder's node_modules, else the one VideoHub ships with (VIDEOHUB_DIR is set by the queue)
-function load(name, near) {
+function load<T>(name: string, near?: string): T | null {
   const tries = [() => require(name)];
-  for (const d of [process.env.VIDEOHUB_DIR, process.env.VIDEOHUB_HOME, near].filter(Boolean)) tries.push(() => require(require.resolve(name, { paths: [d] })));
+  for (const d of [process.env.VIDEOHUB_DIR, process.env.VIDEOHUB_HOME, near].filter(Boolean) as string[])
+    tries.push(() => require(require.resolve(name, { paths: [d] })));
   for (const t of tries) {
     try {
       return t();
@@ -37,14 +51,14 @@ function load(name, near) {
   return null;
 }
 function loadPuppeteer() {
-  const p = load('puppeteer-core');
+  const p = load<typeof import('puppeteer-core')>('puppeteer-core');
   if (p) return p;
   console.error('puppeteer-core not found: run "pnpm install" in this folder (or render through VideoHub, which ships it).');
   process.exit(2);
 }
 // the browser: CHROME env (the film's own choice), else the hub's browser (VIDEOHUB_BROWSER), else Edge/Chrome/Chromium
 function browserPath() {
-  const c = [process.env.CHROME, process.env.VIDEOHUB_BROWSER].filter(Boolean);
+  const c = [process.env.CHROME, process.env.VIDEOHUB_BROWSER].filter(Boolean) as string[];
   for (const dir of (process.env.PATH || '').split(path.delimiter))
     for (const name of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'microsoft-edge', 'microsoft-edge-stable']) {
       if (dir && !/snap|flatpak/i.test(dir)) c.push(path.join(dir, name));
@@ -131,7 +145,7 @@ const ENCODER_ARGS = {
   x264: [['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16']],
   lossless: [['-c:v', 'libx264rgb', '-preset', 'ultrafast', '-qp', '0']] // for checks only (huge files)
 };
-const probe = args =>
+const probe = (args: string[]) =>
   spawnSync(
     FFMPEG,
     [
@@ -155,13 +169,14 @@ const probe = args =>
   ).status === 0;
 function pickEncoder() {
   const want = String(process.env.VIDEOHUB_ENCODER || 'auto').toLowerCase();
-  const works = n => {
-    const candidates = ENCODER_ARGS[n] || [];
+  const works = (n: string) => {
+    const candidates = ENCODER_ARGS[n as keyof typeof ENCODER_ARGS] || [];
     return (n === 'videotoolbox' && os.arch?.() !== 'arm64' ? [...candidates].reverse() : candidates).find(probe) || null;
   };
-  if (want === 'x264' || want === 'lossless') return { name: want, args: ENCODER_ARGS[want][0] };
+  if (want === 'x264' || want === 'lossless') return { name: want, args: ENCODER_ARGS[want as keyof typeof ENCODER_ARGS][0] };
   for (const n of want === 'auto'
-    ? process.env.VIDEOHUB_ENCODER_ORDER?.split(',') || { Linux: ['nvenc', 'vaapi', 'qsv'], Darwin: ['videotoolbox'] }[os.type?.()] || ['nvenc', 'amf', 'qsv']
+    ? process.env.VIDEOHUB_ENCODER_ORDER?.split(',') ||
+      { Linux: ['nvenc', 'vaapi', 'qsv'], Darwin: ['videotoolbox'] }[os.type?.() as 'Linux' | 'Darwin'] || ['nvenc', 'amf', 'qsv']
     : [want]) {
     const a = works(n);
     if (a) return { name: n, args: a };
@@ -169,9 +184,10 @@ function pickEncoder() {
   if (want !== 'auto') console.log(`encoder ${want} does not work on this PC: using x264`);
   return { name: 'x264', args: ENCODER_ARGS.x264[0] };
 }
-let ENC = null;
+type Enc = { name: string; args: string[] };
+let ENC = null as unknown as Enc; // set by the render below before the first encoder() call
 // ffmpeg for one chunk: raw RGBA frames or PNG screenshots in, the chosen encoder out
-function encoder(input, out) {
+function encoder(input: string, out: string) {
   const inArgs =
     input === 'raw'
       ? ['-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${VW}x${VH}`, '-framerate', String(fps), '-i', '-']
@@ -201,7 +217,7 @@ function encoder(input, out) {
 
 // ---------- page side of the raw path (runs in the page): is the canvas the whole picture? then read it every frame
 // and pass it to a worker that sends it over the WebSocket; at most 2 frames in flight (the script acks each one)
-function pageRaw(VW, VH, url) {
+function pageRaw(VW: number, VH: number, url: string) {
   try {
     window.renderOut(0);
   } catch (e) {
@@ -214,7 +230,7 @@ function pageRaw(VW, VH, url) {
   const r = c.getBoundingClientRect();
   if (Math.round(r.left) || Math.round(r.top) || Math.round(r.width) !== VW || Math.round(r.height) !== VH)
     return 'the canvas is not shown at 0,0 at full size';
-  for (let e = c; e && e !== document.documentElement; e = e.parentElement) {
+  for (let e: HTMLElement | null = c; e && e !== document.documentElement; e = e.parentElement) {
     const s = getComputedStyle(e);
     if (s.opacity !== '1' || s.filter !== 'none' || s.mixBlendMode !== 'normal' || s.clipPath !== 'none' || (s.maskImage && s.maskImage !== 'none'))
       return 'the canvas or a parent has opacity, a filter, a blend mode or a mask';
@@ -232,13 +248,13 @@ function pageRaw(VW, VH, url) {
       const s = e && getComputedStyle(e, ps);
       if (s && s.content && s.content !== 'none' && s.content !== 'normal') return 'a ::before/::after element on the page';
     }
-  let read,
+  let read: () => ArrayBuffer,
     flip = false;
   const g = c.getContext('2d'); // the page's own context (null when it is WebGL)
   if (g) {
     const cs2 = g.getContextAttributes ? g.getContextAttributes().colorSpace : 'srgb';
     if (cs2 && cs2 !== 'srgb') return 'the canvas colour space is ' + cs2;
-    read = () => g.getImageData(0, 0, VW, VH).data.buffer;
+    read = () => g.getImageData(0, 0, VW, VH).data.buffer as ArrayBuffer;
   } else {
     const gl = c.getContext('webgl2') || c.getContext('webgl');
     if (!gl) return 'the canvas has no 2D or WebGL context';
@@ -253,7 +269,7 @@ function pageRaw(VW, VH, url) {
 const px=new Uint8Array(m.buf),W=m.w*4;if(m.flip){const t=new Uint8Array(W);for(let a=0,b=m.h-1;a<b;a++,b--){const A=a*W,B=b*W;t.set(px.subarray(A,A+W));px.copyWithin(A,B,B+W);px.set(t,B)}}
 const u=new Uint32Array(m.buf);for(let i=0;i<u.length;i++)if((u[i]>>>24)!==255){postMessage({err:'transparent pixels in frame '+m.f});return}ws.send(new Blob([px]))}`; // a Blob, not the ArrayBuffer: ~2.5x faster through Chromium's socket (measured)
   const wk = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
-  const st = { inflight: 0, err: null, wake: null, open: false };
+  const st: { inflight: number; err: string | null; wake: (() => void) | null; open: boolean } = { inflight: 0, err: null, wake: null, open: false };
   wk.onmessage = e => {
     const d = e.data;
     if (d.ack) st.inflight--;
@@ -270,7 +286,7 @@ const u=new Uint32Array(m.buf);for(let i=0;i<u.length;i++)if((u[i]>>>24)!==255){
     if (w) w();
   };
   const wait = () =>
-    new Promise(r => {
+    new Promise<void>(r => {
       st.wake = r;
     });
   window.__vhRaw = {
@@ -279,15 +295,15 @@ const u=new Uint32Array(m.buf);for(let i=0;i<u.length;i++)if((u[i]>>>24)!==255){
       while (!st.open && !st.err) await wait();
       if (st.err) throw new Error(st.err);
     },
-    chunk: async (a, b, fps) => {
-      const errors = [];
+    chunk: async (a: number, b: number, fps: number) => {
+      const errors: string[] = [];
       for (let f = a; f < b; f++) {
         while (st.inflight >= 2 && !st.err) await wait();
         if (st.err) throw new Error(st.err);
         try {
           window.renderOut(f / fps);
         } catch (e) {
-          if (errors.length < 20) errors.push('t=' + f / fps + ' ' + (e.stack || e));
+          if (errors.length < 20) errors.push('t=' + f / fps + ' ' + ((e as Error).stack || (e as string)));
         }
         const buf = read();
         st.inflight++;
@@ -302,21 +318,24 @@ const u=new Uint32Array(m.buf);for(let i=0;i<u.length;i++)if((u[i]>>>24)!==255){
 }
 
 // ---------- one browser per worker: the page, and how it hands over frames
-async function openPage(br, server, id, frames = true) {
+type Conn = { sock: Socket; onData: ((piece: Buffer) => void) | null; onEnd: (() => void) | null; closed: boolean; send: (t: string) => void };
+type FrameServer = { port: number; close: () => void; wait: (id: number) => Promise<Conn> };
+type PageWorker = { page: Page; shot: (t: number, format?: 'png' | 'jpeg') => Promise<Buffer>; raw: Conn | null };
+async function openPage(br: Browser, server: FrameServer, id: number, frames = true): Promise<PageWorker> {
   const p = await br.newPage();
-  p.on('pageerror', e => console.error('PAGE ERROR', e.message));
+  p.on('pageerror', e => console.error('PAGE ERROR', (e as Error).message));
   await p.setViewport({ width: VW, height: VH, deviceScaleFactor: 1 });
   // over http, not file://: Chrome does not run a .ts script loaded from a file URL
   await p.goto(`http://127.0.0.1:${server.port}/` + path.relative('.', PAGE).split(path.sep).map(encodeURIComponent).join('/'));
   await p.waitForFunction('window.READY === true', { timeout: 120000 });
   const cdp = await p.target().createCDPSession();
-  const shot = async (t, format = 'png') => {
-    const err = await p.evaluate(t => {
+  const shot = async (t: number, format: 'png' | 'jpeg' = 'png') => {
+    const err = await p.evaluate((t: number) => {
       try {
         window.renderOut(t);
         return null;
       } catch (e) {
-        return String(e.stack || e);
+        return String((e as Error).stack || e);
       }
     }, t);
     if (err) console.error('t=' + t, err);
@@ -328,9 +347,9 @@ async function openPage(br, server, id, frames = true) {
     });
     return Buffer.from(data, 'base64');
   };
-  let raw = null;
+  let raw: Conn | null = null;
   if (frames && process.env.VIDEOHUB_TRANSPORT !== 'png') {
-    const why = await p.evaluate(pageRaw, VW, VH, `ws://127.0.0.1:${server.port}/?w=${id}`).catch(e => 'page check failed: ' + e.message);
+    const why = await p.evaluate(pageRaw, VW, VH, `ws://127.0.0.1:${server.port}/?w=${id}`).catch((e: Error) => 'page check failed: ' + e.message);
     if (why) console.log(`[w${id}] frames: PNG screenshots (${why})`);
     else {
       const conn = server.wait(id);
@@ -343,7 +362,7 @@ async function openPage(br, server, id, frames = true) {
 }
 
 // GET /<file>: the film's own files for the page, like VideoHub's live preview. .ts files go out with their types stripped.
-const MIME = {
+const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
@@ -367,15 +386,15 @@ const MIME = {
   '.wasm': 'application/wasm'
 };
 // Only the film folder (the working directory) is served, never anything outside it.
-function serveFolder(q, r) {
-  const deny = code => {
+function serveFolder(q: IncomingMessage, r: ServerResponse) {
+  const deny = (code: number) => {
     r.writeHead(code);
     r.end();
   };
   if (q.method !== 'GET') return deny(405);
-  let file;
+  let file: string;
   try {
-    const real = fs.realpathSync(path.resolve('.' + decodeURIComponent(new URL(q.url, 'http://x').pathname)));
+    const real = fs.realpathSync(path.resolve('.' + decodeURIComponent(new URL(q.url as string, 'http://x').pathname)));
     const inside = path.relative(fs.realpathSync('.'), real);
     if (inside.startsWith('..') || path.isAbsolute(inside)) return deny(403);
     if (!fs.statSync(real).isFile()) return deny(404); // no directory listing
@@ -383,12 +402,12 @@ function serveFolder(q, r) {
   } catch (e) {
     return deny(404);
   }
-  let body;
+  let body: string | undefined;
   if (file.endsWith('.ts')) {
     try {
-      body = require('module').stripTypeScriptTypes(fs.readFileSync(file, 'utf8'), { mode: 'strip' });
+      body = (require('module') as typeof import('module')).stripTypeScriptTypes(fs.readFileSync(file, 'utf8'), { mode: 'strip' });
     } catch (e) {
-      console.error('PAGE SERVER', path.basename(file), e.message);
+      console.error('PAGE SERVER', path.basename(file), (e as Error).message);
       return deny(500);
     }
   }
@@ -404,13 +423,13 @@ function serveFolder(q, r) {
 // frame to ffmpeg as it arrives, unmasked in place, instead of collecting 8 MB messages first; the "ws" package spent
 // ~15 ms of this script's single thread per 1080p frame doing that and capped renders at ~30 fps)
 function frameServer() {
-  const http = require('http'),
-    crypto = require('crypto');
-  return new Promise((resolve, reject) => {
-    const waiting = new Map(); // worker id → the page that is about to connect (a restarted page connects again)
+  const http: typeof import('http') = require('http'),
+    crypto: typeof import('crypto') = require('crypto');
+  return new Promise<FrameServer>((resolve, reject) => {
+    const waiting = new Map<string, (c: Conn) => void>(); // worker id → the page that is about to connect (a restarted page connects again)
     const srv = http.createServer(serveFolder);
-    srv.on('upgrade', (req, sock) => {
-      const id = new URL(req.url, 'http://x').searchParams.get('w'),
+    srv.on('upgrade', (req: IncomingMessage, sock: Socket) => {
+      const id = new URL(req.url as string, 'http://x').searchParams.get('w') as string,
         w = waiting.get(id),
         key = req.headers['sec-websocket-key'];
       if (!w || !key) return sock.destroy();
@@ -427,11 +446,17 @@ function frameServer() {
       w(wsConn(sock));
     });
     srv.on('error', reject);
-    srv.listen(0, '127.0.0.1', () => resolve({ port: srv.address().port, close: () => srv.close(), wait: id => new Promise(r => waiting.set(String(id), r)) }));
+    srv.listen(0, '127.0.0.1', () =>
+      resolve({
+        port: (srv.address() as import('net').AddressInfo).port,
+        close: () => srv.close(),
+        wait: (id: number) => new Promise<Conn>(r => waiting.set(String(id), r))
+      })
+    );
   });
 }
 // XOR the client mask into b in place (phase = payload bytes already unmasked), 4 bytes at a time where aligned
-function unmask(b, m, ph) {
+function unmask(b: Buffer, m: Buffer, ph: number) {
   let i = 0;
   const n = b.length;
   while (i < n && (b.byteOffset + i) & 3) {
@@ -452,24 +477,24 @@ function unmask(b, m, ph) {
   }
 }
 // a WebSocket connection read as a stream: c.onData(piece) for each piece of a binary message, c.onEnd() when it ends
-function wsConn(sock) {
-  const c = {
+function wsConn(sock: Socket) {
+  const c: Conn = {
     sock,
     onData: null,
     onEnd: null,
     closed: false,
-    send: t => {
+    send: (t: string) => {
       const b = Buffer.from(t);
       sock.write(Buffer.concat([Buffer.from([0x81, b.length]), b]));
     }
   };
-  let head = null,
+  let head: Buffer | null = null,
     left = 0,
-    mask = null,
+    mask: Buffer | null = null,
     ph = 0,
     op = 0,
     fin = false,
-    ctl = null,
+    ctl: Buffer[] | null = null,
     cop = 0;
   const done = () => {
     if (ctl) {
@@ -484,7 +509,7 @@ function wsConn(sock) {
     }
     if (fin && c.onEnd) c.onEnd();
   };
-  sock.on('data', d => {
+  sock.on('data', (d: Buffer) => {
     let buf = head ? Buffer.concat([head, d]) : d,
       i = 0;
     head = null;
@@ -492,7 +517,7 @@ function wsConn(sock) {
       if (left > 0) {
         const n = Math.min(left, buf.length - i),
           piece = buf.subarray(i, i + n);
-        unmask(piece, mask, ph);
+        unmask(piece, mask as Buffer, ph);
         ph = (ph + n) & 3;
         left -= n;
         i += n;
@@ -541,16 +566,17 @@ function wsConn(sock) {
 // one chunk through the raw path: frames arrive in order on the socket and go to ffmpeg piece by piece. A frame is acked
 // (the page keeps at most 2 in flight) once ffmpeg's pipe holds at most one frame; above two frames the socket pauses
 // and resumes on 'drain'
-async function rawChunk(w, a, b, tmp, hold) {
+type Hold = { ff?: ReturnType<typeof encoder> };
+async function rawChunk(w: PageWorker, a: number, b: number, tmp: string, hold: Hold) {
   const FRAME = VW * VH * 4,
     ff = (hold.ff = encoder('raw', tmp)),
-    s = w.raw,
+    s = w.raw as Conn,
     sock = s.sock;
   let n = 0,
     got = 0,
     acks = 0,
     paused = false,
-    bad = null;
+    bad: string | null = null;
   const flush = () => {
     if (ff.stdin.writableLength <= FRAME) for (; acks > 0; acks--) s.send('k');
   };
@@ -563,7 +589,7 @@ async function rawChunk(w, a, b, tmp, hold) {
   };
   ff.stdin.on('drain', onDrain);
   ff.stdin.on('error', () => {});
-  s.onData = piece => {
+  s.onData = (piece: Buffer) => {
     got += piece.length;
     ff.stdin.write(piece);
     if (!paused && ff.stdin.writableLength > 2 * FRAME) {
@@ -578,10 +604,10 @@ async function rawChunk(w, a, b, tmp, hold) {
     acks++;
     flush();
   };
-  const closed = new Promise(r => ff.on('close', r));
+  const closed = new Promise<number | null>(r => ff.on('close', r));
   try {
     const errors = await Promise.race([
-      w.page.evaluate((a, b, fps) => window.__vhRaw.chunk(a, b, fps), a, b, fps),
+      w.page.evaluate((a: number, b: number, fps: number) => window.__vhRaw.chunk(a, b, fps), a, b, fps),
       closed.then(code => {
         throw new Error('ffmpeg stopped (code ' + code + ')');
       })
@@ -603,9 +629,9 @@ async function rawChunk(w, a, b, tmp, hold) {
   ff.stdin.end();
   return { ff, code: await closed };
 }
-async function shotChunk(w, a, b, tmp, hold) {
+async function shotChunk(w: PageWorker, a: number, b: number, tmp: string, hold: Hold) {
   const ff = (hold.ff = encoder('png', tmp)),
-    closed = new Promise(r => ff.on('close', r));
+    closed = new Promise<number | null>(r => ff.on('close', r));
   for (let f = a; f < b; f++) {
     const buf = await w.shot(f / fps);
     if (!ff.stdin.write(buf)) await new Promise(r => ff.stdin.once('drain', r));
@@ -623,7 +649,7 @@ async function shotChunk(w, a, b, tmp, hold) {
   const launch = () =>
     puppeteer.launch({
       executablePath: exe,
-      headless: 'new',
+      headless: 'new' as unknown as boolean, // puppeteer-core still starts the new headless mode for it; its types list only true and 'shell'
       protocolTimeout: 0,
       args: ['--allow-file-access-from-files', '--force-device-scale-factor=1', '--hide-scrollbars', '--disable-accelerated-2d-canvas']
     });
@@ -639,14 +665,14 @@ async function shotChunk(w, a, b, tmp, hold) {
     return;
   }
 
-  const W = Math.max(1, +process.argv[2] || +process.env.WK || 2);
+  const W = Math.max(1, +process.argv[2] || +(process.env.WK as string) || 2);
   fs.mkdirSync(OUT, { recursive: true });
   const chunkFrames = PREVIEW ? TOTAL : CH,
     nCh = Math.ceil(TOTAL / chunkFrames);
-  const cf = c => path.join(OUT, `c_${String(c).padStart(3, '0')}.mp4`);
+  const cf = (c: number) => path.join(OUT, `c_${String(c).padStart(3, '0')}.mp4`);
   const only = !PREVIEW && process.env.ONLY ? process.env.ONLY.split(',').map(Number) : null;
   // a chunk already on disk is kept (a stopped render resumes); VideoHub moves the chunks it wants again out of the way
-  const queue = [];
+  const queue: number[] = [];
   for (let c = 0; c < nCh; c++) if ((PREVIEW || !fs.existsSync(cf(c))) && (!only || only.includes(c))) queue.push(c);
   console.log(`${queue.length}/${nCh} chunks to render`); // VideoHub reads this line and the "chunk N ok — D done" ones for its progress bar
   if (!queue.length) {
@@ -660,7 +686,7 @@ async function shotChunk(w, a, b, tmp, hold) {
   let done = 0,
     frames = 0;
   // a chunk that takes far longer than it should (a hung page or ffmpeg) is killed and rendered again, up to 3 times
-  const budget = n => 60000 + n * 2000;
+  const budget = (n: number) => 60000 + n * 2000;
   await Promise.all(
     Array.from({ length: Math.min(W, queue.length) }, async (_, id) => {
       let br = await launch(),
@@ -670,28 +696,29 @@ async function shotChunk(w, a, b, tmp, hold) {
           await Promise.race([br.close(), new Promise(r => setTimeout(r, 5000))]);
         } catch (e) {}
         try {
-          br.process() && br.process().kill();
+          br.process() && br.process()!.kill();
         } catch (e) {}
         br = await launch();
         w = await openPage(br, server, id);
       };
       while (queue.length) {
-        const c = queue.shift(),
+        const c = queue.shift() as number,
           a = c * chunkFrames,
           b = Math.min(TOTAL, a + chunkFrames),
           tmp = cf(c) + '.tmp.mp4';
         for (let attempt = 1; ; attempt++) {
-          const hold = {};
-          let timer = null;
+          const hold: Hold = {};
+          let timer = null as NodeJS.Timeout | null;
           const run = (w.raw ? rawChunk(w, a, b, tmp, hold) : shotChunk(w, a, b, tmp, hold)).then(r => r.code);
-          const timeout = new Promise((_, rej) => {
+          const timeout = new Promise<never>((_, rej) => {
             timer = setTimeout(() => rej(Object.assign(new Error(`chunk ${c} took longer than ${budget(b - a) / 1000}s`), { timeout: true })), budget(b - a));
           });
           try {
             const code = await Promise.race([run, timeout]);
             if (code !== 0) throw new Error(`ffmpeg failed on chunk ${c} (code ${code})`);
             break;
-          } catch (e) {
+          } catch (e: any) {
+            // any: a thrown value of unknown shape; only its message is read
             run.catch(() => {});
             try {
               hold.ff && hold.ff.kill();
@@ -705,7 +732,7 @@ async function shotChunk(w, a, b, tmp, hold) {
             console.log(`[w${id}] chunk ${c}: ${e.message}; trying again (${attempt}/3)`);
             await restart();
           } finally {
-            clearTimeout(timer);
+            clearTimeout(timer as NodeJS.Timeout);
           }
         }
         fs.renameSync(tmp, cf(c));

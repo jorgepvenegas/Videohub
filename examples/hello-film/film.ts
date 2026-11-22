@@ -1,19 +1,27 @@
-// @ts-nocheck
 // Hello, VideoHub — a 10-second example film written as code.
 //
 // The VideoHub contract (docs/PROJECT-CONTRACT.md) in three lines:
 //   window.renderOut(t)  draws second t of the film, synchronously, on the fixed-size canvas (1920x1080)
 //   window.READY = true  once everything the drawing needs is loaded
 //   window.VH_SCENES     (optional) the film's scenes, shown on VideoHub's timeline
-// The same page is what VideoHub's live preview plays and what render.js screenshots frame by frame,
+// The same page is what VideoHub's live preview plays and what render.ts screenshots frame by frame,
 // so a fix in this file shows up in the open preview at once and in the next render exactly the same.
+// Type-only: the page contract's window names, so this file type-checks under the root config.
+declare global {
+  interface Window {
+    renderOut: (t: number) => void;
+    READY?: boolean;
+    VH_SCENES: { name: string; t0: number; t1: number }[];
+  }
+}
+
 (function () {
   'use strict';
   const W = 1920,
     H = 1080,
     DUR = 10;
-  const cv = document.getElementById('c'),
-    g = cv.getContext('2d');
+  const cv = document.getElementById('c') as HTMLCanvasElement,
+    g = cv.getContext('2d')!;
 
   // the scenes, in seconds (also drive the drawing below)
   const SCENES = [
@@ -25,25 +33,25 @@
 
   // ---- small helpers: everything is a pure function of t (no Date.now(), no Math.random()), so any frame can be drawn
   // in any order — that is what makes live preview, frame stepping and partial re-renders possible
-  const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
-  const ease = x => {
+  const clamp = (x: number, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+  const ease = (x: number) => {
     x = clamp(x);
     return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
   };
-  const back = x => {
+  const back = (x: number) => {
     x = clamp(x);
     const c = 1.70158;
     return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2);
   };
-  const lerp = (a, b, k) => a + (b - a) * k;
-  const seeded = n => {
+  const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+  const seeded = (n: number) => {
     const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
     return s - Math.floor(s);
   }; // stable "random"
 
   const C = { ink: '#14161f', paper: '#f3efe6', accent: '#ff7a3d', blue: '#3d7bff', green: '#2fbf8f', pink: '#ff4f8b' };
 
-  function background(t) {
+  function background(t: number) {
     const k = clamp(t / DUR);
     const grd = g.createLinearGradient(0, 0, 0, H);
     grd.addColorStop(0, `hsl(${lerp(228, 262, k)}, 45%, ${lerp(14, 20, k)}%)`);
@@ -81,7 +89,7 @@
     g.fill();
   }
 
-  function title(t) {
+  function title(t: number) {
     const text = 'Hello, VideoHub',
       shown = Math.floor(clamp((t - 0.3) / 1.6) * text.length);
     const out = clamp((t - 3.0) / 0.5); // leaves at the end of its scene
@@ -105,7 +113,7 @@
     g.restore();
   }
 
-  function shapes(t) {
+  function shapes(t: number) {
     const s = t - 3.5; // seconds into the scene
     const items = [
       { c: C.accent, x: 0.25, kind: 'circle' },
@@ -148,7 +156,7 @@
     g.restore();
   }
 
-  function outro(t) {
+  function outro(t: number) {
     const s = t - 7,
       k = back(s / 0.8);
     g.save();
@@ -174,7 +182,7 @@
     g.restore();
   }
 
-  function timecode(t) {
+  function timecode(t: number) {
     g.save();
     g.font = '600 26px Consolas, monospace';
     g.fillStyle = 'rgba(255,255,255,0.55)';
@@ -184,7 +192,7 @@
   }
 
   // ---- the contract
-  window.renderOut = function (t) {
+  window.renderOut = function (t: number) {
     t = clamp(+t || 0, 0, DUR);
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, W, H);
