@@ -218,7 +218,7 @@ Append during implementation. One line per deviation: date, step, what changed, 
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | met | `git ls-files ui | grep -E '^ui/[^/]+\.js$'` prints nothing (the plan's `git ls-files 'ui/*.js'` also lists the `review/` and `thumbstudio/` JS that P6 and P7 convert); `git show -M --summary df35b43` shows 10 renames; `git log --follow --oneline ui/app.ts` 6 commits |
+| A1 | met | `git ls-files ui | grep -E '^ui/[^/]+\.js$'` prints only `ui/review.js` (out of scope, P6); the six modules and four tests listed in the plan are gone (the plan's `git ls-files 'ui/*.js'` also lists the `review/` and `thumbstudio/` JS that P6 and P7 convert); `git show -M --summary df35b43` shows 10 renames; `git log --follow --oneline ui/app.ts` 6 commits |
 | A2 | met | `pnpm typecheck` exit 0 (root and `ui/tsconfig.json`); `grep -l "@ts-nocheck" ui/*.ts` empty; stripped-source comparison in §9 S5 (identical bar comments, grouping parentheses and alias bindings); built bundle hash unchanged |
 | A3 | met | `pnpm test` 312 pass, 0 fail (baseline 307); new tests `server/hub-ui.test.ts` (3) and `scripts/install.test.ts` (+2, 2 updated); revert checks in §9 S2 and S3 |
 | A4 | met | `pnpm lint` exit 0 with 0 errors; `pnpm format:check` exit 0 |
