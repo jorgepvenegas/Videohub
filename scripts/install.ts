@@ -115,6 +115,7 @@ const ITEMS = [
   'package.json',
   'pnpm-lock.yaml',
   'vite.config.ts',
+  'vite.hooks.config.ts',
   'tsconfig.json'
 ];
 const casePath = (value: unknown, platform: CasePlatform) => (platform.casePath ? platform.casePath(value) : String(value));

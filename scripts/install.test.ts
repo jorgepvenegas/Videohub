@@ -199,11 +199,13 @@ test('update copies the build configuration with the code', async () => {
   const o = fixture(),
     target = path.join(path.dirname(o.hub), 'target');
   write(path.join(o.hub, 'vite.config.ts'), '// vite');
+  write(path.join(o.hub, 'vite.hooks.config.ts'), '// vite hooks');
   write(path.join(o.hub, 'tsconfig.json'));
   write(path.join(target, 'server', 'hub.ts'), '// old hub');
   for (const m of ['@modelcontextprotocol/sdk', 'puppeteer-core']) write(path.join(target, 'node_modules', m, 'package.json'));
   await runInstaller({ action: 'update', target }, { ...o, env: { ...o.env, VIDEOHUB_DATA_DIR: '' }, request: async () => null });
   assert.equal(fs.readFileSync(path.join(target, 'vite.config.ts'), 'utf8'), '// vite');
+  assert.equal(fs.readFileSync(path.join(target, 'vite.hooks.config.ts'), 'utf8'), '// vite hooks');
   assert.ok(fs.existsSync(path.join(target, 'tsconfig.json')));
 });
 test('missing pnpm stops setup with the OS hint before any change; dry-run only warns', async () => {

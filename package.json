@@ -32,7 +32,7 @@
     "test": "node scripts/test.ts",
     "check": "pnpm typecheck",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p ui/tsconfig.json",
-    "build": "vite build",
+    "build": "vite build && vite build --config vite.hooks.config.ts",
     "lint": "oxlint -c oxlintrc.json",
     "format": "oxfmt --config oxfmtrc.json --no-error-on-unmatched-pattern '{server,scripts,ui,engine-hooks,templates,examples}/**/*.{js,mjs,ts}' '*.ts'",
     "format:check": "oxfmt --config oxfmtrc.json --no-error-on-unmatched-pattern '{server,scripts,ui,engine-hooks,templates,examples}/**/*.{js,mjs,ts}' '*.ts' --check"
