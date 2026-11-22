@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2024",
+    "lib": ["es2024", "dom", "dom.iterable"],
+    "types": ["node"]
+  },
+  "include": ["server", "scripts", "ui/values.*", "ui/**/*.test.*", "engine-hooks", "templates", "examples"],
+  "exclude": ["node_modules", ".test-tmp", "data", "dist", "docs", ".agents"]
+}

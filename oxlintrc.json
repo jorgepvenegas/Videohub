@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "error" },
+  "env": { "node": true, "browser": true, "es2024": true },
+  "rules": {
+    "eslint/no-unused-vars": "warn",
+    "eslint/no-unused-expressions": "warn",
+    "eslint/no-useless-escape": "warn",
+    "eslint/no-unsafe-finally": "warn",
+    "eslint/no-self-assign": "warn",
+    "eslint/no-control-regex": "warn",
+    "eslint/no-async-promise-executor": "warn",
+    "unicorn/no-useless-fallback-in-spread": "warn",
+    "unicorn/prefer-string-starts-ends-with": "warn",
+    "unicorn/no-new-array": "warn",
+    "unicorn/no-single-promise-in-promise-methods": "warn",
+    "unicorn/no-useless-spread": "warn"
+  },
+  "ignorePatterns": ["node_modules", ".test-tmp", "data", ".agents", ".claude", "docs"]
+}

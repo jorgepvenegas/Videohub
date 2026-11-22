@@ -21,23 +21,35 @@
   ],
   "packageManager": "pnpm@11.5.2",
   "type": "module",
-  "main": "server/hub.js",
+  "main": "server/hub.ts",
   "os": [
     "linux",
     "darwin"
   ],
   "scripts": {
-    "start": "node server/hub.js",
-    "mcp": "node server/mcp.js",
-    "test": "node scripts/test.mjs",
-    "check": "node --check server/hub.js && node --check server/mcp.js"
+    "start": "node server/hub.ts",
+    "mcp": "node server/mcp.ts",
+    "test": "node scripts/test.ts",
+    "check": "pnpm typecheck",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p ui/tsconfig.json",
+    "build": "vite build && vite build --config vite.hooks.config.ts",
+    "lint": "oxlint -c oxlintrc.json",
+    "format": "oxfmt --config oxfmtrc.json --no-error-on-unmatched-pattern '{server,scripts,ui,engine-hooks,templates,examples}/**/*.{js,mjs,ts}' '*.ts'",
+    "format:check": "oxfmt --config oxfmtrc.json --no-error-on-unmatched-pattern '{server,scripts,ui,engine-hooks,templates,examples}/**/*.{js,mjs,ts}' '*.ts' --check"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
     "puppeteer-core": "^25.17.0",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "oxfmt": "0.79.0",
+    "oxlint": "1.94.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.8"
   }
 }

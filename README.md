@@ -29,7 +29,7 @@ Ask your agent for a video. It builds a film as a web page that draws every fram
 - **Thumbnail Studio** — sketch a thumbnail (posed mannequins, objects, text, camera/depth/light), send the brief to
   your agent, which makes the variants; annotate a variant, add the final text in code.
 - **Agent tools (MCP)** — `hub_live`, `hub_notes`, `hub_note_update`, `hub_render`, `hub_job`, `hub_project`, `hub_workspace`,
-  `hub_register_version`, `hub_cleanup`, `hub_thumb_*`; the same tools work from a shell (`node server/cli.js`).
+  `hub_register_version`, `hub_cleanup`, `hub_thumb_*`; the same tools work from a shell (`node server/cli.ts`).
 
 ![Projects](docs/screenshots/projects.png)
 
@@ -45,11 +45,11 @@ Built into the Node server, with no compiled helper:
 ![Renders](docs/screenshots/renders.png)
 
 ## Requirements
-Both platforms need Node.js 22+, ffmpeg on PATH, a native Chrome/Chromium/Edge browser for headless rendering, pnpm (setup installs dependencies with `pnpm install --frozen-lockfile` and only prints these hints when it is missing), and Claude Code or OpenCode for making and fixing films. No native modules or compiled render-protection helper are required.
+Both platforms need Node.js 22.18+, ffmpeg on PATH, a native Chrome/Chromium/Edge browser for headless rendering, pnpm (setup installs dependencies with `pnpm install --frozen-lockfile`, builds the UI with `pnpm build` and only prints these hints when it is missing), and Claude Code or OpenCode for making and fixing films. No native modules or compiled render-protection helper are required.
 
 | Platform | Install missing tools | Notes |
 |---|---|---|
-| Linux desktop | Your distribution's Node 22+ package; `sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, or `sudo pacman -S ffmpeg`; `npm install -g pnpm` or your distribution's pnpm package | Install a native browser; Snap/Flatpak browser wrappers are unsupported. Optional `taskset`, `zenity`/`kdialog`, `notify-send` |
+| Linux desktop | Your distribution's Node 22.18+ package; `sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, or `sudo pacman -S ffmpeg`; `npm install -g pnpm` or your distribution's pnpm package | Install a native browser; Snap/Flatpak browser wrappers are unsupported. Optional `taskset`, `zenity`/`kdialog`, `notify-send` |
 | macOS | With Homebrew: `brew install node ffmpeg pnpm`; `brew install --cask google-chrome`, or Chrome from its download page | Chrome / Edge / Chromium in `/Applications` or `~/Applications`; Verified on Apple Silicon (macOS 26.6); Intel unverified |
 
 A graphical desktop session is needed for windows, folder dialogs, desktop notifications and file-manager actions. A compatible graphics encoder is optional.
@@ -74,10 +74,10 @@ OpenCode's rules live in `~/.config/opencode/AGENTS.md` (under `$XDG_CONFIG_HOME
    VideoHub** with your workspace and films folder (`<workspace>\films`): click **▶ Add the example film**.
 2. Click its card: it opens in the **live preview**. Press Space, step with ← →, click on the video to leave a note.
 3. Press **🎬 Render** → *Full film*: the queue renders 5 two-second chunks and saves `hello-film_v1.mp4` with sound.
-4. Leave a note on a frame, change `film.js` (e.g. a colour), then **🎬 Render** → *Only the fixed parts*: only the
+4. Leave a note on a frame, change `film.ts` (e.g. a colour), then **🎬 Render** → *Only the fixed parts*: only the
    touched chunks are rendered again → `hello-film_v2.mp4`, and **Watch only the changes** plays them.
 What a film folder must contain for each feature: [docs/PROJECT-CONTRACT.md](docs/PROJECT-CONTRACT.md). New films start
-from [templates/new-film](templates/new-film).
+from [templates/new-film](templates/new-film) (`render.ts`, `make-audio.ts`, `film.ts`; films with `render.js` keep working).
 
 ## Working with your agent
 1. **Ask** Claude Code or OpenCode for a video. It builds the film from the template.
@@ -86,13 +86,13 @@ from [templates/new-film](templates/new-film).
 4. **Fix** — the agent reads `hub_notes`, edits the code and marks the fixes. The preview updates itself; repeat as needed.
 5. **Render** — when you ask, the agent calls `hub_render`, or you press Render. Later fixes can render only the changed chunks; use Watch only the changes and Check fixes to review them.
 
-If MCP tools are not loaded, the same tools work through `node <VideoHub>/server/cli.js <tool> "<json>"`.
+If MCP tools are not loaded, the same tools work through `node <VideoHub>/server/cli.ts <tool> "<json>"`.
 
 ## Optional integrations
 | Feature | Needs | Without it |
 |---|---|---|
 | Ready-made sound effects | a 3D studio engine with `engine/audio/synth.js` (`studioDir` in Settings) | your own sound folder and files from disk |
-| Scene editor / 2D layers in the preview | the page includes the hooks from `engine-hooks/` | those editors are hidden |
+| Scene editor / 2D layers in the preview | the page includes the hooks built from `engine-hooks/` (`dist/engine-hooks/*.js`) | those editors are hidden |
 | Snipp export status | Snipp writing `.renders\*.json` in a watched folder | not shown |
 Settings → *Optional parts on this computer* shows what was found.
 
@@ -122,7 +122,7 @@ Only integrations owned by this install are removed: MCP entry, skill, managed r
 - **Linux CPU limit unavailable** — install `taskset` (util-linux). Low priority and RAM watching still work. Raising Unix priority after slowing down may require privileges; a fresh render starts with its configured priority.
 - **Linux browser not found** — use a native browser package. Snap/Flatpak browser wrappers cannot reliably be driven by Puppeteer; `VIDEOHUB_BROWSER` can select a native executable.
 - **Linux Trash unavailable** — VideoHub tries `gio`, `trash-put`, then the freedesktop Trash format; it refuses an unsafe or unwritable destination and leaves the item in place.
-- **The page is blank** — open it in a browser and look at the console; a missing Node 22 or a broken update are the
+- **The page is blank** — open it in a browser and look at the console; a Node older than 22.18, a missing UI build or a broken update are the
   usual causes. Restart with the Desktop shortcut.
 - **Your agent does not see `hub_*` tools** — start a new session; `claude mcp list` or `opencode mcp list` should show `videohub`. Re-run the installer for that agent if needed.
 - **"This folder is not a project VideoHub knows"** — put the film inside a watched folder or add its parent folder
@@ -138,7 +138,7 @@ Only integrations owned by this install are removed: MCP entry, skill, managed r
 - **Coming from an older (Turkish) build** — see [docs/MIGRATING.md](docs/MIGRATING.md).
 
 ## Development
-`pnpm test` runs the suites; see [CLAUDE.md](CLAUDE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+`pnpm test` runs the suites (`pnpm format:check`, `pnpm lint`, `pnpm typecheck` and `pnpm build` are the other standards commands); see [CLAUDE.md](CLAUDE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## License
 [MIT](LICENSE) © 2026 VideoHub contributors.

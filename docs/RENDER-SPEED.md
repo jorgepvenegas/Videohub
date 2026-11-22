@@ -1,9 +1,11 @@
 # Render speed
 
-What the film render script (`templates/new-film/render.js`, the same file as `examples/hello-film/render.js`) does to
+What the film render script (`templates/new-film/render.ts`, the same file as `examples/hello-film/render.ts`) does to
 render fast without losing quality, how to pick the encoder, how to check quality yourself, and what was measured.
 
 ## What the render script does
+The script serves the film folder over `127.0.0.1` for every render (it also strips the types of `film.ts` for the page); the old fallback to screenshots over `file://` is gone.
+
 1. **Frames straight from the canvas.** When the page has exactly one canvas of `VW`×`VH` that holds the whole picture
    (shown at 0,0 at full size, nothing else visible over it, no CSS opacity/filter/mask, sRGB, 2D or WebGL), each
    frame's pixels are read from the canvas (`getImageData` / `readPixels`), handed to a Web Worker (transferable
@@ -22,7 +24,7 @@ render fast without losing quality, how to pick the encoder, how to check qualit
    used before, so old and new chunks of a film match) and the file is tagged so.
 4. **Watchdog:** a chunk that takes longer than 60 s + 2 s per frame is killed and rendered again in a fresh browser,
    up to 3 times.
-5. **Parallel browser copies** (`node render.js <workers>`, VideoHub's "Parallel" setting): 2 is the sweet spot
+5. **Parallel browser copies** (`node render.ts <workers>`, VideoHub's "Parallel" setting): 2 is the sweet spot
    (measured below; 3 was not faster). Parallel copies need frames that depend only on `t` (docs/PROJECT-CONTRACT.md §2).
 
 Everything VideoHub reads from the script is unchanged: `FPS`, `CH`, `VW`, `VH`, `PAGE`, chunks in `render/chunks`,
@@ -35,7 +37,7 @@ Everything VideoHub reads from the script is unchanged: `FPS`, `CH`, `VW`, `VH`,
   works; otherwise x264 on the processor. A named encoder that does not work on the PC falls back to x264 (and says so).
 - VideoHub passes the choice from setup / **Settings → Render speed** (`render.encoder` in `data\config.json`) to every
   render job, unless the job sets its own (the render dialog's *Encoder*). Scripts that ignore the variable are not
-  affected. `GET /api/encoders` (and `node scripts\init-config.mjs --detect`) shows what this PC can use; the result is
+  affected. `GET /api/encoders` (and `node scripts\init-config.ts --detect`) shows what this PC can use; the result is
   cached in `data\encoders.json` (`?refresh=1` probes again, e.g. after a driver update).
 - `lossless` (libx264rgb, qp 0) exists for checks only: huge files.
 
@@ -46,7 +48,7 @@ Everything VideoHub reads from the script is unchanged: `FPS`, `CH`, `VW`, `VH`,
 | NVENC | `-c:v h264_nvenc -preset p7 -tune hq -rc vbr -cq 20 -b:v 0 -maxrate 250M -bufsize 500M -level 5.2 -spatial-aq 1 -temporal-aq 1 -rc-lookahead 32 -bf 3 -b_ref_mode middle` | **unverified here**: measured on another PC (VMAF 94.48 vs x264 medium crf 15 at 94.25, ~25 % smaller); without `-level 5.2` and a high maxrate NVENC hit a ~40 Mbit/s ceiling on grainy 1080p60 |
 | QSV | `-c:v h264_qsv -preset veryslow -global_quality 18 -look_ahead 1` | **unverified**: a starting point, never measured |
 
-The table lives in `server/encoders.js` and, because films copy the script, again in `render.js`; a test keeps the two
+The table lives in `server/encoders.ts` and, because films copy the script, again in `render.ts`; a test keeps the two
 the same.
 
 ## Checking quality yourself

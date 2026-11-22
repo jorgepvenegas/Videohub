@@ -25,8 +25,8 @@ frames, draws on them and leaves notes, and where renders are queued one at a ti
 | `hub_thumbs` / `hub_thumb_brief` / `hub_thumb_variant` | Thumbnails (see below). |
 
 **Without the MCP tools** (the server is not loaded in this session) the same tools run from the command line:
-`node "{{VIDEOHUB_DIR}}/server/cli.js" <tool> "<json>"`, e.g.
-`node "{{VIDEOHUB_DIR}}/server/cli.js" hub_live "{\"project\":\"/home/me/film\"}"`. The tools start the hub
+`node "{{VIDEOHUB_DIR}}/server/cli.ts" <tool> "<json>"`, e.g.
+`node "{{VIDEOHUB_DIR}}/server/cli.ts" hub_live "{\"project\":\"/home/me/film\"}"`. The tools start the hub
 themselves when it is not running.
 
 ## 1. The user asks for a video → build it as code
@@ -41,14 +41,14 @@ themselves when it is not running.
      (e.g. 1920×1080), as a pure function of `t` (no `Date.now()`, no state between frames, no unseeded random);
    - `window.READY = true` once every asset is loaded;
    - the sound is `audio/mix.wav`; the scenes are in `window.VH_SCENES = [{name, t0, t1}]`;
-   - `render.js` renders 2-second chunks to `render/chunks/c_NNN.mp4` and honours `ONLY=` (the template's does).
+   - `render.ts` renders 2-second chunks to `render/chunks/c_NNN.mp4` and honours `ONLY=` (the template's does).
      Keep the template's script as it is: it reads frames straight from a single full-size canvas (keep the picture on
      one `VW`×`VH` canvas, no HTML text over it, or it falls back to slower screenshots) and uses the graphics-card
      encoder chosen in VideoHub (`VIDEOHUB_ENCODER`).
 3. Save the film's length once: `hub_project({project, set:{title, status:"in-progress", render:{workers:2, env:{DUR:"<seconds>"}}}})`.
    If the sound is mastered with its own ffmpeg command, save it as `render.mux` (array of ffmpeg args with `{video}`
    and `{out}`); otherwise the queue puts `audio/mix.wav` (first render) or the previous final's sound under the picture.
-4. Check it yourself cheaply if you need to (a few stills: `node render.js snap 1 4.5 9`), never a full render.
+4. Check it yourself cheaply if you need to (a few stills: `node render.ts snap 1 4.5 9`), never a full render.
 
 ## 2. It plays → open it in VideoHub and STOP
 
@@ -79,7 +79,7 @@ previous reply before trying again.
 
 Only now: `hub_render({project, mode:"full", wait:true})` for the first render; later, after fixing notes on a rendered
 version, `hub_render({project, mode:"partial", notes:[ids], wait:true})` re-renders just those 2-second chunks, joins the
-film again and saves `<name>_vN.mp4` with the changed ranges. One render at a time on the PC: never run `node render.js`
+film again and saves `<name>_vN.mp4` with the changed ranges. One render at a time on the PC: never run `node render.ts`
 for a full film yourself and never start renders in parallel (the queue waits while another session renders, and the
 render protection keeps the PC usable). `mode:"preview"` gives a quick half-size pass where the project supports it.
 - If `hub_render` / `hub_job` print programs holding a lot of RAM (e.g. an Android emulator), tell the user in one
