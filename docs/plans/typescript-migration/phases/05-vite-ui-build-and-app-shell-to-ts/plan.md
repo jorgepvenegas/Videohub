@@ -1,0 +1,235 @@
+# Phase P5 — Vite UI build and app shell to TS
+
+- Plan ID: `typescript-migration`
+- Phase: P5
+- Plan version: 1
+- Validated against master version: 37
+- Status: draft
+- Approved by: pending
+- Approved at: pending
+- Commit: pending
+- Implementation mode: subagent
+- Implemented by: pending
+- Implemented at: pending
+- Exception approved by: none
+- Exception reason: none
+- Parallel safe: no
+- Depends on: P4
+- Written: 2026-11-21
+- Master plan: [master.md](../../master.md)
+
+> Read `master.md` first. Every phase acceptance criterion must trace to a master definition-of-done item.
+
+## 1. Phase objective
+
+Make the browser UI a Vite build. Then convert the top-level UI modules (`app`, `agent`, `values`, `system`, `outputs-panel`, `render-status`) and their tests to strict TypeScript.
+
+- **Build output:** Vite builds `ui/` into a git-ignored `dist/ui/`, and the hub serves that folder.
+- **Missing build:** when it is absent, the hub answers with a clear "UI not built" page instead of a broken app.
+- **Setup and update:** both run the build right after `pnpm install`, so users never run Vite themselves.
+- **Contributor loop:** `pnpm build --watch` combined with the hub's existing reload-on-change watcher.
+- **Mixed code:** `ui/review*` and `ui/thumbstudio*` stay JavaScript for P6 and P7. Vite bundles mixed JS/TS, so the app keeps working throughout.
+
+## 2. Master traceability
+
+| Master item | How this phase advances it | Phase criterion |
+|---|---|---|
+| D1 | Removes the top-level `ui/*.js` files (6 modules + 4 tests) with history kept | A1 |
+| D2 | Browser code type-checks with DOM types and no Node types; shared `values.ts` checks under both | A2 |
+| D3 | Lint 0 errors, format clean | A4 |
+| D4 | Suite at baseline (≥ 307 pass) plus new hub/installer tests | A3 |
+| D5 | `pnpm build` exits 0; a scratch hub serves the built UI with no console errors on the app pages | A5 |
+| D6 | Fresh setup and update build the UI automatically | A6 |
+
+## Prior discoveries applied
+
+| Ledger | Discovery | Effect on this phase |
+|---|---|---|
+| L3 | 12 lint rules at `warn` | No warning cleanup; counts recorded in S6 |
+| L4 | Source-reading tests slice between stable markers | `platform-ui`, `project-thumbnails` and `settings` tests read through `readSource` with marker slices |
+| L8 | `any` check in type positions only | `grep -rnE ':\s*any\b\|\bas any\b' ui/*.ts` and review each hit |
+| L9 | Rename similarity bar only for files over 15 lines | Same rule in S4 |
+| L12 | `legacy.ts` re-exports types inferred from `ui/values.js` | Once `values.ts` is typed (S5), `server/legacy.ts` re-exports real types; `typecheck` must stay clean for `server/` |
+| L13 | `server/legacy.test.ts` carries a cast until `ui/values` is typed | S5 removes the cast |
+| L14 | Bulk specifier rewrites must match only relative specifiers | S4 rewrites only `./`/`../` specifiers and runs the server tests that import `ui/values` |
+| L18 | `server/thumbstudio/schema.ts` and `store.ts` rely on types inferred from `ui/values.js` | S5 lets them pick up the typed `values.ts`; any narrowing they need is type-only. Catalog-based typing waits for P7 |
+| L20 | Incident: an unscoped probe started a real hub and cleanup hard-deleted a folder | Decision C12 rules are binding for every step (see §5) |
+| L23 | `update.sh` from the repo is refused as nested; old configs use port 7788 | The S6 setup check exports the branch with `git archive` to a sibling scratch folder and sets the scratch config to 7799 before starting anything |
+| L25 | `install.ts` must keep importing only node builtins and relative modules | S3 runs the build by spawning `pnpm build` from `install.ts`; no package import |
+
+## 3. Scope
+
+In scope:
+- `package.json`: `vite` pinned exactly to `8.3.8` (C10); a `build` script (`vite build`); `typecheck` covers both the root and UI configs
+- `vite.config.ts` (create): root `ui`, output `dist/ui` (emptied on build), and `index.html` as the single entry. Emitted assets go under a VideoHub-specific folder (`_vh/`, not the default `assets/`), so hashed UI files cannot collide with a live film page's own absolute `/assets/...` requests (see the Referer fallback in `server/hub.ts`)
+- `ui/tsconfig.json` (create): DOM libs, no Node types, `allowJs` for the still-JS review and thumbstudio code, excludes `*.test.*`. The root `tsconfig.json` stops checking UI non-test sources, except `ui/values.ts`, which the server imports
+- `.gitignore`: `/dist/`
+- `ui/index.html`: script entry `/app.ts`. CSS links stay as they are, and Vite bundles them; CSS is not converted
+- `server/hub.ts`:
+  - `UI` points at `dist/ui` for static serving, the UI-version watcher and the live Referer existence check
+  - a missing `dist/ui/index.html` yields a 503 HTML page saying the UI is not built, with the fix ("run update.sh", or `pnpm build` in a checkout)
+  - `ui/icon.svg`, used by Linux launchers, still comes from the source tree
+- `scripts/install.ts`: after the package install in setup and update, spawn `pnpm build` in the install folder and fail with a clear message if it fails. Add `vite.config.ts` and `tsconfig.json` to `ITEMS`. Dry-run lists the build step
+- Rename via `git mv`: `ui/agent.js`, `app.js`, `outputs-panel.js`, `render-status.js`, `system.js`, `values.js` → `.ts`; `ui/platform-ui.test.js`, `project-thumbnails.test.js`, `render-status.test.js`, `settings.test.js` → `.test.ts`
+- Relative importers of those modules, specifiers only: `ui/review.js`, `ui/review/*.js`, `ui/thumbstudio/*.js`, `server/legacy.ts`, `server/thumbstudio/schema.ts`, `server/thumbstudio/*.test.js`
+- `server/legacy.test.ts` (remove the L13 cast); tests for the new hub and installer behavior in `server/hub-paths.test.ts` or a new `server/hub-ui.test.ts`, and in `scripts/install.test.ts`
+
+Out of scope:
+- `ui/review.js`, `ui/review/*`, `ui/thumbstudio/*` (P6, P7), `engine-hooks/` and their build (P8)
+- Converting or restructuring CSS/HTML beyond the one script `src`
+- A Vite dev server or HMR; `vite build --watch` is the only dev loop
+- Docs (P9)
+- Opening the review page for a film or playing anything (CLAUDE.md)
+
+## 4. Entry conditions
+
+- [ ] P4 `done`; standards green — verify: `progressive_plan.py status docs/plans/typescript-migration`, then `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test`
+- [ ] Working tree clean and pushed — verify: `git status -sb`
+- [ ] Phase plan revalidated against current master version (37)
+- [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
+
+## 5. Steps
+
+If a step reveals work outside this phase, report it and continue the approved steps unless it blocks them. Do not add it to this plan or implement it here.
+
+Commit after each step with subject `P5:` followed by the step title, and push. Every commit leaves `pnpm test` green.
+
+**Hard safety rules (C12), binding for every step:**
+1. Never import or run an entry module (`server/hub.ts`, `mcp.ts`, `cli.ts`, `scripts/install.ts`) outside the scratch environment. Every hub, CLI, setup or update run uses `VIDEOHUB_PORT=7799`, `VIDEOHUB_DATA_DIR`/`VIDEOHUB_BASE_DIR` under `.test-tmp/p5-*`, `VIDEOHUB_GUARD=off`, `VIDEOHUB_JOBS=off` and `VIDEOHUB_NO_WINDOW=1`. Setup and update runs also set `HOME`/`XDG_*`/`TMPDIR` under `.test-tmp/p5-*`, use a `PATH` with no `claude`/`opencode`, and pass `--startup no`.
+2. Never delete anything outside `.test-tmp`. Report it to the coordinator instead.
+3. Before any removal inside the repo, even in `.test-tmp`, if you did not create it in this session, show the coordinator `ls -laT` of the target and wait.
+
+### S1 — Add Vite and build today's UI unchanged
+
+- Depends on: none
+- Files: `package.json`, `pnpm-lock.yaml`, `vite.config.ts` (create), `ui/tsconfig.json` (create), `tsconfig.json`, `.gitignore` (modify)
+- Change: Pin Vite and add the `build` script and config described in §3. Split type checking so that browser sources get DOM types without Node types. `pnpm typecheck` runs both configs, for example `tsc --noEmit -p tsconfig.json && tsc --noEmit -p ui/tsconfig.json`. Build the still-JavaScript UI. If pnpm asks to approve build scripts (Rolldown), stop and report.
+- Acceptance:
+  - [ ] `pnpm build` exits 0, writing `dist/ui/index.html` plus bundled JS and CSS under `dist/ui/_vh/`
+  - [ ] `git check-ignore dist` passes; `pnpm typecheck` exits 0
+- Verification: `pnpm install --frozen-lockfile && pnpm build && ls dist/ui dist/ui/_vh && pnpm typecheck`
+- Rollback: `git revert HEAD`; `rm -rf dist` (created in this step)
+
+### S2 — Hub serves the built UI, with a clear page when it is missing
+
+- Depends on: S1
+- Files: `server/hub.ts` (modify); `server/hub-ui.test.ts` (create) or `server/hub-paths.test.ts` (modify)
+- Change: Make the `UI` and missing-build changes described in §3. Keep the `/live/...` routing and the Referer/cookie fallback unchanged apart from checking `dist/ui`. Tests must fail without the change:
+  - with a built folder, `/` and an `_vh/` asset are served from `dist/ui`
+  - without it, `/` returns 503 and the "not built" message
+  - a live film's `/assets/x.png` request still falls through to the film
+  - test hubs use scratch dirs only (C12)
+- Acceptance:
+  - [ ] New tests pass and each fails against the reverted change (recorded in §9)
+- Verification: `node --test server/hub-ui.test.ts` (or the hub-paths file); `pnpm test 2>&1 | tail -8`
+- Rollback: `git revert HEAD`
+
+### S3 — Setup and update build the UI
+
+- Depends on: S1
+- Files: `scripts/install.ts`, `scripts/install.test.ts` (modify)
+- Change: After the package install in setup and update, spawn `pnpm build` in the install folder using the existing `run` helper (L25). On failure, throw a clear message that names `pnpm build`. Add `vite.config.ts` and `tsconfig.json` to `ITEMS`. Dry-run prints the build step. Tests with an injected runner prove that the build runs after install for both setup and update, and that a failure is reported.
+- Acceptance:
+  - [ ] New tests fail against the reverted change; `install.ts` still imports only `node:*` and relative modules
+- Verification: `node --test scripts/install.test.ts`; `grep -nE "^import .* from '[^.n]" scripts/install.ts` (no output)
+- Rollback: `git revert HEAD`
+
+### S4 — Rename the top-level UI modules and repoint importers
+
+- Depends on: S1
+- Files: the 10 renames in §3 (temporary first-line `// @ts-nocheck`); `ui/index.html`; the relative importers listed in §3 (specifiers only, L14)
+- Change: Do a pure rename, plus updated specifiers and the script `src`. `server/legacy.ts` and `server/thumbstudio/schema.ts` now import `../ui/values.ts` / `../../ui/values.ts`. Rebuild.
+- Acceptance:
+  - [ ] `git log --follow` tracks all 10; `pnpm build`, `pnpm typecheck` and `pnpm test` pass
+- Verification: `git show -M --summary HEAD | grep -c '^ rename'`; `pnpm build && pnpm typecheck && pnpm test 2>&1 | tail -8`
+- Rollback: `git revert HEAD`
+
+### S5 — Strict types for the app shell
+
+- Depends on: S4
+- Files: `ui/agent.ts`, `app.ts`, `outputs-panel.ts`, `render-status.ts`, `system.ts`, `values.ts`; the 4 UI tests; `server/legacy.test.ts` (remove the L13 cast); `server/thumbstudio/schema.ts` and `store.ts` (type-only, only if the typed `values.ts` requires it, L18)
+- Change: Remove `@ts-nocheck` and add strict types with DOM types: typed `querySelector` results with explicit null handling, which must match existing behavior, and typed API response shapes local to the UI. The UI never imports `server/` (CLAUDE.md). `values.ts` stays free of DOM and Node usage because both sides import it. The source-reading UI tests switch to `readSource` with marker slices. No runtime change.
+- Acceptance:
+  - [ ] No `@ts-nocheck` in these files; both type-check configs pass; the type-stripped S4 vs S5 comparison is identical for the 6 modules
+- Verification: `grep -l "@ts-nocheck" ui/*.ts` (no output); `pnpm typecheck && pnpm build && pnpm test 2>&1 | tail -8`; the comparison recorded in §9
+- Rollback: `git revert HEAD`
+
+### S6 — Verify in a real browser and through a fresh setup
+
+- Depends on: S2, S3, S5
+- Files: the P5 phase plan (modify) — §7, §9 and §10
+- Change: Three checks:
+  1. Standards commands, then `pnpm build`.
+  2. A scratch hub (rule 1) serving the built UI. A short throwaway script under `.test-tmp/p5-browser/` (not committed) uses the repo's `puppeteer-core` with the installed Chrome in headless mode. It opens `#/`, `#/renders`, `#/outputs`, `#/disk`, `#/settings` and `#/thumbstudio`, collecting console errors and failed requests. Do not open any film's review page and do not play anything.
+  3. A fresh setup of a `git archive HEAD` export in a sibling scratch folder (L23) with a fake home (rule 1), checking that `dist/ui/index.html` was built and `/` is served on 7799.
+  Then stop everything and record the evidence and the L3 warning counts.
+- Acceptance:
+  - [ ] Zero console errors and zero failed requests on the six pages; setup builds and serves the UI
+- Verification: the recorded browser-script output and setup log; `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty at the end
+- Rollback: n/a (scratch only)
+
+## 6. Phase acceptance criteria
+
+- [ ] A1 — No tracked `ui/*.js` directly in `ui/`; renames keep history — verify: `git ls-files 'ui/*.js'` (empty) and `git log --follow --oneline ui/app.ts | wc -l`
+- [ ] A2 — Both type-check configs are strict-clean; no `@ts-nocheck` in `ui/*.ts`; S5 is runtime-identical — verify: `pnpm typecheck`, the grep and the §9 comparison
+- [ ] A3 — `pnpm test` has 0 failures and ≥ 307 passing, plus the new tests, each shown to fail without its change — verify: `pnpm test` and §9
+- [ ] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
+- [ ] A5 — `pnpm build` exits 0 and the scratch hub's six app pages load from `dist/ui` with zero console errors and failed requests; a missing build shows the 503 page — verify: S6 evidence and the S2 tests
+- [ ] A6 — Setup and update run the UI build (tests), and a fresh scratch setup serves the built UI — verify: S3 tests and S6 evidence
+
+## 7. Code standards check
+
+- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency beyond the pinned Vite
+- [ ] Existing helpers are reused (the installer `run` helper, the hub's static-serving path); no parallel mechanisms
+- [ ] Names and structure state intent; comments explain only non-obvious reasons (for example, why assets go under `_vh/`)
+- [ ] Every new test fails if the behavior it covers breaks (revert checks in §9)
+- [ ] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`, plus `pnpm build`
+
+## 8. Risks and unknowns
+
+| Risk | Likelihood | Impact | Mitigation or check |
+|---|---|---|---|
+| Vite rewrites or splits modules in a way the app relies on, such as module identity or the dynamic imports in `ui/thumbstudio/page.js` (R6) | Medium | High | Browser check on six pages; the thumbstudio page exercises the dynamic imports |
+| Hashed asset names collide with a live film's absolute `/assets/` requests | Low | Medium | Assets under `_vh/`; S2 test for film fall-through |
+| Rolldown native binary missing on a user machine, so the setup build fails | Low | High | Clear failure message names `pnpm build`; C11 accepted the native build tool |
+| Typing `app.ts` tempts runtime "null fixes" | Medium | Medium | Stripped-source comparison in S5; coordinator re-runs it |
+| The browser check accidentally plays or renders a film | Low | Medium | Only app pages, empty scratch workspace, no review page |
+| Another unsafe probe (L20) | Low | High | C12 rules; coordinator reviews §9 commands |
+
+## 9. Deviations and working notes
+
+Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
+
+## 10. Closeout
+
+Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
+
+- Date:
+- Session:
+- Verdict: pending
+- Steps complete:
+- Verification run:
+
+| Criterion | Verdict | Evidence |
+|---|---|---|
+| A1 | pending | |
+| A2 | pending | |
+| A3 | pending | |
+| A4 | pending | |
+| A5 | pending | |
+| A6 | pending | |
+| D1 (master) | pending | |
+| D2 (master) | pending | |
+| D3 (master) | pending | |
+| D4 (master) | pending | |
+| D5 (master) | pending | |
+| D6 (master) | pending | |
+
+**Discoveries no earlier plan predicted:**
+
+| ID | Discovery | Type | Applies to | Action written |
+|---|---|---|---|---|
+
+**Master updates written:** none yet
+**Next-phase updates written:** none yet
+**Remaining work and handoff:** none yet
