@@ -2,8 +2,8 @@
 
 - Plan ID: `typescript-migration`
 - Phase: P7
-- Plan version: 2
-- Validated against master version: 50
+- Plan version: 3
+- Validated against master version: 55
 - Status: in_progress
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-22
@@ -59,6 +59,7 @@ Convert the thumbnail studio UI to strict TypeScript: the 18 modules in `ui/thum
 | L34 | A film card with no cached cover 404s on `/api/thumb` | The S5 scratch film gets a scratch cover in the scratch data dir before the browser check |
 | L35 | Identity is proven by parsing stripped sources and comparing ASTs without positions | S2–S4 use the AST comparison against the S1 commit |
 | L38 | The coordinator's P6 re-check left 23 empty `ui__review__*.ts` files in the repo root and lint failed | Removed by the coordinator before S1; entry conditions re-verified green |
+| L43 | `Brief` keeps partial layers and refs for `prompt.test.ts`; `gen.ts` `fileUrl` gained an optional fourth parameter | Accepted by the coordinator at closeout; type-only, AST comparison unchanged |
 
 ## 3. Scope
 

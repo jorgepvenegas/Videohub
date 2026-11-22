@@ -1,7 +1,7 @@
 # Master Plan — TypeScript migration
 
 - Plan ID: `typescript-migration`
-- Master version: 50
+- Master version: 55
 - Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
@@ -163,6 +163,11 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L36 | 2026-11-22 | P6 | P9 | Prose comments inside converted files still name old .js files (e.g. mixer.js), and docs/ARCHITECTURE.md:38 and docs/PROJECT-CONTRACT.md:4 name old review paths | note | P9 sweeps .js path mentions in comments and docs | open |
 | L37 | 2026-11-22 | P6 | P6 | S1 also touched ui/review.css (comment paths) and a specifier literal in soundenv.test.ts; S3 changed drafts.test.ts to read notes.ts via readSource; all specifier/comment/test-read only | phase-amend | Accepted at coordinator review; recorded in P6 section 9 | open |
 | L38 | 2026-11-22 | P7 | P7,P8,P9 | Coordinator's P6 AST re-check loop ran under zsh without word splitting and wrote 23 empty ui__review__*.ts files into the repo root; git add -A committed them in 8241300 and lint failed with no-empty-file. P7 worker stopped at entry conditions | plan-defect | Removed with git rm (files created by the coordinator this session); coordinator re-runs lint after its own commits and stages explicit paths instead of git add -A | open |
+| L39 | 2026-11-22 | P7 | P9 | ui/thumbstudio/compose.ts calls actions.append(cond ? button : null); append(null) inserts the text 'null' when no outputs copy exists (pre-existing bug, kept and typed with a commented cast) | note | List in the final report as a candidate follow-up bug; out of scope (behavior) | open |
+| L40 | 2026-11-22 | P7 | P8,P9 | Renaming a test to .ts enables TypeScript-only oxlint rules (typescript/no-this-alias fired in depth-panel.test.ts; silenced with a disable comment) | note | P8 expects the same rule class on renamed files; P9 lint decision reviews the disable comments | open |
+| L41 | 2026-11-22 | P7 | P9 | drawSubjectBlock in ui/thumbstudio/scene.ts is still unused; kept so the AST comparison stays exact | note | P9 removes it with the lint-rule decision | open |
+| L42 | 2026-11-22 | P7 | P8 | Source-reading tests whose whole-file import/export regexes already survive oxfmt needed only readSource, not marker slices | plan-defect | P8 requires marker slices only where a test extracts a fragment | open |
+| L43 | 2026-11-22 | P7 | P7 | layers.ts Brief type keeps layers and refs partial because prompt.test.ts passes partial briefs; pages use FullBrief. gen.ts fileUrl gained an optional 4th parameter (type-only) that editor.ts already passed | phase-amend | Accepted at coordinator review; AST comparison shows no runtime change | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
