@@ -52,14 +52,14 @@ New films start from TypeScript: `templates/new-film` and `examples/hello-film` 
 | L4, L28, L42 | Source-reading tests: marker slices only where a fragment is extracted; markers stop before annotations | `server/encoders.test.ts` reads the template's render script through `readSource`; marker slices only if it extracts a fragment |
 | L8 | `any` check in type positions only | The L8 grep over `templates/new-film/*.ts` and `examples/hello-film/*.ts`, each hit reviewed and commented |
 | L14 | Specifier rewrites only for relative specifiers | Film scripts use `require` of builtins and `puppeteer-core`; none of these change |
-| L20, C12 | Unsafe-probe incident; hard safety rules | Binding for every step (see §5) |
+| L20 | Unsafe-probe incident (hard safety rules in decision C12) | Binding for every step (see §5) |
 | L27 | The asdf `node` shim fails under a fake HOME | Scratch hubs and film scripts run with the real node binary |
 | L34 | A film card with no cover 404s | S5 and S6 seed scratch covers |
 | L35 | AST comparison of stripped sources | S4 compares all six film scripts against the S3 commit |
 | L38 | Stray files from a comparison loop | Scratch output only under `.test-tmp/p10-*`; explicit staging; `git status --short` before each commit |
 | L40 | Renaming to `.ts` enables TypeScript-only lint rules | Fix with types; a commented disable only where a fix would change runtime code |
-| C3 | `film.ts` is served stripped by hub live preview and by `render.ts`'s own page server; `render.js` films keep working; the default prefers `render.ts` | The design of S1 and S2 |
-| C15 | Standing instruction: no per-phase approval stop; the render gate remains | S6 stops for the user |
+
+Decisions applied: C3 (`film.ts` served stripped by hub live preview and by the render script's own page server; `render.js` films keep working; the default prefers `render.ts`) shapes S1 and S2. C12 is binding for every step. C15 removes the per-phase approval stop, but S6 still stops for the user.
 
 ## 3. Scope
 
@@ -71,7 +71,7 @@ In scope:
 - Comment paths naming the starter's files: `server/encoders.ts:3`, `server/live.ts:3,58` (comment text only)
 - `templates/new-film/render.js` and `examples/hello-film/render.js` (identical): serve the film folder from the existing `frameServer` (GET only, files inside the folder only, `.ts` stripped, no directory listing) and open `http://127.0.0.1:PORT/` plus `PAGE` instead of a `file://` URL
 - Rename via `git mv`, in both folders: `render.js` → `render.ts`, `make-audio.js` → `make-audio.ts`, `film.js` → `film.ts` (6 renames)
-- In both folders: `index.html` (`<script src="film.ts">`), `package.json` (`node render.ts`, `node make-audio.ts`; `"type": "commonjs"` stays); `templates/new-film/README.md` (file names in the starter's own README)
+- In both folders: `index.html` (the film script tag's `src` becomes `film.ts`), `package.json` (`node render.ts`, `node make-audio.ts`; `"type": "commonjs"` stays); `templates/new-film/README.md` (file names in the starter's own README)
 - Strict types for the six scripts. The scripts stay CommonJS: typed requires (for example `const fs: typeof import('fs') = require('fs')`) and no ESM syntax, so Node runs them unchanged
 - `tsconfig.json`: `"moduleDetection": "force"` only if the CommonJS scripts and the two identical copies otherwise collide as global scripts (record the evidence in §9)
 - `server/encoders.test.ts` and the template/example identity test: read `render.ts`
