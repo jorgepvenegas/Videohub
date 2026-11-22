@@ -9,8 +9,8 @@
 - Approved at: 2026-11-21
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: p1-toolchain
+- Implemented at: 2026-11-21
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -156,11 +156,11 @@ If a step reveals work outside this phase, report it and continue the approved s
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency beyond the four pinned tools
-- [ ] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
-- [ ] Names and structure state intent; comments explain only non-obvious reasons
-- [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation (this phase adds no tests; the probe is not committed)
-- [ ] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency beyond the four pinned tools
+- [x] Existing helpers are reused where they fit; duplication the change creates is removed without adding a framework for two similar lines
+- [x] Names and structure state intent; comments explain only non-obvious reasons
+- [x] Every new test fails if the behavior it covers breaks; no test restates the implementation (this phase adds no tests; the probe is not committed)
+- [x] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`
 
 ## 8. Risks and unknowns
 
@@ -184,32 +184,35 @@ Append during implementation. One line per deviation: date, step, what changed, 
 
 ## 10. Closeout
 
-Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
-
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-21
+- Session: p1-toolchain (subagent, resumed twice: S5 user checkpoint, then plan v2 amendment)
+- Verdict: addressed
+- Steps complete: S1, S2, S3, S4, S5, S6 (S6 with plan v2 / L1: marker-based extraction in `server/hub-paths.test.js` tests 1-2 committed before the format pass)
+- Verification run: `pnpm install --frozen-lockfile`; `pnpm format:check` exit 0; `pnpm lint` 0 errors, 146 warnings; `pnpm typecheck` exit 0; `pnpm test` 299 tests, 298 pass, 1 skipped, 0 fail; `cmp templates/new-film/render.js examples/hello-film/render.js` identical; `git check-ignore node_modules .test-tmp data` lists all three.
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | pending | |
-| A2 | pending | |
-| A3 | pending | |
-| A4 | pending | |
-| A5 | pending | |
-| A6 | pending | |
-| D2 (master) | pending | |
-| D3 (master) | pending | |
-| D4 (master) | pending | |
-| D9 (master) | pending | |
+| A1 | pass | `tsc` 7.0.2; `pnpm typecheck` exit 0; tsconfig has `strict`, `allowJs`, `erasableSyntaxOnly` |
+| A2 | pass | `pnpm lint` 0 errors; 12 downgraded rules and counts listed in §9 |
+| A3 | pass | Probe in §9: `.ts`<->`.js` mixed imports, `.test.ts` under `node --test` and `tsc`; `pnpm test` collected a temporary `.test.ts` (300 tests). Not run on Node 22.18 |
+| A4 | pass | `pnpm test` 299 tests, 298 pass, 0 fail after formatting |
+| A5 | pass | `pnpm format:check` exit 0; format commit f1d0719 is formatter output only (150 files) |
+| A6 | pass | CLAUDE.md runtime-only native rule and new commands; `engines.node` `>=22.18`; `install.mjs` rejects Node < 22.18 (commit 9324086) |
+| D2 (master) | advanced | strict tsconfig and `pnpm typecheck` exist and pass (no `allowJs` removal until P9) |
+| D3 (master) | advanced | lint 0 errors and format clean on the JS codebase |
+| D4 (master) | advanced | suite at baseline (298 pass, 0 fail) after formatting |
+| D9 (master) | advanced | CLAUDE.md pre-commit commands updated; other docs remain for P9 |
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| L1 | oxfmt reflow broke the line-based source extraction in `server/hub-paths.test.js` tests 1-2 | phase-amend | P1 | Already applied (plan v2); fixed in 04b8dd8 |
+| P1-n1 | `server/encoders.js:45` passes an `async` executor to `new Promise` (possible real bug: a throw there would not reject) | note | P2 | Check when `encoders.js` is converted |
+| P1-n2 | `no-unsafe-finally` in `janitor.test.js:44` and `source-revision.test.js:28`; unused `guardExe`, `meta`, `soundOps` in `server/hub.js`; unused `drawSubjectBlock` in `ui/thumbstudio/scene.js` | note | P2, P3, P7 | Decide on each lint warning when the file converts |
+| P1-n3 | Formatting grew tracked JS from 40,441 to 60,041 lines (+48%); a `.git-blame-ignore-revs` entry for f1d0719 would keep blame useful | note | P9 | Offer to user in P9 |
+| P1-n4 | Node 22.18 type-stripping warning and `.test.ts` runs were not verified on 22.18 (local Node is 24.16) | note | P4 | Existing master unknown; check in P4 |
 
-**Master updates written:** none yet
-**Next-phase updates written:** none yet
-**Remaining work and handoff:** none yet
+**Master updates written:** none (master is coordinator-owned)
+**Next-phase updates written:** none
+**Remaining work and handoff:** P1 is complete. P2 starts the server core conversion; every later phase keeps files oxfmt-formatted (`pnpm format:check`) and must keep source-reading tests format-proof. Lint warnings are recorded for later decisions.
