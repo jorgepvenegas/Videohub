@@ -1,18 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
+import { readSource } from '../../scripts/test-source.ts';
 import { soundEnv, applyOps, opsToward, clipPlan } from './soundenv.js';
 
 const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
+// server/vhsound.ts is read with its types stripped to whitespace (soundenv.js has none until P6), so whitespace is normalized before comparing
 const fnText = (file, name) => {
-  const s = fs.readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n'),
+  const s = readSource(new URL(file, import.meta.url)).replace(/\r\n/g, '\n'),
     i = s.indexOf('export function ' + name + '(');
   assert.ok(i >= 0, name + ' in ' + file);
   const j = s.indexOf('\n}\n', i);
-  return s.slice(i, j + 2);
+  return s
+    .slice(i, j + 2)
+    .replace(/\s+/g, ' ')
+    .replace(/ ?([()[\]{},;]) ?/g, '$1');
 };
 
-test('soundEnv is the same source as server/vhsound.mjs', () => {
+test('soundEnv is the same source as server/vhsound.ts', () => {
   assert.equal(fnText('./soundenv.js', 'soundEnv'), fnText('../../server/vhsound.ts', 'soundEnv'));
 });
 
