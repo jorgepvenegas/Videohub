@@ -1,18 +1,23 @@
-// @ts-nocheck
 // Thin shell entry points share their decisions here; runtime helpers never install OS packages silently.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
 import * as platformDefault from '../server/platform.ts';
 import { initConfig, state, checkWorkspace } from './init-config.ts';
 import { detectEncoders } from '../server/encoders.ts';
 import { detectAgents, integrateAgents } from './agents.ts';
+import type { Json, ProcessRow } from '../server/types.ts';
+
+type Platform = typeof platformDefault;
+type CasePlatform = { casePath?: Platform['casePath'] };
+type Options = Record<string, Json> & { action: string };
+type Stat = ReturnType<typeof fs.lstatSync>;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BOOLS = new Set(['watch-found', 'gpu-encoder', 'global-rule', 'shortcut', 'startup', 'example']);
-export function parseOptions(args) {
-  const out = { action: args.shift() || 'setup' };
+export function parseOptions(args: string[]) {
+  const out: Options = { action: args.shift() || 'setup' };
   if (!['setup', 'update', 'uninstall', 'open', 'stop', 'validate-update', 'autostart'].includes(out.action))
     throw new Error('Unknown lifecycle action: ' + out.action);
   for (let i = 0; i < args.length; i++) {
@@ -31,23 +36,23 @@ export function parseOptions(args) {
   }
   return out;
 }
-const read = (f, fallback = null) => {
+const read = (f: string, fallback: Json = null) => {
   try {
     return JSON.parse(fs.readFileSync(f, 'utf8').replace(/^\uFEFF/, ''));
   } catch {
     return fallback;
   }
 };
-const stat = f => {
+const stat = (f: string): Stat | null => {
   try {
     return fs.lstatSync(f);
   } catch (e) {
-    if (e.code === 'ENOENT') return null;
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
     throw e;
   }
 };
-const skipCode = n => /^(node_modules|render|\.videohub|out)$/i.test(n);
-function checkCopy(from, to) {
+const skipCode = (n: string) => /^(node_modules|render|\.videohub|out)$/i.test(n);
+function checkCopy(from: string, to: string): void {
   const src = stat(from),
     dst = stat(to);
   if (!src || src.isSymbolicLink()) return;
@@ -56,12 +61,12 @@ function checkCopy(from, to) {
   if (src.isDirectory())
     for (const e of fs.readdirSync(from, { withFileTypes: true })) if (!skipCode(e.name)) checkCopy(path.join(from, e.name), path.join(to, e.name));
 }
-function write(f, text, mode) {
+function write(f: string, text: string, mode?: number) {
   fs.mkdirSync(path.dirname(f), { recursive: true });
   fs.writeFileSync(f, text, mode ? { mode } : undefined);
   if (mode) fs.chmodSync(f, mode);
 }
-function copyTree(from, to, { exclusive = false, skip = () => false } = {}) {
+function copyTree(from: string, to: string, { exclusive = false, skip = () => false }: { exclusive?: boolean; skip?: (name: string) => boolean } = {}): void {
   if (stat(to)?.isSymbolicLink()) throw new Error('Refusing to write through a symbolic link: ' + to);
   fs.mkdirSync(to, { recursive: true });
   for (const e of fs.readdirSync(from, { withFileTypes: true })) {
@@ -98,8 +103,12 @@ const ITEMS = [
   'package.json',
   'pnpm-lock.yaml'
 ];
-const casePath = (value, platform) => (platform.casePath ? platform.casePath(value) : String(value));
-export function validateUpdatePaths(source, target, { platform = platformDefault, realpath = fs.realpathSync } = {}) {
+const casePath = (value: unknown, platform: CasePlatform) => (platform.casePath ? platform.casePath(value) : String(value));
+export function validateUpdatePaths(
+  source: string,
+  target: string,
+  { platform = platformDefault, realpath = fs.realpathSync }: { platform?: CasePlatform; realpath?: (p: string) => string } = {}
+) {
   const sourceReal = realpath(source),
     targetReal = realpath(target),
     src = casePath(sourceReal, platform),
@@ -111,7 +120,7 @@ export function validateUpdatePaths(source, target, { platform = platformDefault
     throw new Error('Source and target must be separate folders, not nested');
   return { same: false, source: sourceReal, target: targetReal };
 }
-function processMatches(p, install, platform) {
+function processMatches(p: ProcessRow, install: string, platform: CasePlatform) {
   if (!/^node(?:js)?$/i.test(path.basename(p.name || ''))) return false;
   const cmd = casePath(String(p.cmd || ''), platform),
     head = cmd.match(/^(?:"[^"]+"|\S+)\s+/),
@@ -121,14 +130,32 @@ function processMatches(p, install, platform) {
   return args === script || args.startsWith(script + ' ') || args === '"' + script + '"' || args.startsWith('"' + script + '" ');
 }
 // Update, uninstall and stop share the same ownership/queue/termination checks.
-export async function stopInstalledHub({ install, platform, port, request, stopPid, delay, dryRun = false, onAction = () => {} }) {
+export async function stopInstalledHub({
+  install,
+  platform,
+  port,
+  request,
+  stopPid,
+  delay,
+  dryRun = false,
+  onAction = () => {}
+}: {
+  install: string;
+  platform: Pick<Platform, 'processList'> & CasePlatform;
+  port: number;
+  request: (url: string) => Promise<Json>;
+  stopPid: (pid: number) => unknown;
+  delay: (ms: number) => Promise<unknown>;
+  dryRun?: boolean;
+  onAction?: (s: string) => void;
+}) {
   if (dryRun) {
     onAction('check the render queue and stop only the server belonging to ' + install);
     return;
   }
   const all = await platform.processList();
   if (!Array.isArray(all)) throw new Error('Cannot inspect running processes; nothing was stopped');
-  const procs = all.filter(p => processMatches(p, install, platform)),
+  const procs = all.filter((p: ProcessRow) => processMatches(p, install, platform)),
     base = 'http://127.0.0.1:' + port,
     ping = await request(base + '/api/ping');
   if (!ping && procs.length) throw new Error('Cannot inspect this running server; nothing was stopped. Close VideoHub and retry.');
@@ -137,14 +164,14 @@ export async function stopInstalledHub({ install, platform, port, request, stopP
   if (ping) {
     const jobs = await request(base + '/api/jobs');
     if (!Array.isArray(jobs)) throw new Error('Cannot inspect the running render queue; nothing changed');
-    if (jobs.some(j => ['running', 'queued'].includes(j.state))) throw new Error('Renders are running or queued; run this again when they finish');
+    if (jobs.some((j: Json) => ['running', 'queued'].includes(j.state))) throw new Error('Renders are running or queued; run this again when they finish');
     const clean = await request(base + '/api/disk/clean');
     if (!clean) throw new Error('Cannot inspect cleanup state; nothing changed');
     if (clean.state === 'running') throw new Error('Cleanup is running; run this again when it finishes');
   }
   if (procs.some(p => p.start == null || p.start === '')) throw new Error('Cannot verify server process identity; nothing was stopped');
   for (const p of procs) {
-    const current = (await platform.processList())?.find(row => row.pid === p.pid);
+    const current = (await platform.processList())?.find((row: ProcessRow) => row.pid === p.pid);
     if (!current || current.start !== p.start || !processMatches(current, install, platform))
       throw new Error('Server process identity changed; nothing else was stopped');
     onAction("stop this install's server (pid " + p.pid + ')');
@@ -160,16 +187,32 @@ export async function stopInstalledHub({ install, platform, port, request, stopP
     throw new Error('VideoHub is still running; code was left unchanged. Close it and retry');
   }
 }
+interface InstallerDeps {
+  hub?: string;
+  platform?: Platform;
+  env?: NodeJS.ProcessEnv;
+  log?: (s: string) => void;
+  ask?: (prompt: string) => Promise<string>;
+  run?: (file: string, args: string[], opts?: Json) => { status: number | null };
+  request?: (url: string) => Promise<Json>;
+  spawnServer?: (file: string, args: string[], opts: Json) => ChildProcess;
+  stopPid?: (pid: number) => unknown;
+  delay?: (ms: number) => Promise<unknown>;
+  agents?: typeof integrateAgents;
+  discover?: typeof import('../server/config.ts').discoverRoots;
+  encoderDetect?: typeof detectEncoders;
+  launch?: boolean;
+}
 export async function runInstaller(
-  options,
+  options: Options,
   {
     hub = ROOT,
     platform = platformDefault,
     env = process.env,
     log = console.log,
     ask,
-    run = (f, a, opts) => spawnSync(f, a, { stdio: 'inherit', ...opts }),
-    request = async url => {
+    run = (f: string, a: string[], opts?: Json) => spawnSync(f, a, { stdio: 'inherit', ...opts }),
+    request = async (url: string): Promise<Json> => {
       try {
         const r = await fetch(url, { signal: AbortSignal.timeout(1500) });
         return r.ok ? await r.json() : null;
@@ -177,37 +220,37 @@ export async function runInstaller(
         return null;
       }
     },
-    spawnServer = (f, a, opts) => spawn(f, a, opts),
-    stopPid = pid => process.kill(pid, 'SIGTERM'),
-    delay = ms => new Promise(r => setTimeout(r, ms)),
+    spawnServer = (f: string, a: string[], opts: Json) => spawn(f, a, opts),
+    stopPid = (pid: number) => process.kill(pid, 'SIGTERM'),
+    delay = (ms: number) => new Promise(r => setTimeout(r, ms)),
     agents = integrateAgents,
     discover,
     encoderDetect = detectEncoders,
     launch = true
-  } = {}
-) {
+  }: InstallerDeps = {}
+): Promise<Json> {
   const dry = !!options['dry-run'],
     quiet = dry || options.yes,
     home = platform.dirs.home,
     data = env.VIDEOHUB_DATA_DIR || path.join(hub, 'data');
-  const actions = [],
-    warnings = [],
-    say = s => {
+  const actions: string[] = [],
+    warnings: string[] = [],
+    say = (s: string) => {
       actions.push((dry ? 'would ' : '') + s);
       log((dry ? '[dry run] ' : '') + s);
     };
-  const warn = s => {
+  const warn = (s: string) => {
     warnings.push(s);
     log(s);
   };
-  let reader;
+  let reader: ReturnType<typeof createInterface> | undefined;
   const question =
     ask ||
-    (async prompt => {
+    (async (prompt: string) => {
       reader ||= createInterface({ input: process.stdin, output: process.stdout });
       return reader.question(prompt);
     });
-  const yesNo = async (key, prompt, recommended, saved = {}) => {
+  const yesNo = async (key: string, prompt: string, recommended: boolean, saved: Json = {}): Promise<boolean> => {
     const value = options[key] && options[key] !== 'ask' ? options[key] : saved[key];
     if (value === 'yes' || value === 'no') return value === 'yes';
     if (quiet) return recommended;
@@ -221,15 +264,15 @@ export async function runInstaller(
   const markerFile = path.join(platform.dirs.config, 'install.json');
   const entryFile = path.join(env.XDG_DATA_HOME || path.join(home, '.local', 'share'), 'applications', 'videohub.desktop');
   const desktopFile = path.join(platform.dirs.desktop, platform.IS_MAC ? 'VideoHub.command' : 'VideoHub.desktop');
-  const shellQuote = s => "'" + String(s).replaceAll("'", "'\\''") + "'";
-  const owned = (f, install) => {
+  const shellQuote = (s: string) => "'" + String(s).replaceAll("'", "'\\''") + "'";
+  const owned = (f: string, install: string) => {
     try {
       return fs.readFileSync(f, 'utf8').includes('# VideoHub install: ' + install + '\n');
     } catch {
       return false;
     }
   };
-  const packageInstall = (install, force = false) => {
+  const packageInstall = (install: string, force = false) => {
     if (
       !force &&
       fs.existsSync(path.join(install, 'node_modules', '@modelcontextprotocol', 'sdk', 'package.json')) &&
@@ -254,7 +297,7 @@ export async function runInstaller(
       if (r.status !== 0) throw new Error('pnpm install failed; install Node dependencies before continuing');
     }
   };
-  const settings = install => {
+  const settings = (install: string): Json => {
     const f = path.join(env.VIDEOHUB_DATA_DIR || path.join(install, 'data'), 'config.json');
     if (!fs.existsSync(f)) return {};
     try {
@@ -262,17 +305,17 @@ export async function runInstaller(
       if (!j || typeof j !== 'object' || Array.isArray(j)) throw new Error('expected an object');
       return j;
     } catch (e) {
-      throw new Error('Cannot read ' + f + '; nothing changed (' + e.message + ')');
+      throw new Error('Cannot read ' + f + '; nothing changed (' + (e as Error).message + ')');
     }
   };
-  const portOf = install => {
+  const portOf = (install: string) => {
     const cfg = settings(install),
       n = +(env.VIDEOHUB_PORT || cfg.port || 7788);
     if (!Number.isInteger(n) || n < 1 || n > 65535) throw new Error('Invalid local VideoHub port');
     return n;
   };
-  const stopInstall = install => stopInstalledHub({ install, platform, port: portOf(install), request, stopPid, delay, dryRun: dry, onAction: say });
-  const open = async install => {
+  const stopInstall = (install: string) => stopInstalledHub({ install, platform, port: portOf(install), request, stopPid, delay, dryRun: dry, onAction: say });
+  const open = async (install: string) => {
     const base = 'http://127.0.0.1:' + portOf(install);
     if (dry) {
       say('start the local hub if needed' + (options.server ? ' (server only)' : ' and open its browser window'));
@@ -283,12 +326,13 @@ export async function runInstaller(
     if (ping) {
       const procs = await platform.processList();
       if (!Array.isArray(procs)) throw new Error('Cannot verify which VideoHub install is using this port');
-      if (!procs.some(p => p.pid === ping.pid && processMatches(p, install, platform))) throw new Error('Another VideoHub install is using this port');
+      if (!procs.some((p: ProcessRow) => p.pid === ping.pid && processMatches(p, install, platform)))
+        throw new Error('Another VideoHub install is using this port');
     }
     if (!ping) {
       const c = spawnServer(process.execPath, [path.join(install, 'server', 'hub.ts')], { cwd: install, detached: true, stdio: 'ignore', env });
-      let spawnError;
-      c.on('error', e => {
+      let spawnError: Error | undefined;
+      c.on('error', (e: Error) => {
         spawnError = e;
       });
       c.unref();
@@ -357,25 +401,25 @@ export async function runInstaller(
         answers = { ...saved };
       for (const [old, key] of Object.entries({ globalRule: 'global-rule', watchFound: 'watch-found', gpuEncoder: 'gpu-encoder' }))
         if (saved[old] != null && saved[key] == null) saved[key] = saved[old];
-      let chosen = options.agents
+      let chosen: string[] | null = options.agents
         ? options.agents
             .split(',')
-            .map(s => s.trim())
+            .map((s: string) => s.trim())
             .filter(Boolean)
         : Array.isArray(saved.agents)
           ? saved.agents
           : typeof saved.agents === 'string'
-            ? saved.agents.split(',').map(s => s.trim())
+            ? saved.agents.split(',').map((s: string) => s.trim())
             : null;
       if (!chosen?.length) {
         const found = detectAgents({ home, env });
         if (found.length === 1 || quiet) chosen = found.length ? found : ['claude'];
         else {
           const a = (await question('Which agents? claude, opencode, or claude,opencode [' + (found.join(',') || 'claude') + '] ')).trim();
-          chosen = (a || found.join(',') || 'claude').split(',').map(s => s.trim());
+          chosen = (a || found.join(',') || 'claude').split(',').map((s: string) => s.trim());
         }
       }
-      if (chosen.some(a => !['claude', 'opencode'].includes(a))) throw new Error('--agents must contain claude and/or opencode');
+      if (chosen.some((a: string) => !['claude', 'opencode'].includes(a))) throw new Error('--agents must contain claude and/or opencode');
       answers.agents = chosen;
       let workspace = st.workspace || options.workspace;
       if (!workspace && !quiet) workspace = (await question('Where should your video work live? [' + st.defaultWorkspace + '] ')).trim();
@@ -398,7 +442,7 @@ export async function runInstaller(
         const useGpu =
           options['gpu-encoder'] === 'no' || (options['gpu-encoder'] == null && saved['gpu-encoder'] === 'no')
             ? false
-            : det.available.some(e => e !== 'x264')
+            : det.available.some((e: string) => e !== 'x264')
               ? await yesNo('gpu-encoder', 'Use the graphics card for renders?', true, saved)
               : true;
         encoder = useGpu ? 'auto' : 'x264';
@@ -428,7 +472,7 @@ export async function runInstaller(
           ' ' +
           shellQuote(path.join(hub, 'scripts', 'install.ts')) +
           ' open "$@"\n'
-        : '# VideoHub install: ' + hub + '\n' + platform.desktopEntry(false);
+        : '# VideoHub install: ' + hub + '\n' + (platform as unknown as { desktopEntry(server: boolean): string }).desktopEntry(false);
       for (const f of [...(platform.IS_MAC ? [] : [entryFile]), ...(makeShortcut ? [desktopFile] : [])]) {
         if (fs.existsSync(f) && !owned(f, hub)) {
           warn('Shortcut belongs to another install; left unchanged: ' + f);
@@ -445,10 +489,10 @@ export async function runInstaller(
         say('enable VideoHub at login (server only)');
         if (!dry)
           try {
-            const r = await platform.setAutostart(true);
+            const r = (await platform.setAutostart(true)) as Json;
             if (r?.code) throw new Error(r.stderr || 'Could not change autostart');
           } catch (e) {
-            warn(e.message);
+            warn((e as Error).message);
           }
       }
       const exampleDest = path.join(result.workspace, 'films', 'hello-film'),
@@ -462,7 +506,7 @@ export async function runInstaller(
           else {
             copyTree(path.join(hub, 'examples', 'hello-film'), exampleDest, {
               exclusive: true,
-              skip: n => /^(node_modules|render|\.videohub|out|videohub-project\.json)$/i.test(n)
+              skip: (n: string) => /^(node_modules|render|\.videohub|out|videohub-project\.json)$/i.test(n)
             });
             const meta = path.join(hub, 'examples', 'hello-film', 'videohub-project.json');
             if (fs.existsSync(meta)) write(path.join(exampleDest, '.videohub', 'project.json'), fs.readFileSync(meta, 'utf8'));
@@ -533,7 +577,7 @@ export async function runInstaller(
     try {
       startup = await platform.getAutostart();
     } catch (e) {
-      warn(e.message);
+      warn((e as Error).message);
     }
     // A macOS LaunchAgent may be installed but unloaded; setAutostart also removes that owned plist.
     if (startup || platform.IS_MAC) {
@@ -542,7 +586,7 @@ export async function runInstaller(
         try {
           await platform.setAutostart(false);
         } catch (e) {
-          warn(e.message);
+          warn((e as Error).message);
         }
     }
     for (const f of [...(platform.IS_MAC ? [] : [entryFile]), desktopFile])
@@ -567,7 +611,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     await runInstaller(parseOptions(process.argv.slice(2)));
   } catch (e) {
-    console.error(e.message);
+    console.error((e as Error).message);
     process.exitCode = 1;
   }
 }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -11,8 +10,8 @@ const LOCAL = new Set(['.git', '.agents', '.claude', '.test-tmp', 'node_modules'
 const EXECUTABLE = /\.(exe|dll|com|scr|msi|msp|ocx|sys|cpl|node)$/i;
 
 test('the source distribution contains no compiled executable helpers or application bundles', () => {
-  const bad = [];
-  function walk(dir, relative = '') {
+  const bad: string[] = [];
+  function walk(dir: string, relative = '') {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const name = relative ? relative + '/' + entry.name : entry.name;
       if ((!relative && LOCAL.has(entry.name)) || (entry.isDirectory() && /^examples\/[^/]+\/(?:node_modules|render)$/.test(name))) continue;

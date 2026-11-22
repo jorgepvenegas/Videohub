@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Builds the folder to drag into GitHub's "Add files via upload" page, from the last commit (git archive: the
 // right line endings, nothing local such as data\ or node_modules\).
 //   node scripts/make-upload.ts [target folder]      default: VideoHub-upload next to this repo
@@ -60,7 +59,7 @@ for (const f of files.sort()) {
   if (!groups.has(key)) groups.set(key, []);
   groups.get(key).push(f);
 }
-const parts = [];
+const parts: string[][] = [];
 for (const g of [...groups.values()].sort((a, b) => b.length - a.length)) {
   // biggest first, into the first part it fits
   const fit = parts.find(p => p.length + g.length <= PER_PART);

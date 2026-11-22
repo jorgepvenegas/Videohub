@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Agent integration is shared by both installers. Never replace another install's entry or unreadable config.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -6,11 +5,12 @@ import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { trash } from '../server/platform.ts';
+import type { Json, TrashResult } from '../server/types.ts';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const normal = s => String(s || '').replace(/\/$/, '');
-const same = (a, b) => normal(a) === normal(b);
-const object = j => j && typeof j === 'object' && !Array.isArray(j);
-export function parseJsonc(text) {
+const normal = (s: unknown) => String(s || '').replace(/\/$/, '');
+const same = (a: unknown, b: unknown) => normal(a) === normal(b);
+const object = (j: unknown): j is Record<string, Json> => (j && typeof j === 'object' && !Array.isArray(j)) as boolean;
+export function parseJsonc(text: string) {
   // Keep quoted URLs and escaped quotes intact while removing comments and trailing commas.
   let out = '',
     quoted = false,
@@ -67,45 +67,52 @@ export function parseJsonc(text) {
   if (!object(j)) throw new Error('Expected a JSON object');
   return j;
 }
-export function agentPaths(agent, { home = os.homedir(), env = process.env } = {}) {
+type Env = NodeJS.ProcessEnv;
+interface AgentRunResult {
+  status: number | null;
+  stdout?: unknown;
+  stderr?: unknown;
+  error?: Error;
+}
+export function agentPaths(agent: string, { home = os.homedir(), env = process.env }: { home?: string; env?: Env } = {}) {
   const dir = agent === 'claude' ? path.join(home, '.claude') : path.join(env.XDG_CONFIG_HOME || path.join(home, '.config'), 'opencode');
   const json = agent === 'claude' ? path.join(home, '.claude.json') : path.join(dir, 'opencode.json');
   const config = agent === 'opencode' && fs.existsSync(path.join(dir, 'opencode.jsonc')) ? path.join(dir, 'opencode.jsonc') : json;
   return { dir, config, skill: path.join(dir, 'skills', 'videohub'), rule: path.join(dir, agent === 'claude' ? 'CLAUDE.md' : 'AGENTS.md') };
 }
-function executable(name, env = process.env) {
+function executable(name: string, env: Env = process.env): string | null {
   for (const d of (env.PATH || '').split(path.delimiter)) {
     const p = path.join(d, name);
     if (d && fs.existsSync(p)) return p;
   }
   return null;
 }
-export function executeAgent(file, args, { env = process.env } = {}) {
+export function executeAgent(file: string, args: string[], { env = process.env }: { env?: Env } = {}): AgentRunResult {
   return spawnSync(file, args, { encoding: 'utf8', env });
 }
-export function detectAgents(options = {}) {
+export function detectAgents(options: { find?: (name: string, env?: Env) => string | null; env?: Env; home?: string } = {}) {
   return ['claude', 'opencode'].filter(a => (options.find || executable)(a, options.env) || fs.existsSync(agentPaths(a, options).dir));
 }
-function readConfig(file) {
+function readConfig(file: string): Json {
   if (!fs.existsSync(file)) return {};
   try {
     return parseJsonc(fs.readFileSync(file, 'utf8'));
   } catch (e) {
-    throw new Error(`${file} is not readable JSON/JSONC; left unchanged (${e.message})`);
+    throw new Error(`${file} is not readable JSON/JSONC; left unchanged (${(e as Error).message})`);
   }
 }
-function entriesOf(agent, j) {
+function entriesOf(agent: string, j: Json) {
   return (agent === 'claude' ? [j.mcpServers?.videohub] : [j.mcp?.servers?.videohub, j.mcp?.videohub]).filter(e => e != null);
 }
-function owns(entry, mcp) {
-  return [...(Array.isArray(entry?.command) ? entry.command : []), ...(Array.isArray(entry?.args) ? entry.args : [])].some(p => same(p, mcp));
+function owns(entry: Json, mcp: string) {
+  return [...(Array.isArray(entry?.command) ? entry.command : []), ...(Array.isArray(entry?.args) ? entry.args : [])].some((p: unknown) => same(p, mcp));
 }
-function save(file, j) {
+function save(file: string, j: Json) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   if (fs.existsSync(file)) fs.copyFileSync(file, file + '.videohub-backup');
   fs.writeFileSync(file, JSON.stringify(j, null, 2) + '\n');
 }
-function mutateEntry(agent, j, mcp, remove) {
+function mutateEntry(agent: string, j: Json, mcp: string, remove: boolean) {
   if (agent === 'claude') {
     if (!object(j.mcpServers) && j.mcpServers != null) throw new Error('mcpServers is not an object');
     j.mcpServers ||= {};
@@ -124,7 +131,7 @@ function mutateEntry(agent, j, mcp, remove) {
 const begin = '<!-- videohub:begin (added by VideoHub setup; remove with uninstall.sh) -->',
   end = '<!-- videohub:end -->';
 const blocks = /<!-- videohub:begin[^>]*-->[\s\S]*?<!-- videohub:end -->/g;
-function ownedText(text, hub) {
+function ownedText(text: string, hub: string) {
   return new RegExp('(?:^|["\u0027`(\\s])' + normal(hub).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:/|["\u0027`\\s]|$)').test(normal(text));
 }
 export async function integrateAgents({
@@ -138,14 +145,25 @@ export async function integrateAgents({
   find = executable,
   run = executeAgent,
   recycle = trash
+}: {
+  action?: string;
+  agents?: string[];
+  hub?: string;
+  home?: string;
+  env?: Env;
+  globalRule?: boolean;
+  dryRun?: boolean;
+  find?: (name: string, env?: Env) => string | null;
+  run?: (file: string, args: string[], o?: { env?: Env }) => AgentRunResult;
+  recycle?: (files: string[]) => Promise<Partial<TrashResult>[]>;
 } = {}) {
   if (!['setup', 'refresh', 'uninstall'].includes(action)) throw new Error('Unknown agent action: ' + action);
-  const actions = [],
-    errors = [],
+  const actions: string[] = [],
+    errors: string[] = [],
     mcp = path.join(hub, 'server', 'mcp.ts');
   agents = [...new Set(agents.flatMap(a => String(a).split(',')).filter(Boolean))];
   if (agents.some(a => !['claude', 'opencode'].includes(a))) throw new Error('Agents must be claude or opencode');
-  const say = s => actions.push((dryRun ? 'would ' : '') + s);
+  const say = (s: string) => actions.push((dryRun ? 'would ' : '') + s);
   for (const agent of agents) {
     const p = agentPaths(agent, { home, env }),
       label = agent === 'claude' ? 'Claude Code' : 'OpenCode';
@@ -250,13 +268,13 @@ export async function integrateAgents({
         if (agent === 'opencode') actions.push('OpenCode reads its AGENTS.md instead of ~/.claude/CLAUDE.md; other rules were not copied.');
       }
     } catch (e) {
-      errors.push(`${label}: ${e.message}`);
+      errors.push(`${label}: ${(e as Error).message}`);
     }
   }
   return { agents, actions, errors, agentName: agents.length === 1 && agents[0] === 'opencode' ? 'OpenCode' : 'Claude' };
 }
-export function parseAgentOptions(args) {
-  const out = {};
+export function parseAgentOptions(args: string[]) {
+  const out: Record<string, Json> = {};
   for (let i = 0; i < args.length; i++) {
     const key = args[i];
     if (['--detect', '--dry-run', '--set-agent-name', '--help'].includes(key)) out[key] = true;
@@ -273,7 +291,7 @@ export function parseAgentOptions(args) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const options = parseAgentOptions(process.argv.slice(2)),
-      val = key => options[key];
+      val = (key: string) => options[key];
     if (val('--help')) {
       console.log(
         'Usage: node scripts/agents.ts [--detect] [--action setup|refresh|uninstall] [--agents claude,opencode] [--hub PATH] [--global-rule yes|no] [--dry-run]'
@@ -299,7 +317,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       if (r.errors.length) process.exitCode = 1;
     }
   } catch (e) {
-    console.log(JSON.stringify({ actions: [], errors: [e.message] }));
+    console.log(JSON.stringify({ actions: [], errors: [(e as Error).message] }));
     process.exitCode = 1;
   }
 }

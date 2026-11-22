@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -12,7 +11,7 @@ const scratch = () => {
   fs.mkdirSync(home, { recursive: true });
   return { home, env: { PATH: '', XDG_CONFIG_HOME: path.join(home, '.config') }, hub, find: () => null };
 };
-const write = (f, s) => {
+const write = (f: string, s: string) => {
   fs.mkdirSync(path.dirname(f), { recursive: true });
   fs.writeFileSync(f, s);
 };
@@ -62,8 +61,8 @@ test('dry run prints OpenCode steps without writing to fake home', async () => {
 });
 test('MCP registration uses OpenCode CLI and verifies list; existing owned entry can be replaced', async () => {
   const o = scratch(),
-    calls = [],
-    run = (f, a) => {
+    calls: string[][] = [],
+    run = (f: string, a: string[]) => {
       calls.push(a);
       return { status: 0, stdout: a.includes('list') ? 'videohub connected' : '' };
     };
@@ -108,14 +107,14 @@ test('uninstall removes only owned entries/rule and recycles skill; supports CLI
   const o = scratch();
   await integrateAgents({ ...o, agents: ['opencode'] });
   const p = agentPaths('opencode', o),
-    recycled = [];
+    recycled: string[] = [];
   const r = await integrateAgents({
     ...o,
     action: 'uninstall',
     agents: ['opencode'],
     find: () => 'opencode',
     run: () => ({ status: 0, stdout: 'add list' }),
-    recycle: async a => {
+    recycle: async (a: string[]) => {
       recycled.push(...a);
       return a.map(p => ({ path: p, ok: true }));
     }
@@ -133,13 +132,13 @@ test('agent detection uses fake home and supplied PATH lookup', () => {
 });
 test('all injected agent CLI calls receive the selected fake environment', async () => {
   const o = scratch(),
-    calls = [];
+    calls: (NodeJS.ProcessEnv | undefined)[] = [];
   const r = await integrateAgents({
     ...o,
     agents: ['opencode'],
     find: () => 'opencode',
     run: (_f, args, options) => {
-      calls.push(options.env);
+      calls.push(options?.env);
       return { status: 0, stdout: args.includes('list') ? 'videohub' : '' };
     }
   });
@@ -168,7 +167,7 @@ test('a path embedded inside another install path does not claim ownership of it
     foreign = '/other-prefix' + hub.replace(/\\/g, '/') + '/server/cli.ts';
   write(path.join(p.skill, 'SKILL.md'), foreign);
   write(p.rule, '<!-- videohub:begin -->\n' + foreign + '\n<!-- videohub:end -->');
-  const recycled = [];
+  const recycled: string[] = [];
   const r = await integrateAgents({
     ...o,
     action: 'uninstall',

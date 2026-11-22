@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -6,6 +5,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { initConfig, state, checkWorkspace, installExample, HUB } from './init-config.ts';
 import { spawnSync } from 'node:child_process';
+import type { Root } from '../server/types.ts';
 
 // every test in its own scratch folder under .test-tmp: never the real data\config.json or Documents
 const scratch = () => {
@@ -34,7 +34,7 @@ test('a new install: workspace folders, README, config with baseDir, the chosen 
     ws = path.join(d, 'Work'),
     old = path.join(d, 'Old films'),
     other = path.join(d, 'Clips');
-  const found = () => [
+  const found = (): Root[] => [
     { path: old, type: 'container', enabled: false },
     { path: other, type: 'media', enabled: false }
   ];
@@ -48,7 +48,7 @@ test('a new install: workspace folders, README, config with baseDir, the chosen 
   assert.equal(c.thumbstudio.globalDir, path.join(ws, 'thumbnails'));
   assert.equal(c.render.encoder, 'amf');
   assert.deepEqual(
-    c.roots.map(x => [x.path, x.enabled]),
+    c.roots.map((x: Root) => [x.path, x.enabled]),
     [
       [path.join(ws, 'films'), true],
       [old, true],
@@ -105,10 +105,10 @@ test('workspace checks: full path, not a drive, not inside the install, not a fi
     f = path.join(d, 'file.txt');
   fs.writeFileSync(f, 'x');
   assert.equal(checkWorkspace(path.join(d, 'new', 'deeper'), hubDir), null);
-  assert.match(checkWorkspace('videos'), /full path/);
-  assert.match(checkWorkspace(path.parse(d).root), /whole drive/);
-  assert.match(checkWorkspace(path.join(HUB, 'films')), /outside the VideoHub program folder/);
-  assert.match(checkWorkspace(f, hubDir), /file/);
+  assert.match(checkWorkspace('videos') as string, /full path/);
+  assert.match(checkWorkspace(path.parse(d).root) as string, /whole drive/);
+  assert.match(checkWorkspace(path.join(HUB, 'films')) as string, /outside the VideoHub program folder/);
+  assert.match(checkWorkspace(f, hubDir) as string, /file/);
   assert.throws(() => initConfig({ dataDir: path.join(d, 'data'), workspace: path.parse(d).root, discover: none, hubDir }), /whole drive/);
   assert.throws(() => initConfig({ dataDir: path.join(d, 'data'), workspace: path.join(d, 'w'), encoder: 'turbo', discover: none, hubDir }), /encoder/);
 });

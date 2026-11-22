@@ -1,4 +1,3 @@
-// @ts-nocheck
 // The repo is published by dragging files into GitHub's browser upload, which drops every name that starts with a dot.
 // Nothing VideoHub needs may have such a name, or it goes missing on GitHub without any error.
 import test from 'node:test';

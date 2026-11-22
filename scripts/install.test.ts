@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -6,9 +5,10 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import type { Json } from '../server/types.ts';
 import { parseOptions, runInstaller, stopInstalledHub, validateUpdatePaths } from './install.ts';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const write = (f, t = '{}') => {
+const write = (f: string, t = '{}') => {
   fs.mkdirSync(path.dirname(f), { recursive: true });
   fs.writeFileSync(f, t);
 };
@@ -32,8 +32,8 @@ function fixture(os = 'linux', installName = 'install') {
     VIDEOHUB_PORT: '7799',
     VIDEOHUB_NO_WINDOW: '1'
   };
-  const calls = [],
-    platform = {
+  const calls: Json[] = [],
+    platform: Json = {
       OS: 'linux',
       IS_MAC: false,
       IS_LINUX: true,
@@ -41,18 +41,18 @@ function fixture(os = 'linux', installName = 'install') {
       findTool: () => null,
       findBrowser: () => ({ path: null }),
       desktopEntry: () => '[Desktop Entry]\nName=VideoHub\nExec="/home/me/VideoHub/open.sh"\n',
-      pathKey: p => path.resolve(p),
+      pathKey: (p: string) => path.resolve(p),
       processList: async () => [],
       getAutostart: async () => false,
-      setAutostart: async on => {
+      setAutostart: async (on: boolean) => {
         calls.push(['startup', on]);
         return { code: 0 };
       },
-      trash: async a => {
+      trash: async (a: string[]) => {
         calls.push(['trash', a]);
-        return a.map(p => ({ path: p, ok: true }));
+        return a.map((p: string) => ({ path: p, ok: true }));
       },
-      openUrlWindow: u => calls.push(['open', u])
+      openUrlWindow: (u: string) => calls.push(['open', u])
     };
   if (os === 'darwin') {
     platform.OS = 'darwin';
@@ -110,7 +110,7 @@ test('shell options accept every guided answer and reject typos before changes',
 test('Linux setup dry-run writes no config, workspace, skill, launcher, or startup', async () => {
   const o = fixture(),
     r = await runInstaller({ action: 'setup', yes: true, 'dry-run': true, workspace: o.workspace, agents: 'opencode', startup: 'yes' }, o);
-  assert.ok(r.actions.some(s => /write launcher/.test(s)));
+  assert.ok(r.actions.some((s: string) => /write launcher/.test(s)));
   assert.equal(fs.existsSync(o.workspace), false);
   assert.equal(fs.existsSync(path.join(o.hub, 'data')), false);
   assert.equal(fs.existsSync(path.join(o.home, '.config')), false);
@@ -120,7 +120,7 @@ test('fake-home Linux setup writes workspace, OpenCode integration, entry, examp
   const o = fixture();
   let r = await runInstaller({ action: 'setup', yes: true, workspace: o.workspace, agents: 'opencode', startup: 'yes' }, o);
   assert.deepEqual(
-    r.warnings.filter(s => !/ffmpeg|Chrome|Chromium/.test(s)),
+    r.warnings.filter((s: string) => !/ffmpeg|Chrome|Chromium/.test(s)),
     []
   );
   const configFile = path.join(o.hub, 'data', 'config.json'),
@@ -155,7 +155,7 @@ test('updater preserves data and backs up code without removing old files', asyn
 test('macOS and Linux setup runs pnpm install --frozen-lockfile in the hub folder', async () => {
   for (const os of ['linux', 'darwin']) {
     const o = fixture(os),
-      commands = [];
+      commands: Json[] = [];
     fs.rmSync(path.join(o.hub, 'node_modules'), { recursive: true });
     await runInstaller(
       { action: 'setup', yes: true, workspace: o.workspace, agents: 'opencode', example: 'no' },
@@ -175,14 +175,14 @@ test('missing pnpm stops setup with the OS hint before any change; dry-run only 
   for (const [os, hint] of [
     ['darwin', /brew install pnpm/],
     ['linux', /npm install -g pnpm/]
-  ]) {
+  ] as [string, RegExp][]) {
     const o = fixture(os);
     fs.rmSync(path.join(o.hub, 'node_modules'), { recursive: true });
     await assert.rejects(runInstaller({ action: 'setup', yes: true, workspace: o.workspace, agents: 'opencode' }, o), hint);
     assert.equal(fs.existsSync(o.workspace), false);
     assert.equal(fs.existsSync(path.join(o.hub, 'data')), false);
     const r = await runInstaller({ action: 'setup', yes: true, 'dry-run': true, workspace: o.workspace, agents: 'opencode' }, o);
-    assert.ok(r.warnings.some(s => hint.test(s)));
+    assert.ok(r.warnings.some((s: string) => hint.test(s)));
     assert.equal(fs.existsSync(o.workspace), false);
     assert.equal(fs.existsSync(path.join(o.hub, 'data')), false);
   }
@@ -190,7 +190,7 @@ test('missing pnpm stops setup with the OS hint before any change; dry-run only 
 test('updating an npm-era install installs with pnpm and keeps data', async () => {
   const o = fixture(),
     target = path.join(path.dirname(o.hub), 'target'),
-    commands = [];
+    commands: Json[] = [];
   write(path.join(target, 'server', 'hub.ts'), '// old hub');
   write(path.join(target, 'package-lock.json'));
   write(path.join(target, 'data', 'config.json'), '{"mine":true}');
@@ -221,7 +221,7 @@ test('updater refuses active queues and unrelated processes; dry-run does not co
   await assert.rejects(
     runInstaller(
       { action: 'update', target },
-      { ...o, platform: p, request: async u => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : [{ state: 'running' }]) }
+      { ...o, platform: p, request: async (u: string) => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : [{ state: 'running' }]) }
     ),
     /running or queued/
   );
@@ -244,21 +244,21 @@ test('uninstall recycles only owned launchers and leaves work and program files'
   // Other installations can have their own Desktop shortcut.
   write(path.join(o.home, 'Desktop', 'VideoHub.desktop'), '# VideoHub install: /other-install\n[Desktop Entry]');
   await runInstaller({ action: 'uninstall' }, { ...o, request: async () => null });
-  assert.ok(o.calls.filter(c => c[0] === 'trash').some(c => c[1].some(f => f.endsWith('videohub.desktop'))));
-  assert.ok(!o.calls.filter(c => c[0] === 'trash').some(c => c[1].some(f => f.endsWith('VideoHub.desktop'))));
+  assert.ok(o.calls.filter(c => c[0] === 'trash').some(c => c[1].some((f: string) => f.endsWith('videohub.desktop'))));
+  assert.ok(!o.calls.filter(c => c[0] === 'trash').some(c => c[1].some((f: string) => f.endsWith('VideoHub.desktop'))));
   assert.ok(fs.existsSync(path.join(o.workspace, 'films', 'hello-film', 'index.html')));
   assert.ok(fs.existsSync(path.join(o.hub, 'server', 'hub.ts')));
 });
 test('launcher starts a detached local server and opens the window; server flag opens none', async () => {
   const o = fixture();
   let polls = 0,
-    spawned = [];
+    spawned: Json[] = [];
   const overrides = {
     ...o,
     request: async () => (++polls > 1 ? { app: 'videohub', pid: 999 } : null),
-    spawnServer: (file, args, opts) => {
+    spawnServer: (file: string, args: string[], opts: Json) => {
       spawned.push({ file, args, opts });
-      return { pid: 999, on() {}, unref() {} };
+      return { pid: 999, on() {}, unref() {} } as Json;
     },
     delay: async () => {}
   };
@@ -275,10 +275,10 @@ test('launcher starts a detached local server and opens the window; server flag 
 test('macOS dry-run gives Homebrew hints and writes no Desktop command or Library settings', async () => {
   const o = fixture('darwin'),
     r = await runInstaller({ action: 'setup', yes: true, 'dry-run': true, workspace: o.workspace, agents: 'opencode' }, o);
-  assert.ok(r.warnings.some(s => /brew install node ffmpeg/.test(s)));
-  assert.ok(r.warnings.some(s => /brew install --cask google-chrome/.test(s)));
-  assert.ok(r.actions.some(s => /VideoHub\.command/.test(s)));
-  assert.ok(!r.actions.some(s => /videohub\.desktop/i.test(s)));
+  assert.ok(r.warnings.some((s: string) => /brew install node ffmpeg/.test(s)));
+  assert.ok(r.warnings.some((s: string) => /brew install --cask google-chrome/.test(s)));
+  assert.ok(r.actions.some((s: string) => /VideoHub\.command/.test(s)));
+  assert.ok(!r.actions.some((s: string) => /videohub\.desktop/i.test(s)));
   assert.equal(fs.existsSync(path.join(o.home, 'Library')), false);
   assert.equal(fs.existsSync(path.join(o.home, 'Desktop', 'VideoHub.command')), false);
 });
@@ -306,7 +306,7 @@ test("macOS setup and uninstall leave another installation's Desktop command unc
     foreign = '#!/bin/bash\n# VideoHub install: /other-install\n';
   write(command, foreign);
   const r = await runInstaller({ action: 'setup', yes: true, workspace: o.workspace, agents: 'opencode' }, o);
-  assert.ok(r.warnings.some(s => /another install/.test(s)));
+  assert.ok(r.warnings.some((s: string) => /another install/.test(s)));
   assert.equal(fs.readFileSync(command, 'utf8'), foreign);
   o.calls.length = 0;
   await runInstaller({ action: 'uninstall' }, { ...o, request: async () => null });
@@ -350,13 +350,13 @@ test('updater verifies server termination before replacing any code', async () =
   const o = fixture(),
     target = path.join(path.dirname(o.hub), 'target');
   write(path.join(target, 'server', 'hub.ts'), '// old');
-  const row = { pid: 123, name: 'node', start: 'original', cmd: 'node ' + path.join(target, 'server', 'hub.ts') },
-    stopped = [];
-  const request = async u => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' });
+  const row: Json = { pid: 123, name: 'node', start: 'original', cmd: 'node ' + path.join(target, 'server', 'hub.ts') },
+    stopped: number[] = [];
+  const request = async (u: string) => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' });
   await assert.rejects(
     runInstaller(
       { action: 'update', target },
-      { ...o, platform: { ...o.platform, processList: async () => [row] }, request, stopPid: p => stopped.push(p), delay: async () => {} }
+      { ...o, platform: { ...o.platform, processList: async () => [row] }, request, stopPid: (p: number) => stopped.push(p), delay: async () => {} }
     ),
     /still running/
   );
@@ -368,9 +368,9 @@ test('updater refuses a reused PID and unavailable process inventory before send
   const o = fixture(),
     target = path.join(path.dirname(o.hub), 'target');
   write(path.join(target, 'server', 'hub.ts'), '// old');
-  const row = { pid: 123, name: 'node', start: 'original', cmd: 'node ' + path.join(target, 'server', 'hub.ts') };
+  const row: Json = { pid: 123, name: 'node', start: 'original', cmd: 'node ' + path.join(target, 'server', 'hub.ts') };
   let calls = 0;
-  const request = async u => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' });
+  const request = async (u: string) => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' });
   await assert.rejects(
     runInstaller(
       { action: 'update', target },
@@ -418,7 +418,7 @@ test('launcher does not open a different program that wins a startup port race',
       {
         ...o,
         request: async () => (++polls === 1 ? null : { app: 'videohub', pid: 456 }),
-        spawnServer: () => ({ pid: 999, on() {}, unref() {} }),
+        spawnServer: () => ({ pid: 999, on() {}, unref() {} }) as Json,
         delay: async () => {}
       }
     ),
@@ -429,7 +429,7 @@ test('launcher does not open a different program that wins a startup port race',
 test('stop uses the queue and ownership checks without allowing dry-run API contact', async () => {
   const o = fixture(),
     platform = o.platform,
-    stopped = [];
+    stopped: number[] = [];
   await runInstaller(
     { action: 'stop', target: o.hub, 'dry-run': true },
     {
@@ -441,35 +441,39 @@ test('stop uses the queue and ownership checks without allowing dry-run API cont
     }
   );
   await assert.rejects(
-    runInstaller({ action: 'stop', target: o.hub }, { ...o, platform, request: async () => ({ app: 'videohub', pid: 888 }), stopPid: p => stopped.push(p) }),
+    runInstaller(
+      { action: 'stop', target: o.hub },
+      { ...o, platform, request: async () => ({ app: 'videohub', pid: 888 }), stopPid: (p: number) => stopped.push(p) }
+    ),
     /another process/
   );
   assert.deepEqual(stopped, []);
-  const row = { pid: 123, name: 'node', start: 'original', cmd: '"' + process.execPath + '" "' + path.join(o.hub, 'server', 'hub.ts') + '"' };
+  const row: Json = { pid: 123, name: 'node', start: 'original', cmd: '"' + process.execPath + '" "' + path.join(o.hub, 'server', 'hub.ts') + '"' };
   let exited = false;
+  const stoppedPids: number[] = [];
   await stopInstalledHub({
     install: o.hub,
     platform: { processList: async () => (exited ? [] : [row]) },
     port: 7799,
-    request: async u => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' }),
-    stopPid: p => {
-      stopped.push(p);
+    request: async (u: string) => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' }),
+    stopPid: (p: number) => {
+      stoppedPids.push(p);
       exited = true;
     },
     delay: async () => {}
   });
-  assert.deepEqual(stopped, [123]);
+  assert.deepEqual(stoppedPids, [123]);
 });
 test('stop ownership is case-sensitive and different install prefixes remain distinct', async () => {
   const o = fixture(),
-    request = async u => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' });
+    request = async (u: string) => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' });
   const script = path.join(o.hub, 'server', 'hub.ts'),
     row = { pid: 123, name: 'node', start: 'original', cmd: '"' + process.execPath + '" "' + script.toUpperCase() + '"' };
   for (const cmd of [row.cmd, 'node "' + path.join(o.hub + '-copy', 'server', 'hub.ts') + '"']) {
     await assert.rejects(
       stopInstalledHub({
         install: o.hub,
-        platform: { processList: async () => [{ ...row, cmd }] },
+        platform: { processList: async () => [{ ...row, cmd }] as Json },
         port: 7799,
         request,
         stopPid: () => {
@@ -483,15 +487,15 @@ test('stop ownership is case-sensitive and different install prefixes remain dis
 });
 test('lifecycle refuses unknown process start identity instead of treating null as a match', async () => {
   const o = fixture(),
-    row = { pid: 123, name: 'node', start: null, cmd: 'node ' + path.join(o.hub, 'server', 'hub.ts') },
-    stopped = [];
+    row: Json = { pid: 123, name: 'node', start: null, cmd: 'node ' + path.join(o.hub, 'server', 'hub.ts') },
+    stopped: number[] = [];
   await assert.rejects(
     stopInstalledHub({
       install: o.hub,
       platform: { processList: async () => [row] },
       port: 7799,
-      request: async u => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' }),
-      stopPid: p => stopped.push(p),
+      request: async (u: string) => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' }),
+      stopPid: (p: number) => stopped.push(p),
       delay: async () => {}
     }),
     /Cannot verify server process identity/
@@ -511,7 +515,7 @@ test('canonical update validation rejects nested junction aliases before stop or
       [alias, nested],
       [sameAlias, o.hub]
     ]),
-    realpath = p => aliases.get(p) || fs.realpathSync(p),
+    realpath = (p: string) => aliases.get(p) || fs.realpathSync(p),
     resolver = { realpath };
   assert.throws(() => validateUpdatePaths(o.hub, alias, resolver), /not nested/);
   assert.throws(() => validateUpdatePaths(alias, o.hub, resolver), /not nested/);
