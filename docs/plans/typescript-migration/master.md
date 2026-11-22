@@ -85,7 +85,7 @@ flowchart LR
 
 | ID | Phase | Outcome | Depends on | Status | Plan |
 |---|---|---|---|---|---|
-| P1 | Toolchain and format baseline | TypeScript 7, oxlint and oxfmt are pinned and wired into `pnpm typecheck`/`lint`/`format:check`; `pnpm test` also runs `.test.ts`; Node ≥ 22.18 is declared; the repo is formatted once (Vite arrives in P5) | none | ready | [plan](phases/01-toolchain-and-format-baseline/plan.md) |
+| P1 | Toolchain and format baseline | TypeScript 7, oxlint and oxfmt are pinned and wired into `pnpm typecheck`/`lint`/`format:check`; `pnpm test` also runs `.test.ts`; Node ≥ 22.18 is declared; the repo is formatted once (Vite arrives in P5) | none | in_progress | [plan](phases/01-toolchain-and-format-baseline/plan.md) |
 | P2 | Server core modules to TS | Every top-level `server/*.js` module except the entry/tool layer (`hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib.mjs`, `vhsound.mjs`) plus their tests are strict `.ts`; one shared test helper strips types for source-reading tests | P1 | planned | pending |
 | P3 | Server entry points and thumbstudio to TS | `server/hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib`, `vhsound` and `server/thumbstudio/` (except tests importing `ui/thumbstudio`, which move in P7) are `.ts`; every in-repo reference to the entry points uses `.ts` | P2 | planned | pending |
 | P4 | Installer, scripts and upgrade path to TS | `scripts/` and the lifecycle entry points are `.ts`; shell scripts gate Node ≥ 22.18; setup registers `.ts` entries; update from a JS-era install stops the old hub and re-points MCP and login items | P3 | planned | pending |
@@ -149,9 +149,9 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 
 ## 12. Resume brief
 
-- Current phase: P1 (plan drafted, awaiting approval)
+- Current phase: P1 (in progress, worker p1-toolchain)
 - Last verdict: none
-- Next action: user reviews master and P1 plan; on approval run `approve docs/plans/typescript-migration P1`
+- Next action: worker implements P1 S1–S5, stops at S5 format preview for user go-ahead
 - Open decisions: none
 - PR: https://github.com/jorgepvenegas/Videohub/pull/3
 - Last updated: 2026-11-21
