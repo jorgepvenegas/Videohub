@@ -7,7 +7,7 @@
 - Status: in_progress
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-22
-- Commit: pending
+- Commit: ebbc03d
 - Implementation mode: subagent
 - Implemented by: p5-worker
 - Implemented at: 2026-11-22
@@ -225,12 +225,12 @@ Append during implementation. One line per deviation: date, step, what changed, 
 | A4 | met | `pnpm lint` exit 0 with 0 errors; `pnpm format:check` exit 0 |
 | A5 | met | `pnpm build` exit 0; browser check `total problems 0` on the six pages (§9 S6); 503 page covered by `hub-ui.test.ts` "without a build the hub answers 503" |
 | A6 | met | `scripts/install.test.ts` tests "macOS and Linux setup runs pnpm install ..." (install then build), "updating an npm-era install ..." (install then build), "setup and update fail with a clear message when the UI build fails ..."; fresh scratch setup built and served `dist/ui` (§9 S6) |
-| D1 (master) | advanced | 10 top-level `ui` files are `.ts`; `review/` and `thumbstudio/` remain for P6 and P7 |
-| D2 (master) | advanced | UI sources check strictly under `ui/tsconfig.json` (DOM, no Node types); `ui/values.ts` checks under both configs |
-| D3 (master) | advanced | lint 0 errors, format clean |
-| D4 (master) | advanced | 312 pass, 0 fail |
-| D5 (master) | partly met | `pnpm build` exits 0; scratch hub serves library, renders, outputs, disk, settings and thumbnail studio with no console errors; the review page was not opened by rule |
-| D6 (master) | partly met | fresh setup builds the UI automatically (tests and e2e); update runs the same build (tests); the update-from-JS-era e2e is P4's |
+| D1 (master) | met | This phase's share: 10 top-level `ui` files are `.ts`; `review/` and `thumbstudio/` remain for P6 and P7. D stays open until P9 |
+| D2 (master) | met | This phase's share: UI sources check strictly under `ui/tsconfig.json` (DOM, no Node types); `ui/values.ts` checks under both configs. D stays open until P9 |
+| D3 (master) | met | This phase's share: lint 0 errors, format clean. D stays open until P9 |
+| D4 (master) | met | This phase's share: 312 pass, 0 fail. D stays open until P9 |
+| D5 (master) | met | This phase's share: `pnpm build` exits 0; scratch hub serves library, renders, outputs, disk, settings and thumbnail studio with no console errors; the review page was not opened by rule. D stays open until P9 |
+| D6 (master) | met | This phase's share: fresh setup builds the UI automatically (tests and e2e); update runs the same build (tests); the update-from-JS-era e2e is P4's. D stays open until P9 |
 
 **Discoveries no earlier plan predicted:**
 
