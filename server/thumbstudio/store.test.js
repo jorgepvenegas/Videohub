@@ -13,7 +13,7 @@ import {
   listThumbnails,
   serveThumbnailFile
 } from './store.js';
-import { config } from '../config.js';
+import { config } from '../config.ts';
 
 // Setup temp test directory for global thumbnails
 const { root: testTempDir, recycle } = testTrash('vh-thumb-test-');
@@ -156,7 +156,7 @@ test('createThumbnail with template applies slots and camera properties', async 
 });
 
 test('janitor and scan ignore thumbnail folders', async () => {
-  const { findCandidates } = await import('../janitor.js');
+  const { findCandidates } = await import('../janitor.ts');
   const candidates = await findCandidates();
   for (const c of candidates) {
     assert.equal(c.path.includes(path.join('.videohub', 'thumbnails')), false, 'Janitor must never offer .videohub/thumbnails');

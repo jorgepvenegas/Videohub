@@ -6,7 +6,7 @@ import { testTrash } from './test-trash.js';
 import { POSES, EXPRESSIONS } from './schema.js';
 import { FIGURE_POSES, CROP_CONFIG } from '../../ui/thumbstudio/figures.js';
 import { saveReference, createThumbnail, getThumbnail, deleteThumbnail } from './store.js';
-import { config } from '../config.js';
+import { config } from '../config.ts';
 
 // Setup temp test directory for global thumbnails
 const { root: testTempDir, recycle } = testTrash('vh-thumb-f-test-');

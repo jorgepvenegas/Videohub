@@ -16,7 +16,7 @@ import {
   builtinDir,
   userDir
 } from './templates.js';
-import { config } from '../config.js';
+import { config } from '../config.ts';
 import { normalizeBrief } from './schema.js';
 import { generatePrompt, PROMPT_MAX } from '../../ui/thumbstudio/prompt.js';
 

@@ -5,11 +5,11 @@ import path from 'node:path';
 import { catalog, normalizeBrief, validTid, validPid, generateTid } from './schema.js';
 import { listTemplates, getTemplate, saveUserTemplate, applyTemplateSlots, watchTemplates } from './templates.js';
 import { generatePrompt } from './prompt.js';
-import { config } from '../config.js';
-import { HUB_DIR, isInside, readJson, writeJson } from '../util.js';
-import { project, index } from '../scan.js';
-import { recyclePaths } from '../janitor.js';
-import { outputsDir } from '../ciktilar-dir.js';
+import { config } from '../config.ts';
+import { HUB_DIR, isInside, readJson, writeJson } from '../util.ts';
+import { project, index } from '../scan.ts';
+import { recyclePaths } from '../janitor.ts';
+import { outputsDir } from '../ciktilar-dir.ts';
 import { describeSpatialTr } from './prompt.js';
 import crypto from 'node:crypto';
 
@@ -762,7 +762,7 @@ export async function openThumbFolder(pid, tid, file) {
   const { dir } = resolveThumbDir(pid, tid);
   const clean = file ? String(file).replace(/\\/g, '/') : null;
   const f = clean && ALLOWED_FILE_RE.test(clean) ? path.join(dir, clean) : null;
-  const { openFile } = await import('../open-file.js');
+  const { openFile } = await import('../open-file.ts');
   return openFile(f && fs.existsSync(f) ? f : dir, 'folder'); // a file is shown selected in its folder
 }
 

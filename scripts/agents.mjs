@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { trash } from '../server/platform.js';
+import { trash } from '../server/platform.ts';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const normal = s => String(s || '').replace(/\/$/, '');
 const same = (a, b) => normal(a) === normal(b);

@@ -2,8 +2,8 @@
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import { HUB_DIR, readJson, writeJson } from '../util.js';
-import { config } from '../config.js';
+import { HUB_DIR, readJson, writeJson } from '../util.ts';
+import { config } from '../config.ts';
 
 let watchTimer = null;
 let watcher = null;

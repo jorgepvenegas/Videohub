@@ -6,7 +6,7 @@ import path from 'node:path';
 import os from 'node:os';
 
 process.env.VIDEOHUB_NO_WINDOW = '1';
-const { config } = await import('../config.js');
+const { config } = await import('../config.ts');
 const store = await import('./store.js');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vh-variants-test-'));

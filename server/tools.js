@@ -5,7 +5,7 @@ import { z } from 'zod';
 import path from 'node:path';
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
-import { HUB_DIR, DATA_DIR, readJson } from './util.js';
+import { HUB_DIR, DATA_DIR, readJson } from './util.ts';
 import {
   NOTE_STATUSES,
   NOTE_STATUS_ALIASES,

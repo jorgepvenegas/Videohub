@@ -12,8 +12,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DEFAULTS, DEFAULT_BASE, WORKSPACE_FOLDERS, discoverRoots } from '../server/config.js';
-import { ENCODERS, detectEncoders } from '../server/encoders.js';
+import { DEFAULTS, DEFAULT_BASE, WORKSPACE_FOLDERS, discoverRoots } from '../server/config.ts';
+import { ENCODERS, detectEncoders } from '../server/encoders.ts';
 
 export const HUB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const inside = (c, p) => {
