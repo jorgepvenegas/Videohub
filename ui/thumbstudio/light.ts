@@ -1,9 +1,9 @@
-// @ts-nocheck
 // Light Gizmo & Directional Shading Helper
+import type { Light } from './layers.ts';
 export const SUN_GIZMO_RADIUS = 14;
 
 // Calculate sun gizmo position on the perimeter of canvas
-export function getSunGizmoPos(azimuthDeg, W, H, margin = 24) {
+export function getSunGizmoPos(azimuthDeg: number, W: number, H: number, margin = 24) {
   const cx = W / 2;
   const cy = H / 2;
   const rad = ((azimuthDeg - 90) * Math.PI) / 180; // 0 deg = top, 90 deg = right, 180 deg = bottom, 270 deg = left
@@ -21,7 +21,7 @@ export function getSunGizmoPos(azimuthDeg, W, H, margin = 24) {
 }
 
 // Draw the sun gizmo handle along canvas perimeter
-export function drawLightGizmo(ctx, light, W, H) {
+export function drawLightGizmo(ctx: CanvasRenderingContext2D, light: Light, W: number, H: number) {
   ctx.save();
   const azimuth = light.azimuth ?? 45;
   const { x, y, cx, cy } = getSunGizmoPos(azimuth, W, H);
@@ -56,7 +56,7 @@ export function drawLightGizmo(ctx, light, W, H) {
 }
 
 // Hit test the sun gizmo
-export function hitTestLightGizmo(px, py, light, W, H) {
+export function hitTestLightGizmo(px: number, py: number, light: Light | null | undefined, W: number, H: number) {
   const azimuth = light?.azimuth ?? 45;
   const { x, y } = getSunGizmoPos(azimuth, W, H);
   const dist = Math.hypot(px - x, py - y);
@@ -64,7 +64,7 @@ export function hitTestLightGizmo(px, py, light, W, H) {
 }
 
 // Compute new azimuth from pointer position
-export function computeAzimuthFromPointer(px, py, W, H) {
+export function computeAzimuthFromPointer(px: number, py: number, W: number, H: number) {
   const cx = W / 2;
   const cy = H / 2;
   const angleRad = Math.atan2(py - cy, px - cx);

@@ -1,12 +1,12 @@
-// @ts-nocheck
 // Thumbnail prompt builder: brief -> English image prompt + English summary + ordered references.
 // Pure and deterministic; shared by the editor (live preview) and the server (export, hub_thumb_brief).
 import { STYLE_PRESETS, CAMERA_ANGLES, CAMERA_SHOTS, EXPRESSIONS, POSES, LIGHT_KEYS, LIGHT_TIMES } from './catalog.ts';
+import type { Brief, BriefRef, Layer } from './layers.ts';
 
 export const PROMPT_MAX = 1200;
 
 // Turkish words for unwanted elements -> English (anything else is passed through as typed)
-const NEGATIVE_DICT = {
+const NEGATIVE_DICT: Record<string, string> = {
   bulanık: 'blurry, out of focus',
   'bulanık yüz': 'blurry face',
   'düşük kalite': 'low quality, artifacts',
@@ -28,8 +28,8 @@ const NEGATIVE_DICT = {
   kan: 'blood, gore'
 };
 
-const LIGHT_EN = { warm: 'warm', cool: 'cool', neutral: 'neutral', neon: 'neon-colored', fire: 'firelight', moon: 'moonlight' };
-const TIME_EN = {
+const LIGHT_EN: Record<string, string> = { warm: 'warm', cool: 'cool', neutral: 'neutral', neon: 'neon-colored', fire: 'firelight', moon: 'moonlight' };
+const TIME_EN: Record<string, string> = {
   day: 'daylight',
   'golden-hour': 'golden hour',
   'blue-hour': 'blue hour',
@@ -37,16 +37,16 @@ const TIME_EN = {
   studio: 'studio lighting',
   overcast: 'soft overcast light'
 };
-const ROLE_EN = {
+const ROLE_EN: Record<string, string> = {
   character: 'is the character reference: keep the same face, hair and clothes',
   object: 'is the object reference: keep its exact shape and material',
   style: 'is the style reference: match its rendering style, colors and lighting',
   background: 'is the background/location reference',
   composition: 'is an extra composition reference'
 };
-const ROLE_TR = { character: 'character', object: 'object', style: 'style', background: 'background', composition: 'composition' };
-const FACING_EN = { left: ', facing left', right: ', facing right', away: ', seen from behind, facing away from the camera' };
-const CROP_EN = {
+const ROLE_TR: Record<string, string> = { character: 'character', object: 'object', style: 'style', background: 'background', composition: 'composition' };
+const FACING_EN: Record<string, string> = { left: ', facing left', right: ', facing right', away: ', seen from behind, facing away from the camera' };
+const CROP_EN: Record<string, string> = {
   head: ', head and shoulders only',
   chest: ', framed from the chest up',
   waist: ', framed from the waist up',
@@ -54,7 +54,7 @@ const CROP_EN = {
 };
 
 // box (0..1) -> "left third, top" / size words
-export function describeSpatial(layer) {
+export function describeSpatial(layer: Partial<Layer>) {
   const x = num(layer.x, 0.1),
     y = num(layer.y, 0.1),
     w = num(layer.w, 0.8),
@@ -71,7 +71,7 @@ export function describeSpatial(layer) {
 }
 
 // same position in plain English (for notes and summaries)
-export function describeSpatialTr(x, y) {
+export function describeSpatialTr(x: number, y: number) {
   const hp = x < 0.38 ? 'left' : x > 0.62 ? 'right' : 'center';
   const vp = y < 0.38 ? 'top' : y > 0.62 ? 'bottom' : 'middle';
   return hp === 'center' && vp === 'middle' ? 'dead center' : `${vp} ${hp}`;
@@ -82,18 +82,19 @@ export function describeDepth(depth = 50) {
   if (depth < 67) return 'midground';
   return 'background';
 }
-const PLAN_TR = { foreground: 'Foreground', midground: 'Midground', background: 'Background' };
+const PLAN_TR: Record<string, string> = { foreground: 'Foreground', midground: 'Midground', background: 'Background' };
 
 // the references in the order they are sent: layout.png first, then character, object, style, background
-export function orderRefs(brief = {}) {
-  const prio = { character: 1, object: 2, style: 3, background: 4, composition: 5 };
+export function orderRefs(brief: Brief = {}) {
+  const prio: Record<string, number> = { character: 1, object: 2, style: 3, background: 4, composition: 5 };
   const refs = (brief.refs || []).filter(r => r && r.file);
-  return [...refs].sort((a, b) => (prio[a.role] || 9) - (prio[b.role] || 9));
+  // a ref without a role (or a layer without importance) falls to the same key or comparison it always did
+  return [...refs].sort((a, b) => (prio[a.role as string] || 9) - (prio[b.role as string] || 9));
 }
 
-export function negativeTerms(brief = {}) {
+export function negativeTerms(brief: Brief = {}) {
   const raw = [brief.negative, brief.goal?.avoid].filter(Boolean).join(',');
-  const out = [];
+  const out: string[] = [];
   for (const item of raw
     .split(/[,;\n]/)
     .map(s => s.trim())
@@ -104,7 +105,7 @@ export function negativeTerms(brief = {}) {
   return out;
 }
 
-export function generatePrompt(brief = {}, opts = {}) {
+export function generatePrompt(brief: Brief = {}, opts: { ignoreOverride?: boolean } = {}) {
   const sorted = orderRefs(brief);
   const refsOrdered = ['layout.png', ...sorted.map(r => r.file)];
   const summaryTr = summary(brief, sorted);
@@ -118,7 +119,7 @@ export function generatePrompt(brief = {}, opts = {}) {
     style = brief.style || {};
   const layers = (brief.layers || []).filter(l => l && !l.hidden && l.type !== 'trace');
   const policy = brief.text?.policy === 'ai' ? 'ai' : 'overlay';
-  const parts = [];
+  const parts: string[] = [];
 
   // 1. how to read the references
   parts.push(
@@ -126,14 +127,14 @@ export function generatePrompt(brief = {}, opts = {}) {
   );
   sorted.forEach((r, i) => {
     const target = r.layer ? layers.find(l => l.id === r.layer) : null;
-    parts.push(`Reference ${i + 2} ${ROLE_EN[r.role] || ROLE_EN.style}${target ? ` (for the ${target.desc || target.name || 'element'})` : ''}.`);
+    parts.push(`Reference ${i + 2} ${ROLE_EN[r.role as string] || ROLE_EN.style}${target ? ` (for the ${target.desc || target.name || 'element'})` : ''}.`);
   });
 
   // 2. style + framing + angle + lens
   const styleObj = STYLE_PRESETS.find(s => s.id === style.preset) || STYLE_PRESETS[0];
   const shot = CAMERA_SHOTS.find(s => s.id === camera.shot);
   const angle = CAMERA_ANGLES.find(a => a.id === camera.angle);
-  const cam = [];
+  const cam: string[] = [];
   if (shot) cam.push(shot.promptEn);
   if (angle) cam.push(angle.promptEn.replace('{tilt}', String(Math.abs(Math.round(camera.tilt || 15)))));
   const lens = num(camera.lens, 50);
@@ -160,19 +161,21 @@ export function generatePrompt(brief = {}, opts = {}) {
       const exp = EXPRESSIONS.find(e => e.id === l.expression);
       const showFace = l.facing !== 'away' && exp && exp.id !== 'notr';
       const pose = POSES.find(p => p.id === l.pose);
-      s = `${cap(plan)}, ${locStr}: ${sizeStr} ${desc}${pose && pose.promptEn ? ', ' + pose.promptEn : ''}${showFace ? ', ' + exp.promptEn : ''}${FACING_EN[l.facing] || ''}${CROP_EN[l.crop] || ''}`;
+      // an unset facing or crop looks up the key "undefined", which the tables do not have
+      s = `${cap(plan)}, ${locStr}: ${sizeStr} ${desc}${pose && pose.promptEn ? ', ' + pose.promptEn : ''}${showFace ? ', ' + exp.promptEn : ''}${FACING_EN[l.facing as string] || ''}${CROP_EN[l.crop as string] || ''}`;
     } else {
       s = `${cap(plan)}, ${locStr}: ${sizeStr} ${desc}${l.material ? ', made of ' + l.material : ''}`;
     }
-    if (l.importance >= 3) s += ' (main focus)';
+    if ((l.importance as number) >= 3) s += ' (main focus)';
     if (cropped) s += ', cropped by the frame edge';
     parts.push(s + '.');
   }
   // relative depth: who is in front of whom
-  const rel = relations(content);
+  // layers may omit their box; the arithmetic then yields NaN, as it always did
+  const rel = relations(content as Layer[]);
   if (rel) parts.push(rel);
 
-  for (const bg of layers.filter(l => l.type === 'background' && l.desc)) parts.push(`Background: ${bg.desc.trim()}.`);
+  for (const bg of layers.filter(l => l.type === 'background' && l.desc)) parts.push(`Background: ${(bg.desc as string).trim()}.`);
   for (const e of layers.filter(l => l.type === 'effect')) {
     const { locStr } = describeSpatial(e);
     if (e.kind === 'split') parts.push('Split composition divided vertically down the middle.');
@@ -185,7 +188,8 @@ export function generatePrompt(brief = {}, opts = {}) {
   // 4. light, palette, depth of field
   const lt = [];
   if (light.key) lt.push(`${LIGHT_EN[light.key] || light.key} key light`);
-  if (num(light.azimuth, -1) >= 0) lt.push(`from the ${lightSide(light.azimuth)}`);
+  // the num() test proves azimuth is a number
+  if (num(light.azimuth, -1) >= 0) lt.push(`from the ${lightSide(light.azimuth as number)}`);
   if (light.time) lt.push(TIME_EN[light.time] || light.time);
   if (light.rim) lt.push('strong rim light outlining the subjects');
   if (num(light.contrast, 0.5) > 0.65) lt.push('hard high-contrast shadows');
@@ -220,8 +224,8 @@ export function generatePrompt(brief = {}, opts = {}) {
 }
 
 // keep the prompt under PROMPT_MAX: drop the least important middle sentences first (never the first or the text rules)
-function fit(parts) {
-  const join = p => p.join(' ').replace(/\s+/g, ' ').trim();
+function fit(parts: string[]) {
+  const join = (p: string[]) => p.join(' ').replace(/\s+/g, ' ').trim();
   let out = [...parts];
   const protectedRe = /^(The first reference|No text|Keep the|Avoid:|Bold title)/;
   while (join(out).length > PROMPT_MAX) {
@@ -239,7 +243,7 @@ function fit(parts) {
   return s;
 }
 
-function relations(content) {
+function relations(content: Layer[]) {
   const out = [];
   for (let i = 0; i < content.length; i++)
     for (let j = i + 1; j < content.length; j++) {
@@ -253,9 +257,9 @@ function relations(content) {
     }
   return out.length ? cap(out.join('; ')) + '.' : '';
 }
-const short = l => (l.desc || l.name || 'element').split(/[,.]/)[0].trim().slice(0, 40);
+const short = (l: Layer) => (l.desc || l.name || 'element').split(/[,.]/)[0].trim().slice(0, 40);
 
-function lightSide(az) {
+function lightSide(az: number) {
   const a = ((az % 360) + 360) % 360;
   if (a < 22.5 || a >= 337.5) return 'right';
   if (a < 67.5) return 'lower right';
@@ -267,14 +271,14 @@ function lightSide(az) {
   return 'upper right';
 }
 
-function summary(brief, sortedRefs) {
+function summary(brief: Brief, sortedRefs: Partial<BriefRef>[]) {
   const cam = brief.camera || {},
     light = brief.light || {},
     style = brief.style || {};
   const styleObj = STYLE_PRESETS.find(s => s.id === style.preset) || STYLE_PRESETS[0];
   const shot = CAMERA_SHOTS.find(s => s.id === cam.shot),
     angle = CAMERA_ANGLES.find(a => a.id === cam.angle);
-  const L = [];
+  const L: string[] = [];
   L.push(`### Thumbnail: ${brief.title || 'Untitled'} (${brief.format || '16:9'})`);
   const g = brief.goal || {};
   if (g.topic) L.push(`- **Topic:** ${g.topic}`);
@@ -299,11 +303,11 @@ function summary(brief, sortedRefs) {
     L.push(`- ${PLAN_TR[describeDepth(l.depth ?? 50)]} (depth ${Math.round(l.depth ?? 50)}) · ${where} · **${l.name || l.type}**${what ? ': ' + what : ''}`);
   }
   L.push('', '**References:**', '1. `layout.png`: composition guide (follow positions, sizes and depth exactly)');
-  sortedRefs.forEach((r, i) => L.push(`${i + 2}. \`${r.file}\`: ${ROLE_TR[r.role] || 'style'}${r.note ? ' (' + r.note + ')' : ''}`));
+  sortedRefs.forEach((r, i) => L.push(`${i + 2}. \`${r.file}\`: ${ROLE_TR[r.role as string] || 'style'}${r.note ? ' (' + r.note + ')' : ''}`));
   return L.join('\n');
 }
-function lightSideTr(az) {
-  const m = {
+function lightSideTr(az: unknown) {
+  const m: Record<string, string> = {
     right: 'from the right',
     'lower right': 'from the lower right',
     front: 'from the front',
@@ -316,5 +320,5 @@ function lightSideTr(az) {
   return m[lightSide(num(az, 220))];
 }
 
-const num = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
-const cap = s => (s ? s[0].toUpperCase() + s.slice(1) : s);
+const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);

@@ -1,8 +1,33 @@
-// @ts-nocheck
 // Thumbnail Studio catalog: style presets, poses, camera, light, text presets (plain data).
 // Shared by the browser UI and the server (server/thumbstudio/schema.ts re-exports it), so no Node imports here.
+export interface StylePreset {
+  id: string;
+  name: string;
+  prompt: string;
+  defaultPalette: string[];
+  suggestedLight: { key: string; time: string; contrast: number };
+}
+export interface CatalogItem {
+  id: string;
+  name: string;
+}
+export interface PromptItem extends CatalogItem {
+  promptEn: string;
+}
+export interface CameraAngle extends PromptItem {
+  horizon: number | null;
+}
+export interface TextPreset extends CatalogItem {
+  font: string;
+  fill: string;
+  stroke: string | null;
+  strokeW: number;
+  shadow: boolean;
+  uppercase: boolean;
+  bg?: string;
+}
 // ---------- style presets (§5.4)
-export const STYLE_PRESETS = [
+export const STYLE_PRESETS: StylePreset[] = [
   {
     id: 'cinematic-photo',
     name: 'Cinematic photo',
@@ -133,7 +158,7 @@ export const STYLE_PRESETS = [
 ];
 
 // ---------- poses (§5.1)
-export const POSES = [
+export const POSES: PromptItem[] = [
   { id: 'ayakta', name: 'Standing', promptEn: 'standing' },
   { id: 'isaret-ediyor-sag', name: 'Pointing (right)', promptEn: 'pointing with the right arm' },
   { id: 'isaret-ediyor-sol', name: 'Pointing (left)', promptEn: 'pointing with the left arm' },
@@ -153,7 +178,7 @@ export const POSES = [
 ];
 
 // ---------- expressions (§5.2)
-export const EXPRESSIONS = [
+export const EXPRESSIONS: PromptItem[] = [
   { id: 'notr', name: 'Neutral', promptEn: 'neutral expression' },
   { id: 'saskin', name: 'Shocked', promptEn: 'wide-eyed shocked expression, mouth open' },
   { id: 'korkmus', name: 'Scared', promptEn: 'terrified expression, eyes wide with fear' },
@@ -166,7 +191,7 @@ export const EXPRESSIONS = [
 ];
 
 // ---------- camera angles (§5.3)
-export const CAMERA_ANGLES = [
+export const CAMERA_ANGLES: CameraAngle[] = [
   { id: 'eye', name: 'Eye level', promptEn: 'eye-level shot', horizon: 0.5 },
   { id: 'low', name: 'Low angle', promptEn: 'low-angle shot looking up, subject feels powerful', horizon: 0.75 },
   { id: 'high', name: 'High angle', promptEn: 'high-angle shot looking down', horizon: 0.2 },
@@ -177,7 +202,7 @@ export const CAMERA_ANGLES = [
 ];
 
 // ---------- camera shots
-export const CAMERA_SHOTS = [
+export const CAMERA_SHOTS: PromptItem[] = [
   { id: 'extreme-close', name: 'Extreme close-up', promptEn: 'extreme close-up' },
   { id: 'close', name: 'Close-up', promptEn: 'close-up shot' },
   { id: 'medium', name: 'Medium shot', promptEn: 'medium shot' },
@@ -191,7 +216,7 @@ export const CAMERA_SHOTS = [
 export const LENSES = [14, 24, 35, 50, 85, 135, 200];
 
 // ---------- light keys
-export const LIGHT_KEYS = [
+export const LIGHT_KEYS: CatalogItem[] = [
   { id: 'warm', name: 'Warm' },
   { id: 'cool', name: 'Cool' },
   { id: 'neutral', name: 'Neutral' },
@@ -201,7 +226,7 @@ export const LIGHT_KEYS = [
 ];
 
 // ---------- light times
-export const LIGHT_TIMES = [
+export const LIGHT_TIMES: CatalogItem[] = [
   { id: 'day', name: 'Daytime' },
   { id: 'golden-hour', name: 'Golden hour' },
   { id: 'blue-hour', name: 'Blue hour' },
@@ -211,7 +236,7 @@ export const LIGHT_TIMES = [
 ];
 
 // ---------- text font presets (§5.5)
-export const TEXT_PRESETS = [
+export const TEXT_PRESETS: TextPreset[] = [
   { id: 'youtube-bold', name: 'YouTube bold', font: 'Impact', fill: '#ffffff', stroke: '#000000', strokeW: 0.06, shadow: true, uppercase: true },
   { id: 'documentary-serif', name: 'Documentary serif', font: 'Georgia', fill: '#f5f5dc', stroke: '#1a1a1a', strokeW: 0.02, shadow: false, uppercase: false },
   { id: 'clean-minimal', name: 'Clean minimal', font: 'Segoe UI', fill: '#ffffff', stroke: null, strokeW: 0, shadow: true, uppercase: false },

@@ -1,11 +1,17 @@
-// @ts-nocheck
+import type { Layer } from './layers.ts';
+
+interface Point {
+  x: number;
+  y: number;
+}
+
 // Mannequin & Pose Library (Vector-drawn 15-joint skeleton, crops, and expressions)
 
 // Standard joint positions normalized in a 1x1 bounding box for full body:
 // Head, Neck, Shoulders (L, R), Elbows (L, R), Wrists (L, R),
 // Pelvis, Hips (L, R), Knees (L, R), Ankles (L, R)
 
-export const FIGURE_POSES = {
+export const FIGURE_POSES: Record<string, Record<string, number[]>> = {
   ayakta: {
     head: [0.5, 0.12],
     neck: [0.5, 0.2],
@@ -281,7 +287,7 @@ export const FIGURE_POSES = {
 };
 
 // Crop ratios: what fraction of height is kept from top
-export const CROP_CONFIG = {
+export const CROP_CONFIG: Record<string, { startY: number; endY: number; scale: number }> = {
   head: { startY: 0.0, endY: 0.3, scale: 3.3 },
   chest: { startY: 0.0, endY: 0.48, scale: 2.1 },
   waist: { startY: 0.0, endY: 0.65, scale: 1.5 },
@@ -289,7 +295,7 @@ export const CROP_CONFIG = {
   full: { startY: 0.0, endY: 1.0, scale: 1.0 }
 };
 
-export function drawFigure(ctx, layer, x, y, w, h, opts = {}) {
+export function drawFigure(ctx: CanvasRenderingContext2D, layer: Layer, x: number, y: number, w: number, h: number, opts: { isExport?: boolean } = {}) {
   ctx.save();
 
   // Clipping to layer bounding box
@@ -315,7 +321,7 @@ export function drawFigure(ctx, layer, x, y, w, h, opts = {}) {
   ctx.lineJoin = 'round';
 
   // Coordinate mapper from normalized (0..1) to cropped (x, y, w, h)
-  const mapPoint = pt => {
+  const mapPoint = (pt: number[]) => {
     let px = pt[0];
     let py = pt[1];
 
@@ -334,7 +340,7 @@ export function drawFigure(ctx, layer, x, y, w, h, opts = {}) {
   };
 
   // Convert all joints
-  const J = {};
+  const J: Record<string, Point> = {};
   for (const [k, pt] of Object.entries(poseData)) {
     J[k] = mapPoint(pt);
   }
@@ -405,20 +411,20 @@ export function drawFigure(ctx, layer, x, y, w, h, opts = {}) {
   ctx.restore();
 }
 
-function drawLine(ctx, p1, p2) {
+function drawLine(ctx: CanvasRenderingContext2D, p1: Point, p2: Point) {
   ctx.beginPath();
   ctx.moveTo(p1.x, p1.y);
   ctx.lineTo(p2.x, p2.y);
   ctx.stroke();
 }
 
-function drawCircle(ctx, x, y, r) {
+function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fill();
 }
 
-function drawExpression(ctx, expr, cx, cy, r) {
+function drawExpression(ctx: CanvasRenderingContext2D, expr: string, cx: number, cy: number, r: number) {
   ctx.save();
   ctx.strokeStyle = '#ffffff';
   ctx.fillStyle = '#ffffff';
@@ -520,7 +526,7 @@ function drawExpression(ctx, expr, cx, cy, r) {
   ctx.restore();
 }
 
-function drawCurve(ctx, x1, y1, x2, y2) {
+function drawCurve(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.quadraticCurveTo((x1 + x2) / 2, Math.min(y1, y2) - 3, x2, y2);

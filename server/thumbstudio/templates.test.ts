@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -18,6 +17,7 @@ import {
   userDir
 } from './templates.ts';
 import { config } from '../config.ts';
+import type { Json } from '../types.ts';
 import { normalizeBrief } from './schema.ts';
 import { generatePrompt, PROMPT_MAX } from '../../ui/thumbstudio/prompt.ts';
 
@@ -82,7 +82,7 @@ test('reference selection: 15 usable templates keep layout, text and focus throu
       if (layer.type === 'effect') assert.equal(layer.kind, raw.kind, template.id);
     }
     if (template.camera.focusLayer) {
-      const index = template.layers.findIndex(l => l.id === template.camera.focusLayer);
+      const index = template.layers.findIndex((l: Json) => l.id === template.camera.focusLayer);
       assert.notEqual(index, -1, `${template.id}: focus must point to a source layer`);
       assert.equal(brief.camera.focusLayer, brief.layers[index].id, template.id);
     }
@@ -210,7 +210,7 @@ test('saveUserTemplate and loadUserTemplates: handles custom templates and inval
     async () => {
       await saveUserTemplate({ name: testName, brief, overwrite: false, id: testId });
     },
-    err => err.code === 409
+    (err: Json) => err.code === 409
   );
 
   // Create an invalid JSON file in user directory to test error reporting

@@ -1,10 +1,115 @@
-// @ts-nocheck
 // Layer model, defaults, hit-testing, handles, and snapping
+
+export interface SketchStroke {
+  pts: number[][];
+  color?: string;
+  w?: number;
+}
+// One block of a thumbnail brief. Core fields are always set by the server; the rest belong to one layer type.
+export interface Layer {
+  id: string;
+  type: string;
+  name: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rot: number;
+  flip: boolean;
+  depth: number;
+  importance: number;
+  focus: string;
+  desc: string;
+  color: string;
+  hidden: boolean;
+  locked: boolean;
+  refs: string[];
+  pose?: string;
+  expression?: string;
+  facing?: string;
+  gaze?: string;
+  crop?: string;
+  joints?: Record<string, number[]>;
+  shape?: string;
+  material?: string;
+  kind?: string;
+  purpose?: string;
+  content?: string;
+  font?: string;
+  size?: number;
+  fill?: string | null;
+  stroke?: string;
+  strokeW?: number;
+  shadow?: boolean;
+  align?: string;
+  lineHeight?: number;
+  uppercase?: boolean;
+  highlightWords?: string[];
+  highlight?: string;
+  bg?: string | null;
+  points?: number[][];
+  overlay?: boolean;
+  strokes?: SketchStroke[];
+  file?: string;
+  opacity?: number;
+}
+export interface BriefRef {
+  id: string;
+  file: string;
+  role: string;
+  note: string;
+  layer: string | null;
+}
+export interface Camera {
+  shot?: string;
+  angle?: string;
+  tilt?: number;
+  height?: number;
+  lens?: number;
+  horizon?: number;
+  vanishX?: number;
+  focusLayer?: string | null;
+  dof?: number;
+}
+export interface Light {
+  azimuth?: number;
+  elevation?: number;
+  key?: string;
+  rim?: boolean;
+  time?: string;
+  contrast?: number;
+  notes?: string;
+}
+export interface Style {
+  preset?: string;
+  custom?: string;
+  palette?: string[];
+  saturation?: number;
+  detail?: number;
+  mood?: string;
+}
+// The parts of a normalized brief the shared modules read (server/thumbstudio/schema.ts builds the full object).
+// The default layer and ref types are partial: templates and hand-made briefs may leave fields out. Pages hold FullBrief.
+export interface Brief<L = Partial<Layer>, R = Partial<BriefRef>> {
+  title?: string;
+  format?: string;
+  negative?: string;
+  promptOverride?: string | null;
+  goal?: { topic?: string; feeling?: string; hook?: string; avoid?: string };
+  text?: { policy?: string; reserve?: boolean };
+  camera?: Camera;
+  light?: Light;
+  style?: Style;
+  refs?: R[];
+  layers?: L[];
+}
+export type FullBrief = Brief<Layer, BriefRef>;
+export type LayerOverrides = Partial<Layer>;
 
 export const HANDLE_SIZE = 8;
 export const ROTATE_HANDLE_OFFSET = 24;
 
-export function generateLayerId(layers = []) {
+export function generateLayerId(layers: Layer[] = []) {
   let max = 0;
   for (const l of layers) {
     const m = (l.id || '').match(/^L(\d+)$/);
@@ -13,7 +118,7 @@ export function generateLayerId(layers = []) {
   return 'L' + (max + 1);
 }
 
-export function createObjectLayer(layers = [], overrides = {}) {
+export function createObjectLayer(layers: Layer[] = [], overrides: LayerOverrides = {}): Layer {
   return {
     id: generateLayerId(layers),
     type: 'object',
@@ -38,7 +143,7 @@ export function createObjectLayer(layers = [], overrides = {}) {
   };
 }
 
-export function createBackgroundLayer(layers = [], overrides = {}) {
+export function createBackgroundLayer(layers: Layer[] = [], overrides: LayerOverrides = {}): Layer {
   return {
     id: generateLayerId(layers),
     type: 'background',
@@ -62,7 +167,7 @@ export function createBackgroundLayer(layers = [], overrides = {}) {
   };
 }
 
-export function createZoneLayer(layers = [], overrides = {}) {
+export function createZoneLayer(layers: Layer[] = [], overrides: LayerOverrides = {}): Layer {
   return {
     id: generateLayerId(layers),
     type: 'zone',
@@ -86,7 +191,7 @@ export function createZoneLayer(layers = [], overrides = {}) {
   };
 }
 
-export function createSubjectLayer(layers = [], overrides = {}) {
+export function createSubjectLayer(layers: Layer[] = [], overrides: LayerOverrides = {}): Layer {
   return {
     id: generateLayerId(layers),
     type: 'subject',
@@ -114,7 +219,7 @@ export function createSubjectLayer(layers = [], overrides = {}) {
   };
 }
 
-export function createTextLayer(layers = [], overrides = {}) {
+export function createTextLayer(layers: Layer[] = [], overrides: LayerOverrides = {}): Layer {
   return {
     id: generateLayerId(layers),
     type: 'text',
@@ -149,7 +254,7 @@ export function createTextLayer(layers = [], overrides = {}) {
   };
 }
 
-export function createEffectLayer(layers = [], overrides = {}) {
+export function createEffectLayer(layers: Layer[] = [], overrides: LayerOverrides = {}): Layer {
   return {
     id: generateLayerId(layers),
     type: 'effect',
@@ -176,7 +281,7 @@ export function createEffectLayer(layers = [], overrides = {}) {
   };
 }
 
-export function createSketchLayer(layers = [], overrides = {}) {
+export function createSketchLayer(layers: Layer[] = [], overrides: LayerOverrides = {}): Layer {
   return {
     id: generateLayerId(layers),
     type: 'sketch',
@@ -200,7 +305,7 @@ export function createSketchLayer(layers = [], overrides = {}) {
   };
 }
 
-export function createTraceLayer(layers = [], overrides = {}) {
+export function createTraceLayer(layers: Layer[] = [], overrides: LayerOverrides = {}): Layer {
   return {
     id: generateLayerId(layers),
     type: 'trace',
@@ -226,10 +331,10 @@ export function createTraceLayer(layers = [], overrides = {}) {
 }
 
 // Convert normalized layer coords (0..1) to pixel bounding box and center
-export function getLayerBox(layer, W, H) {
+export function getLayerBox(layer: Partial<Layer>, W: number, H: number) {
   // the background always fills the frame; templates may leave its box (and other boxes) out
   const full = layer.type === 'background';
-  const n = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  const n = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
   const x = (full ? 0 : n(layer.x, 0.25)) * W;
   const y = (full ? 0 : n(layer.y, 0.25)) * H;
   const w = (full ? 1 : n(layer.w, 0.5)) * W;
@@ -240,7 +345,7 @@ export function getLayerBox(layer, W, H) {
 }
 
 // Transform point (px, py) by inverse layer rotation around center
-export function toLayerLocal(px, py, cx, cy, rotDeg) {
+export function toLayerLocal(px: number, py: number, cx: number, cy: number, rotDeg: number) {
   const rad = (-rotDeg * Math.PI) / 180;
   const dx = px - cx;
   const dy = py - cy;
@@ -250,7 +355,7 @@ export function toLayerLocal(px, py, cx, cy, rotDeg) {
 }
 
 // Check if a point hits a layer (taking rotation into account)
-export function pointInLayer(px, py, layer, W, H) {
+export function pointInLayer(px: number, py: number, layer: Partial<Layer>, W: number, H: number) {
   if (layer.hidden) return false;
   const { x, y, w, h, cx, cy } = getLayerBox(layer, W, H);
   const local = toLayerLocal(px, py, cx, cy, layer.rot || 0);
@@ -258,7 +363,7 @@ export function pointInLayer(px, py, layer, W, H) {
 }
 
 // Find topmost layer under point
-export function hitTestLayer(px, py, layers, W, H) {
+export function hitTestLayer(px: number, py: number, layers: Layer[], W: number, H: number) {
   // Check from top to bottom (reverse order of drawing)
   for (let i = layers.length - 1; i >= 0; i--) {
     const l = layers[i];
@@ -271,7 +376,7 @@ export function hitTestLayer(px, py, layers, W, H) {
 }
 
 // Calculate the 8 resize handle positions + 1 rotate handle
-export function getHandles(layer, W, H) {
+export function getHandles(layer: Layer, W: number, H: number) {
   const { x, y, w, h, cx, cy } = getLayerBox(layer, W, H);
   const rad = ((layer.rot || 0) * Math.PI) / 180;
 
@@ -302,7 +407,7 @@ export function getHandles(layer, W, H) {
 }
 
 // Hit-test handles of the selected layer
-export function hitTestHandle(px, py, layer, W, H) {
+export function hitTestHandle(px: number, py: number, layer: Layer | null | undefined, W: number, H: number) {
   if (!layer || layer.hidden || layer.locked) return null;
   const handles = getHandles(layer, W, H);
   const thresh = HANDLE_SIZE + 4;
@@ -317,13 +422,13 @@ export function hitTestHandle(px, py, layer, W, H) {
 }
 
 // Snapping logic: returns adjusted (x, y) and active guide lines
-export function snapLayerBounds(newX, newY, w, h, otherLayers, W, H, thresholdPx = 8) {
+export function snapLayerBounds(newX: number, newY: number, w: number, h: number, otherLayers: Layer[], W: number, H: number, thresholdPx = 8) {
   const threshNormX = thresholdPx / W;
   const threshNormY = thresholdPx / H;
 
   let snappedX = newX;
   let snappedY = newY;
-  const guides = [];
+  const guides: { type: string; pos: number }[] = [];
 
   // Important vertical snap points: 0, 1/3, 1/2, 2/3, 1
   const vPoints = [0, 1 / 3, 0.5, 2 / 3, 1];

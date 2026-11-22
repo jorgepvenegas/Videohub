@@ -1,9 +1,9 @@
-// @ts-nocheck
 // Camera, Perspective Grid, Angle Calculations, and Framing Consistency Checks
 import { CAMERA_ANGLES, CAMERA_SHOTS, LENSES } from './catalog.ts';
+import type { Brief, Camera, Layer } from './layers.ts';
 
 // Calculate grid parameters from camera settings
-export function getGridParams(camera, W, H) {
+export function getGridParams(camera: Camera, W: number, H: number) {
   const angle = camera.angle || 'eye';
   const angleDef = CAMERA_ANGLES.find(a => a.id === angle) || CAMERA_ANGLES[0];
   const horizon = camera.horizon != null ? camera.horizon : angleDef.horizon != null ? angleDef.horizon : 0.5;
@@ -25,7 +25,7 @@ export function getGridParams(camera, W, H) {
 }
 
 // Draw dynamic perspective grid on canvas
-export function drawPerspectiveGrid(ctx, camera, W, H) {
+export function drawPerspectiveGrid(ctx: CanvasRenderingContext2D, camera: Camera, W: number, H: number) {
   ctx.save();
   const { angle, horizonY, vanishX, tilt, lineCount, isBirdsEye } = getGridParams(camera, W, H);
 
@@ -95,8 +95,8 @@ export function drawPerspectiveGrid(ctx, camera, W, H) {
 }
 
 // Framing consistency check: warns if shot size contradicts subject crop
-export function checkFramingConsistency(brief) {
-  const warnings = [];
+export function checkFramingConsistency(brief: Brief) {
+  const warnings: { layerId: string | undefined; text: string }[] = [];
   const shot = brief.camera?.shot || 'wide';
   const isWide = shot === 'wide' || shot === 'extreme-wide';
   const isClose = shot === 'close' || shot === 'extreme-close';
@@ -122,7 +122,7 @@ export function checkFramingConsistency(brief) {
 }
 
 // Perspective lock scale & position adjustment when depth changes
-export function applyPerspectiveLock(layer, oldDepth, newDepth, camera) {
+export function applyPerspectiveLock(layer: Pick<Layer, 'x' | 'y' | 'w' | 'h'>, oldDepth: number, newDepth: number, camera: Camera | null | undefined) {
   const lens = camera?.lens || 50;
   // Closer lens (wide) has more extreme perspective scaling
   const fovFactor = lens <= 24 ? 1.8 : lens <= 50 ? 1.2 : 0.7;

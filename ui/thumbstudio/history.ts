@@ -1,7 +1,16 @@
-// @ts-nocheck
 // History management: Undo / Redo command stack (up to 150 steps)
 
+export interface Command {
+  undo: () => void;
+  redo: () => void;
+}
+
 export class History {
+  declare maxSteps: number;
+  declare undoStack: Command[];
+  declare redoStack: Command[];
+  declare listeners: Set<(canUndo: boolean, canRedo: boolean) => void>;
+
   constructor(maxSteps = 150) {
     this.maxSteps = maxSteps;
     this.undoStack = [];
@@ -9,7 +18,7 @@ export class History {
     this.listeners = new Set();
   }
 
-  onChange(fn) {
+  onChange(fn: (canUndo: boolean, canRedo: boolean) => void) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
   }
@@ -31,7 +40,7 @@ export class History {
   }
 
   // Record an action: { undo: () => void, redo: () => void }
-  push(command) {
+  push(command: Command | null | undefined) {
     if (!command || typeof command.undo !== 'function' || typeof command.redo !== 'function') return;
     this.undoStack.push(command);
     if (this.undoStack.length > this.maxSteps) {
@@ -43,7 +52,7 @@ export class History {
 
   undo() {
     if (!this.canUndo()) return;
-    const cmd = this.undoStack.pop();
+    const cmd = this.undoStack.pop() as Command; // canUndo() checked the stack is not empty
     try {
       cmd.undo();
     } catch (e) {
@@ -55,7 +64,7 @@ export class History {
 
   redo() {
     if (!this.canRedo()) return;
-    const cmd = this.redoStack.pop();
+    const cmd = this.redoStack.pop() as Command; // canRedo() checked the stack is not empty
     try {
       cmd.redo();
     } catch (e) {

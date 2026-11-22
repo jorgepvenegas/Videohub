@@ -1,7 +1,7 @@
-// @ts-nocheck
 // Effect & Shape Library for Classic YouTube Highlights
+import type { Layer } from './layers.ts';
 
-export function drawEffect(ctx, layer, x, y, w, h, opts = {}) {
+export function drawEffect(ctx: CanvasRenderingContext2D, layer: Partial<Layer>, x: number, y: number, w: number, h: number, opts = {}) {
   ctx.save();
   const kind = layer.kind || 'arrow';
   const stroke = layer.stroke || '#ff2222';
@@ -113,7 +113,7 @@ export function drawEffect(ctx, layer, x, y, w, h, opts = {}) {
   ctx.restore();
 }
 
-function drawArrow(ctx, x, y, w, h, color, lw) {
+function drawArrow(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, lw: number) {
   ctx.save();
   // Draw an arched or straight arrow pointing towards the end
   const startX = x + w * 0.1;
@@ -143,7 +143,7 @@ function drawArrow(ctx, x, y, w, h, color, lw) {
   ctx.restore();
 }
 
-function hexToRgba(hex, alpha) {
+function hexToRgba(hex: string | null | undefined, alpha: number) {
   if (!hex || !hex.startsWith('#')) return `rgba(255, 34, 34, ${alpha})`;
   let c = hex.slice(1);
   if (c.length === 3)

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -60,10 +59,11 @@ test('Reference upload and role binding in store', async () => {
     note: 'Main character reference'
   });
 
-  assert.equal(res.ref.id, 'R1');
-  assert.equal(res.ref.role, 'character');
-  assert.equal(res.ref.note, 'Main character reference');
-  assert.ok(res.ref.file.startsWith('refs/'));
+  // a plain upload (not a trace) always returns its ref
+  assert.equal(res.ref!.id, 'R1');
+  assert.equal(res.ref!.role, 'character');
+  assert.equal(res.ref!.note, 'Main character reference');
+  assert.ok(res.ref!.file.startsWith('refs/'));
 
   const brief = getThumbnail('_', tid);
   assert.equal(brief.refs.length, 1);
