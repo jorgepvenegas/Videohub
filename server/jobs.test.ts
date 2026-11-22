@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
-import { refersToHub, isInside } from './util.ts';
+import { refersToHub, isInside, readScript } from './util.ts';
 import { ENCODERS, LABELS, PROBE_ORDER, encoderEnv } from './encoders.ts';
 import { readSource } from '../scripts/test-source.ts';
-import type { create, cancel, approve, get, recipe, onJob, routes } from './jobs.ts';
+import type { create, cancel, approve, get, recipe, renderOptions, onJob, routes } from './jobs.ts';
 import type { Json, RouteHandler } from './types.ts';
 
 type Child = EventEmitter & {
@@ -30,6 +31,7 @@ interface Queue {
   pump: () => Promise<void>;
   spawnLogged: (job: { id: string; state: string; log: string; progress?: number }, cmd: string, args: string[]) => Promise<SpawnResult>;
   recipe: typeof recipe;
+  renderOptions: typeof renderOptions;
   procs: Map<string, Set<unknown>>;
   executing: Set<string>;
   onJob: typeof onJob;
@@ -150,11 +152,12 @@ function harness(platform: Overrides = {}) {
       return files.has(f) ? f : null;
     },
     refersToHub: (s: string) => refersToHub(s, base),
+    readScript,
     isInside, // the film's own mix, when the test put one there
     ...platform
   };
   vm.createContext(ctx);
-  vm.runInContext(code + '\nglobalThis.queue = {create,cancel,approve,get,pump,spawnLogged,runJob,recipe,procs,executing,onJob,routes};', ctx);
+  vm.runInContext(code + '\nglobalThis.queue = {create,cancel,approve,get,pump,spawnLogged,runJob,recipe,renderOptions,procs,executing,onJob,routes};', ctx);
   ctx.queue!.onJob(event => events.push(event));
   return {
     ...ctx.queue!,
@@ -213,6 +216,39 @@ test('studio honors one requested worker and tracks concatenation and audio phas
   assert.equal(h.executing.size, 0);
   assert.ok(h.get(job.id)!.phaseSeconds.render >= 0);
   assert.ok(h.get(job.id)!.phaseSeconds.audio >= 0);
+});
+
+// scan puts the detected script in the project's render info: the queue runs that one, and render.js when nothing was detected
+test('the queued command runs the detected render script: render.ts for a TypeScript film, render.js for a legacy film', async () => {
+  for (const [render, script] of [
+    [{ script: 'render.ts' }, 'render.ts'],
+    [{ script: 'render.js' }, 'render.js'],
+    [{}, 'render.js']
+  ] as const) {
+    const h = harness(),
+      project = h.projects.get('p1')!;
+    project.studio = null;
+    project.render = render;
+    await h.create({ project: 'p1', mode: 'full', workers: 1 });
+    await flush();
+    assert.equal(h.children[0].args[0], script);
+  }
+});
+
+test('render options read the environment variables an annotated render.ts uses', async () => {
+  const h = harness(),
+    project = h.projects.get('p1')!,
+    dir = path.resolve('.test-tmp', 'film-ts', 'options');
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'render.ts'), 'const FPS: number = +(process.env.FPS || 30);\nconst enc: string = process.env.VIDEOHUB_ENCODER || "auto";\n');
+  project.studio = null;
+  project.path = dir;
+  project.render = { script: 'render.ts' };
+  h.files.add(path.join(dir, 'render.ts'));
+  const o = (await h.renderOptions(project as never)) as Json;
+  assert.equal(o.script, 'render.ts');
+  assert.ok(o.fps && o.codecEnv === 'VIDEOHUB_ENCODER');
 });
 
 test('concurrent submissions for the same project queue only one job', async () => {

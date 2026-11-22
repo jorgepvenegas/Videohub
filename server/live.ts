@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import type { Dirent, FSWatcher, Stats } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
-import { probe, isInside } from './util.ts';
+import { probe, isInside, readScript } from './util.ts';
 import { readMeta } from './legacy.ts';
 import { vhDir } from './notes.ts';
 import { recipe } from './jobs.ts';
@@ -18,6 +18,7 @@ const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
+  '.ts': 'text/javascript; charset=utf-8', // served with its types stripped (see serve)
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
@@ -49,14 +50,14 @@ const SKIP = /(^|[\\/])(render|snaps|out|node_modules|\.videohub|chunks[^\\/]*|t
 
 const read = (f: string) => {
   try {
-    return fs.readFileSync(f, 'utf8');
+    return readScript(f);
   } catch {
     return '';
   }
 };
 
 // the page render.js opens (PAGE env, a goto(.../x.html) or path.resolve('x.html')), else index.html
-function pageOf(p: Project, rc: Json, meta: Json): string | null {
+export function pageOf(p: Project, rc: Json, meta: Json): string | null {
   if (meta.live?.page) return meta.live.page;
   if (rc.env?.PAGE) return rc.env.PAGE;
   const js = read(path.join(p.path, rc.script || 'render.js'));
@@ -279,6 +280,17 @@ export function serve(req: IncomingMessage, res: ServerResponse, p: Project, rel
       .replace(/(\s(?:src|href)=["'])\/(?!\/)/gi, '$1' + pre);
     res.writeHead(200, head);
     return res.end(html);
+  }
+  if (/\.ts$/i.test(file)) {
+    let js: string;
+    try {
+      js = readScript(file);
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('Cannot strip types from ' + path.basename(file) + ': ' + (e as Error).message);
+    }
+    res.writeHead(200, head);
+    return res.end(js);
   }
   res.writeHead(200, head);
   fs.createReadStream(file)

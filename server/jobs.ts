@@ -13,7 +13,7 @@ import { project, rescanProject } from './scan.ts';
 import { guardState, guardTrack, guardUntrack } from './guard.ts';
 import { ramHogsNow, ramNote } from './ramhogs.ts';
 import { vhDir, list as listNotes, update as updateNote } from './notes.ts';
-import { DATA_DIR, HUB_DIR, readJson, writeJson, run, TOOLS, now, pLimit, refersToHub, isInside } from './util.ts';
+import { DATA_DIR, HUB_DIR, readJson, writeJson, run, TOOLS, now, pLimit, refersToHub, isInside, readScript } from './util.ts';
 import { audioOf } from './live.ts';
 import { ENCODERS, LABELS, PROBE_ORDER, encoderEnv } from './encoders.ts';
 import { killTree, shellCommand, renderSpawnOptions, findBrowser } from './platform.ts';
@@ -853,7 +853,7 @@ async function renderOptions0(p: Project): Promise<Record<string, unknown>> {
     };
   let src = '';
   try {
-    src = fs.readFileSync(path.join(p.path, rc.script as string), 'utf8');
+    src = readScript(path.join(p.path, rc.script as string));
   } catch {}
   const env = new Set([...src.matchAll(/process\.env\.([A-Z_]+)/g)].map(m => m[1]));
   return {

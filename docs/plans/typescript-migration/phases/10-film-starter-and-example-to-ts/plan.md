@@ -114,7 +114,7 @@ Commit after each step with subject `P10:` followed by the step title, and push.
   - live serve returns a `.ts` file stripped, as `text/javascript`; a `.js` file is served unchanged
   - the queued command runs `render.ts` for a `.ts` film and `render.js` for a legacy film
 - Acceptance:
-  - [ ] New tests pass and each fails against the reverted change (recorded in §9); existing jobs and live tests pass unchanged
+  - [x] New tests pass and each fails against the reverted change (recorded in §9); existing jobs and live tests pass unchanged
 - Verification: `node --test` on the changed test files; `pnpm typecheck && pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -204,6 +204,16 @@ Commit after each step with subject `P10:` followed by the step title, and push.
 ## 9. Deviations and working notes
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
+
+Entry check (2026-11-22): `pnpm format:check`, `lint` (0 errors, warnings only), `typecheck`, `build` clean; `pnpm test` 313 tests, 312 pass, 0 fail, 1 skipped (baseline). Working tree clean and pushed.
+
+S1 (2026-11-22):
+- Helper `readScript` in `server/util.ts`; used by `scan.ts` (renderInfo), `live.ts` (its `read`, which covers pageOf, sizeOf, liveInfo and hasHook; and `serve`) and `jobs.ts` (renderOptions0). `renderInfo` and `pageOf` are now exported so the tests can call them (new exports only).
+- `jobs.ts` `recipe` needed no change: `r.script` already falls back to `p.render.script`, which scan fills from the detected script, and stays `render.js` when nothing is detected. The queued-command test therefore passes before and after; it pins the behavior. The jobs.ts change that matters is `renderOptions0` reading the script through `readScript` (test fails without it).
+- `serve` answers a `.ts` file as `text/javascript` with types stripped; a file that cannot be stripped (for example an `enum`) gets a 500 with a plain-text message instead of an unhandled throw.
+- Comment paths (`server/encoders.ts:3`, `server/live.ts:3,58`) are changed in S3, when the files actually are named `render.ts`.
+- New tests: `server/film-ts.test.ts` (5 tests) and 2 in `server/jobs.test.ts`. Revert checks (each run alone): detection list without `render.ts` fails 2 tests (detection, annotated read); `readScript` without stripping fails 4 (annotated read, pageOf, both serve tests); serve without the `.ts` branch fails 2 serve tests; `renderOptions0` with the raw read fails the render-options test. Tests ran in the scratch env `.test-tmp/p10-env`.
+- Result: `pnpm format:check`, `lint` (0 errors), `typecheck`, `build` clean; `pnpm test` 320 tests, 319 pass, 0 fail, 1 skipped.
 
 ## 10. Closeout
 

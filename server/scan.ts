@@ -10,7 +10,7 @@ import { outputsDir } from './ciktilar-dir.ts';
 import { invalidateSource } from './source-revision.ts';
 import { readNotes, readMeta, isOpenNote } from './legacy.ts';
 import type { Json, OutputEntry, ProbeInfo, Project, ProjectBase, RenderInfo, Root } from './types.ts';
-import { DATA_DIR, idOf, readJson, writeJson, probe, flushProbeCache, fingerprint, pLimit, shortPath, run, TOOLS, now } from './util.ts';
+import { DATA_DIR, idOf, readJson, writeJson, probe, flushProbeCache, fingerprint, pLimit, shortPath, run, TOOLS, now, readScript } from './util.ts';
 
 const VIDEO = /\.(mp4|mov|webm|mkv)$/i,
   IMAGE = /\.(jpe?g|png|webp)$/i,
@@ -87,15 +87,15 @@ async function walk(dir: string) {
 }
 
 // ---------- how the project renders (read from its render script)
-function renderInfo(dir: string) {
+export function renderInfo(dir: string) {
   const info: RenderInfo = { family: null, fps: null, chunkFrames: null, chunkSec: null, supportsOnly: false, script: null, w: null, h: null };
-  const script = ['render.js', 'render.mjs', 'render.py'].map(f => path.join(dir, f)).find(f => fs.existsSync(f));
+  const script = ['render.ts', 'render.js', 'render.mjs', 'render.py'].map(f => path.join(dir, f)).find(f => fs.existsSync(f));
   const man = readJson(path.join(dir, 'render', 'manifest.json'));
   if (script) {
     info.script = path.basename(script);
     let src = '';
     try {
-      src = fs.readFileSync(script, 'utf8');
+      src = readScript(script);
     } catch {}
     const num = (re: RegExp) => {
       const m = src.match(re);

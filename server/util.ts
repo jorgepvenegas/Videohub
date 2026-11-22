@@ -5,6 +5,7 @@ import { dirs, TOOLS, pathKey, casePath } from './platform.ts';
 export { TOOLS } from './platform.ts';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { stripTypeScriptTypes } from 'node:module';
 import { spawn, execFile } from 'node:child_process';
 import type { ExecFileOptions } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -199,6 +200,12 @@ export function processAlive(pid: number) {
   } catch (e) {
     return (e as NodeJS.ErrnoException).code === 'EPERM';
   }
+}
+
+// A film script's text for pattern matching: a `.ts` file comes back with its types stripped, as the browser and Node see it.
+export function readScript(file: string): string {
+  const text = fs.readFileSync(file, 'utf8');
+  return file.endsWith('.ts') ? stripTypeScriptTypes(text, { mode: 'strip' }) : text;
 }
 
 export const fmtGB = (b: number) => (b / 1073741824).toFixed(b >= 10 * 1073741824 ? 0 : 1) + ' GB';
