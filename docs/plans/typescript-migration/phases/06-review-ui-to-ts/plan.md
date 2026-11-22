@@ -45,7 +45,7 @@ Convert the review UI to strict TypeScript: `ui/review.js` and all of `ui/review
 |---|---|---|
 | L3 | 12 lint rules at `warn` | No warning cleanup beyond provably dead code in converted files; counts recorded in S5 |
 | L4 | Source-reading tests slice between stable markers | `live`, `renderbtn`, `drafts`, `cover` and `soundenv` tests read through `readSource` with marker slices (S2–S4) |
-| L8 | `any` check in type positions only | `grep -rnE ':\s*any\b\|\bas any\b\|<any>' ui/review.ts ui/review/*.ts`, each hit reviewed; the shared `Json` alias (L29) is the only allowed `any` |
+| L8 | `any` check in type positions only | `grep -rnE ':\s*any\b\|\bas any\b\|\bany>' ui/review.ts ui/review/*.ts`, each hit reviewed; the shared `Json` alias (L29) is the only allowed `any` |
 | L9 | Rename similarity bar only for files over 15 lines | Same rule in S1; `git log --follow` is the real criterion |
 | L14 | Bulk specifier rewrites must match only relative specifiers | S1 rewrites only `./`/`../` specifiers |
 | L16 | The `soundEnv` identity test normalizes whitespace and arrow parentheses because `soundenv.js` had no types | S2 types `soundEnv` in `ui/review/soundenv.ts` with the same annotations as `server/vhsound.ts` and restores an exact text comparison of the two stripped functions |
@@ -109,7 +109,7 @@ Commit after each step with subject `P6:` followed by the step title, and push. 
 - Change: Remove `@ts-nocheck` and add strict types with DOM types; explicit null handling must match existing behavior. `soundenv.ts` uses the same annotations as `server/vhsound.ts`, and the identity test goes back to an exact comparison of the two stripped functions (L16). `renderbtn` and `cover` tests read source with `readSource` and marker slices. If a module needs types from a later batch, type the boundary locally rather than reaching ahead.
 - Acceptance:
   - [ ] No `@ts-nocheck` in these files; the stripped comparison shows no runtime difference; the soundEnv test compares exact stripped text and fails when one side changes (mutation recorded in §9)
-- Verification: `grep -l "@ts-nocheck" <files>` (no output); `pnpm typecheck && pnpm build && pnpm test 2>&1 | tail -8`; stripped diff recorded in §9
+- Verification: `grep -l "@ts-nocheck"` over the step's files (no output); `pnpm typecheck && pnpm build && pnpm test 2>&1 | tail -8`; stripped diff recorded in §9
 - Rollback: `git revert HEAD`
 
 ### S3 — Strict types for the editors and live source
@@ -139,7 +139,7 @@ Commit after each step with subject `P6:` followed by the step title, and push. 
 - Change:
   1. Run the standards commands, then `pnpm build`.
   2. Copy `examples/hello-film` into `.test-tmp/p6-hub/base/films/` and start a scratch hub (rule 1, real node binary per L27) over that base.
-  3. A throwaway script under `.test-tmp/p6-browser/` (not committed) drives the repo's `puppeteer-core` with the installed Chrome, headless and muted. It opens `#/` and the scratch film's review page `#/review/<id>/~live`, without `?play=1`. It collects console errors and failed requests, and does not click play, render, queue or any editor control.
+  3. A throwaway script under `.test-tmp/p6-browser/` (not committed) drives the repo's `puppeteer-core` with the installed Chrome, headless and muted. It opens `#/` and the scratch film's review page `#/review/PROJECT_ID/~live` (the scratch film's id), without `?play=1`. It collects console errors and failed requests, and does not click play, render, queue or any editor control.
   4. Stop the hub and record the evidence and the L3 warning counts.
 - Acceptance:
   - [ ] Zero console errors and zero failed requests on both pages; the film did not play (no `play` event fired on the page's media elements)
