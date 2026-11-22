@@ -1,16 +1,15 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import { readSource } from '../scripts/test-source.ts';
 
-const source = fs.readFileSync(new URL('./hub.ts', import.meta.url), 'utf8');
+const source = readSource(new URL('./hub.ts', import.meta.url));
 const DATA_DIR = path.resolve('.test-tmp', 'hub-paths', 'isolated-data');
 const HUB_DIR = path.resolve('.test-tmp', 'hub-paths', 'program');
 
 test('group metadata, live thumbnails and temporary guard state respect the data directory override', () => {
-  const between = (from, to) => source.slice(source.indexOf(from), source.indexOf(to, source.indexOf(from)));
+  const between = (from: string, to: string) => source.slice(source.indexOf(from), source.indexOf(to, source.indexOf(from)));
   const code = [
     between('function projectMetaPath', '// ---------- routes'),
     between('const LIVE_THUMBS =', '\n// the last automatic scan'),
@@ -25,28 +24,28 @@ test('group metadata, live thumbnails and temporary guard state respect the data
 });
 
 test('guard settings routes read and clear temporary overrides only in the configured data directory', async () => {
-  const handlers = new Map(),
-    reads = [],
-    removed = [];
+  const handlers = new Map<string, (...args: unknown[]) => unknown>(),
+    reads: string[] = [],
+    removed: string[] = [];
   const code = source.slice(source.indexOf("route('GET', '/api/guard/settings'"), source.indexOf("route('GET', '/api/disk'"));
   vm.runInNewContext(code, {
     path,
     DATA_DIR,
     HUB_DIR,
-    route: (method, route, fn) => handlers.set(method + route, fn),
-    readJson: f => {
+    route: (method: string, route: string, fn: (...args: unknown[]) => unknown) => handlers.set(method + route, fn),
+    readJson: (f: string) => {
       reads.push(f);
       return { until: 'later' };
     },
-    fs: { unlinkSync: f => removed.push(f) },
+    fs: { unlinkSync: (f: string) => removed.push(f) },
     os: { totalmem: () => 2 ** 30, cpus: () => [] },
     guardSettings: async () => ({}),
-    readBody: async b => b,
-    saveGuardSettings: async b => b
+    readBody: async (b: unknown) => b,
+    saveGuardSettings: async (b: unknown) => b
   });
-  await handlers.get('GET/api/guard/settings')();
+  await handlers.get('GET/api/guard/settings')!();
   const patch = { CapActive: 75 };
-  assert.equal(await handlers.get('POST/api/guard/settings')(patch), patch);
+  assert.equal(await handlers.get('POST/api/guard/settings')!(patch), patch);
   assert.deepEqual(reads, [path.join(DATA_DIR, 'guard-temp.json')]);
   assert.deepEqual(removed, reads);
 });

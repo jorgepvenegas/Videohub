@@ -1,7 +1,8 @@
-// @ts-nocheck
 import { norm } from './util.ts';
 // VideoHub server: http://127.0.0.1:7788  (UI + JSON API + server-sent events). Local only.
 import http from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -31,9 +32,10 @@ import { openFile } from './open-file.ts';
 import { transcript } from './transcript.ts';
 import { ramHogs } from './ramhogs.ts';
 import * as thumbstudio from './thumbstudio/store.ts';
+import type { Json, Project, ReadBody, RouteFn, RouteHandler } from './types.ts';
 
 const UI = path.join(HUB_DIR, 'ui');
-const MIME = {
+const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -57,8 +59,7 @@ const MIME = {
 let uiVersion = '';
 function computeUiVersion() {
   try {
-    uiVersion = fs
-      .readdirSync(UI, { recursive: true })
+    uiVersion = (fs.readdirSync(UI, { recursive: true }) as string[])
       .map(f => {
         const s = fs.statSync(path.join(UI, f));
         return s.isFile() ? f + s.size + Math.round(s.mtimeMs) : '';
@@ -68,10 +69,10 @@ function computeUiVersion() {
   uiVersion = String([...uiVersion].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7));
 }
 computeUiVersion();
-let uiTimer = null;
+let uiTimer: NodeJS.Timeout | null = null;
 try {
   fs.watch(UI, { recursive: true }, () => {
-    clearTimeout(uiTimer);
+    clearTimeout(uiTimer!);
     uiTimer = setTimeout(() => {
       const old = uiVersion;
       computeUiVersion();
@@ -81,8 +82,8 @@ try {
 } catch {}
 
 // ---------- live events (SSE)
-const clients = new Set();
-export function broadcast(type, data) {
+const clients = new Set<ServerResponse>();
+export function broadcast(type: string, data: unknown) {
   const msg = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const res of clients) res.write(msg);
 }
@@ -131,13 +132,13 @@ function rendersPayload(withHistory = true) {
 }
 
 // ---------- helpers
-const send = (res, code, body, type = 'application/json; charset=utf-8') => {
+const send = (res: ServerResponse, code: number, body: unknown, type = 'application/json; charset=utf-8') => {
   res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' });
   res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
 };
-const readBody = req =>
+const readBody: ReadBody = req =>
   new Promise((resolve, reject) => {
-    const bufs = [];
+    const bufs: Buffer[] = [];
     let n = 0;
     req.on('data', b => {
       n += b.length;
@@ -157,15 +158,15 @@ const readBody = req =>
     req.on('error', reject);
   });
 // files we are willing to serve: inside a root, the archive, or a project's .videohub folder
-function allowedFile(p) {
+function allowedFile(p: string) {
   const ts = config().thumbstudio || {};
   const roots = config()
     .roots.map(r => r.path)
     .concat([config().archiveDir, media.PROXY, ts.globalDir, ts.templatesDir, ts.styleRefsDir].filter(Boolean));
   return roots.some(r => isInside(p, r));
 }
-function serveFile(req, res, file) {
-  let st;
+function serveFile(req: IncomingMessage, res: ServerResponse, file: string) {
+  let st: fs.Stats;
   try {
     st = fs.statSync(file);
   } catch {
@@ -192,10 +193,10 @@ function serveFile(req, res, file) {
       .pipe(res);
   }
 }
-function lite(p) {
+function lite(p: Json) {
   const { outputs, meta, ...rest } = p;
   const canLive = live.liveCapable(p);
-  const lo = outputs.find(o => o.rel === p.latest); // no final yet: the film's length (manifest / DUR / sound), not a preview's
+  const lo = outputs.find((o: Json) => o.rel === p.latest); // no final yet: the film's length (manifest / DUR / sound), not a preview's
   return {
     ...rest,
     label: shortPath(p.path) + (p.group ? ' · ' + p.group : ''),
@@ -203,12 +204,12 @@ function lite(p) {
     outputsCount: outputs.length,
     live: canLive,
     thumbVersion: canLive ? live.codeRevision(p) : String(p.latest || '') + ':' + String(lo?.mtime || p.updated || 0),
-    silentCovered: outputs.filter(o => o.role === 'silent' && o.coveredBy).length
+    silentCovered: outputs.filter((o: Json) => o.role === 'silent' && o.coveredBy).length
   };
 }
 // what this PC has of the required and optional parts (Settings shows it; features without their part explain why)
 function integrations() {
-  const studio = config().studioDir && fs.existsSync(path.join(config().studioDir, 'engine', 'audio', 'synth.js'));
+  const studio = config().studioDir && fs.existsSync(path.join(config().studioDir!, 'engine', 'audio', 'synth.js'));
   return {
     ffmpeg: fs.existsSync(TOOLS.ffmpeg) || TOOLS.ffmpeg !== 'ffmpeg',
     browser: findBrowser().path,
@@ -219,12 +220,12 @@ function integrations() {
     }
   };
 }
-function projectMetaPath(p) {
+function projectMetaPath(p: Project) {
   return p.group ? path.join(DATA_DIR, 'meta', p.id + '.json') : path.join(p.path, '.videohub', 'project.json');
 }
 // ---------- routes
-const routes = [];
-const route = (method, pattern, fn) => routes.push({ method, re: new RegExp('^' + pattern.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'), fn });
+const routes: { method: string; re: RegExp; fn: RouteHandler }[] = [];
+const route: RouteFn = (method, pattern, fn) => routes.push({ method, re: new RegExp('^' + pattern.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'), fn });
 
 route('GET', '/api/ping', () => ({ ok: true, app: 'videohub', pid: process.pid }));
 route('GET', '/api/projects', async (req, url) => {
@@ -269,7 +270,7 @@ route('GET', '/api/project/:id', async (req, url, { id }) => {
   const name = p.name.toLowerCase();
   const history = guardHistory(1000)
     .filter(
-      h =>
+      (h: Json) =>
         h.project &&
         (h.project
           .toLowerCase()
@@ -279,11 +280,13 @@ route('GET', '/api/project/:id', async (req, url, { id }) => {
     )
     .slice(0, 60);
   // the review page does not need the cleanup list (lite=1); the project page waits at most 1.5 s for it
-  const cand = url.searchParams.get('lite') ? null : await Promise.race([findCandidates().catch(() => []), new Promise(r => setTimeout(() => r(null), 1500))]);
+  const cand: Json = url.searchParams.get('lite')
+    ? null
+    : await Promise.race([findCandidates().catch(() => []), new Promise(r => setTimeout(() => r(null), 1500))]);
   return {
     ...p,
     label: shortPath(p.path),
-    cleanup: (cand || []).filter(c => c.project === id),
+    cleanup: (cand || []).filter((c: Json) => c.project === id),
     cleanupPending: !cand && !url.searchParams.get('lite'),
     busy: busyProjects().find(b => b.project === id)?.reason || null,
     notes: notesApi.list(p),
@@ -447,7 +450,7 @@ route('POST', '/api/project/:id/delete-folder', async (req, url, { id }) => {
   const p = project(id);
   if (!p) throw Object.assign(new Error('Project not found'), { code: 404 });
   const roots = config().roots.map(r => r.path);
-  const targets = p.group ? p.groupFiles.map(f => path.join(p.path, f)) : [p.path, ...(p.studio && p.outDir && fs.existsSync(p.outDir) ? [p.outDir] : [])];
+  const targets = p.group ? p.groupFiles!.map(f => path.join(p.path, f)) : [p.path, ...(p.studio && p.outDir && fs.existsSync(p.outDir) ? [p.outDir] : [])];
   for (const t of targets) {
     if (!roots.some(r => isInside(t, r)) || roots.some(r => norm(r) === norm(t)))
       throw Object.assign(new Error("This folder cannot be deleted: it is one of VideoHub's folders itself, or outside them."), { code: 403 });
@@ -486,7 +489,7 @@ route('POST', '/api/guard/settings', async req => {
 route('GET', '/api/disk', async () => {
   const c = await findCandidates(),
     s = index();
-  const totals = s.projects.reduce((t, p) => {
+  const totals = s.projects.reduce((t: Record<string, number>, p) => {
     for (const [k, v] of Object.entries(p.sizes || {})) t[k] = (t[k] || 0) + v;
     return t;
   }, {});
@@ -539,7 +542,7 @@ onScan(ev => {
     try {
       ciktilar.sync();
     } catch (e) {
-      console.error('ciktilar sync:', e.message);
+      console.error('ciktilar sync:', (e as Error).message);
     }
 });
 route('GET', '/api/config', () => ({
@@ -577,12 +580,12 @@ jobs.routes(route, readBody);
 media.routes(route, allowedFile);
 media.onProxy(ev => broadcast('proxy', ev));
 notesApi.onNote(ev => broadcast('note', ev));
-thumbstudio.onStore(ev => broadcast('thumbstudio', ev));
+thumbstudio.onStore((ev: Json) => broadcast('thumbstudio', ev));
 setTimeout(() => {
   try {
     notesApi.resumePending(index().projects);
   } catch (e) {
-    console.error('[notes] resume:', e.message);
+    console.error('[notes] resume:', (e as Error).message);
   }
 }, 8000);
 
@@ -630,9 +633,9 @@ route('GET', '/api/events', (req, url, _, res) => {
 
 // ---------- new projects show up by themselves: rescan when a window opens or comes back to the front,
 // every 10 min while one is open, and when Claude asks about a folder (see /api/project). A full scan takes ~7 s.
-function softScan(maxAgeMs) {
+function softScan(maxAgeMs: number) {
   const at = index().at,
-    t = typeof at === 'number' ? at : Date.parse(at || 0) || 0;
+    t = typeof at === 'number' ? at : Date.parse((at || 0) as string) || 0;
   if (index().scanning || Date.now() - t < maxAgeMs) return false;
   scan({ soft: true }).catch(() => {});
   return true; // only changed projects are walked again (scan.js)
@@ -677,7 +680,7 @@ setInterval(checkGuardTemp, 60e3).unref();
 // ---------- run only while used: no VideoHub window, no render, no queued work for 2 min → RenderGuard and the hub close.
 // Claude's hub_* tools start the hub again when needed; a render job starts RenderGuard again.
 // "Start at login" on = the user wants them always running, so nothing closes.
-const IDLE_MS = (+process.env.VIDEOHUB_IDLE_SEC || 120) * 1000;
+const IDLE_MS = (+process.env.VIDEOHUB_IDLE_SEC! || 120) * 1000;
 const GUARD_OFF = process.env.VIDEOHUB_GUARD === 'off'; // test instances: never start or stop the real RenderGuard
 let lastUse = Date.now(),
   startupCache = { at: 0, on: false };
@@ -719,7 +722,7 @@ if (!GUARD_OFF)
 // only this PC's own pages and tools: a page on another website (or a DNS name pointed at 127.0.0.1) must not drive
 // the hub — its job queue can run commands. Claude's MCP tools, RenderGuard and scripts send no Origin/Sec-Fetch-Site.
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]']);
-function foreign(req) {
+function foreign(req: IncomingMessage) {
   const host = String(req.headers.host || '')
     .toLowerCase()
     .replace(/:\d+$/, '');
@@ -727,12 +730,16 @@ function foreign(req) {
   const sfs = req.headers['sec-fetch-site'];
   if (sfs && sfs !== 'same-origin' && sfs !== 'none') return 'site';
   const origin = req.headers.origin;
-  if (origin && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+  if (origin && !['GET', 'HEAD', 'OPTIONS'].includes(req.method!)) {
     let o = null;
     try {
       o = new URL(origin);
     } catch {}
-    if (!o || !LOOPBACK.has(o.hostname.toLowerCase().replace(/^\[(.*)\]$/, '[$1]')) || String(o.port || '80') !== String(server.address()?.port))
+    if (
+      !o ||
+      !LOOPBACK.has(o.hostname.toLowerCase().replace(/^\[(.*)\]$/, '[$1]')) ||
+      String(o.port || '80') !== String((server.address() as AddressInfo | null)?.port)
+    )
       return 'origin';
   }
   return null;
@@ -743,7 +750,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     return res.end('VideoHub: only VideoHub windows and tools on this computer may use this server (' + why + ')');
   }
-  const url = new URL(req.url, 'http://127.0.0.1');
+  const url = new URL(req.url!, 'http://127.0.0.1');
   if (url.pathname !== '/api/ping') lastUse = Date.now(); // RenderGuard's keep-alive ping is not a use
   try {
     for (const r of routes) {
@@ -775,13 +782,13 @@ const server = http.createServer(async (req, res) => {
     fs.createReadStream(f)
       .on('error', () => res.destroy())
       .pipe(res);
-  } catch (e) {
+  } catch (e: Json) {
     if (!res.headersSent) send(res, e.code && e.code >= 400 && e.code < 600 ? e.code : 500, { error: String(e.message || e) });
   }
 });
 
 const port = +(process.env.VIDEOHUB_PORT || config().port || 7788);
-server.on('error', e => {
+server.on('error', (e: NodeJS.ErrnoException) => {
   if (e.code === 'EADDRINUSE') {
     console.error(`VideoHub is already running (port ${port}).`);
     process.exit(0);
