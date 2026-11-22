@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Variants from Claude (hub_thumb_variant), their notes, choosing, the final and deleting. RG_TEST
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -28,7 +27,7 @@ const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzA
 const JPG =
   'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
 // an image file Claude made: the same picture with n extra bytes after it, so every file is a different image to the store
-const image = (name, n) => {
+const image = (name: string, n: number) => {
   const f = path.join(tmp, name);
   fs.writeFileSync(f, Buffer.concat([Buffer.from(PNG.split(',')[1], 'base64'), Buffer.alloc(n, 1)]));
   return f;
@@ -62,7 +61,7 @@ test('variants from Claude: rounds, notes, fixes, choose, final, delete', async 
   assert.equal(v2.variant.id, 'v2_1');
   assert.equal(v2.variant.parent, 'v1_1');
   let b = store.getThumbnail('_', tid);
-  assert.equal(b.variants.find(v => v.id === 'v1_1').notes[0].status, 'fixed');
+  assert.equal(b.variants.find((v: { id: string }) => v.id === 'v1_1').notes[0].status, 'fixed');
 
   // the editor's autosave must not wipe variants or the choice
   b = store.chooseVariant('_', tid, 'v2_1');

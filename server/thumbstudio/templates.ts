@@ -1,16 +1,16 @@
-// @ts-nocheck
 // Thumbnail templates: loading, validation, slot replacement, saving, and directory watcher
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { HUB_DIR, readJson, writeJson } from '../util.ts';
 import { config } from '../config.ts';
+import type { Json } from '../types.ts';
 
-let watchTimer = null;
-let watcher = null;
+let watchTimer: NodeJS.Timeout | null = null;
+let watcher: fs.FSWatcher | null = null;
 
 // Slugify string into template id (lowercase letters, numbers, dashes)
-export function slugify(str) {
+export function slugify(str: unknown) {
   if (!str) return 'sablon';
   const trMap = {
     ç: 'c',
@@ -42,7 +42,7 @@ export function slugify(str) {
 }
 
 // Validate template structure according to SCHEMA.md
-export function validateTemplate(data) {
+export function validateTemplate(data: Json): { valid: boolean; error?: string } {
   if (!data || typeof data !== 'object') {
     return { valid: false, error: 'Template must be a valid JSON object.' };
   }
@@ -69,13 +69,13 @@ export function validateTemplate(data) {
 }
 
 // Deep clone object
-function deepClone(obj) {
+function deepClone(obj: Json): Json {
   if (obj === undefined || obj === null) return obj;
   return JSON.parse(JSON.stringify(obj));
 }
 
 // Replace string slot tokens "{{KEY}}" with provided value or default
-function replaceSlotsInValue(val, slotsMap) {
+function replaceSlotsInValue(val: Json, slotsMap: Json): Json {
   if (typeof val === 'string') {
     return val.replace(/\{\{([A-Z0-9_\-]+)\}\}/g, (match, key) => {
       if (key in slotsMap && slotsMap[key] !== undefined && slotsMap[key] !== null) {
@@ -88,7 +88,7 @@ function replaceSlotsInValue(val, slotsMap) {
     return val.map(item => replaceSlotsInValue(item, slotsMap));
   }
   if (val && typeof val === 'object') {
-    const res = {};
+    const res: Json = {};
     for (const [k, v] of Object.entries(val)) {
       res[k] = replaceSlotsInValue(v, slotsMap);
     }
@@ -98,15 +98,15 @@ function replaceSlotsInValue(val, slotsMap) {
 }
 
 // Apply slot values to template, producing brief layers and properties
-export function applyTemplateSlots(template, slotValues = {}) {
+export function applyTemplateSlots(template: Json, slotValues: Json = {}) {
   const cloned = deepClone(template);
-  const slotsMap = {};
+  const slotsMap: Json = {};
 
   // Seed with template defaults
   if (cloned.slots && typeof cloned.slots === 'object') {
     for (const [k, def] of Object.entries(cloned.slots)) {
-      if (def && typeof def === 'object' && def.default !== undefined) {
-        slotsMap[k] = def.default;
+      if (def && typeof def === 'object' && (def as Json).default !== undefined) {
+        slotsMap[k] = (def as Json).default;
       }
     }
   }
@@ -128,7 +128,7 @@ export function applyTemplateSlots(template, slotValues = {}) {
   // Assign fresh unique layer IDs
   let layerSeq = 1;
   const layerIds = new Map();
-  const layers = rawLayers.map(l => {
+  const layers = rawLayers.map((l: Json) => {
     const id = `l_${layerSeq++}`;
     if (l.id) layerIds.set(l.id, id);
     return { ...l, id };
@@ -162,7 +162,7 @@ export function loadBuiltinTemplates() {
   if (!fs.existsSync(dir)) return [];
 
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
-  const list = [];
+  const list: Json[] = [];
 
   for (const f of files) {
     const filePath = path.join(dir, f);
@@ -186,7 +186,7 @@ export function loadBuiltinTemplates() {
         name: f,
         builtin: true,
         file: f,
-        error: `Could not read JSON: ${err.message}`
+        error: `Could not read JSON: ${(err as Error).message}`
       });
     }
   }
@@ -200,7 +200,7 @@ export function loadUserTemplates() {
   if (!dir || !fs.existsSync(dir)) return [];
 
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
-  const list = [];
+  const list: Json[] = [];
 
   for (const f of files) {
     const filePath = path.join(dir, f);
@@ -224,7 +224,7 @@ export function loadUserTemplates() {
         name: f,
         builtin: false,
         file: f,
-        error: `Could not read JSON: ${err.message}`
+        error: `Could not read JSON: ${(err as Error).message}`
       });
     }
   }
@@ -240,13 +240,13 @@ export function listTemplates() {
 }
 
 // Get single template by ID
-export function getTemplate(id) {
+export function getTemplate(id: string) {
   const all = listTemplates();
   return all.find(t => t.id === id && !t.error) || null;
 }
 
 // Save a brief as user template
-export async function saveUserTemplate({ name, brief, overwrite = false, id: customId }) {
+export async function saveUserTemplate({ name, brief, overwrite = false, id: customId }: Json) {
   if (!name || typeof name !== 'string' || !name.trim()) {
     throw Object.assign(new Error('Template name is required.'), { code: 400 });
   }
@@ -266,7 +266,7 @@ export async function saveUserTemplate({ name, brief, overwrite = false, id: cus
 
   // Use template-local IDs so camera focus survives saving and later application.
   const layerIds = new Map();
-  const cleanLayers = (brief.layers || []).map((l, i) => {
+  const cleanLayers = (brief.layers || []).map((l: Json, i: number) => {
     const id = `t_${i + 1}`;
     if (l.id) layerIds.set(l.id, id);
     return { ...l, id };
@@ -300,7 +300,7 @@ export async function saveUserTemplate({ name, brief, overwrite = false, id: cus
 }
 
 // Watch user templates directory and emit change events
-export function watchTemplates(emitFn) {
+export function watchTemplates(emitFn?: (type: string, data: { ts: number }) => void) {
   const dir = userDir();
   if (!dir) return;
 
@@ -320,7 +320,7 @@ export function watchTemplates(emitFn) {
 
   try {
     watcher = fs.watch(dir, () => {
-      clearTimeout(watchTimer);
+      clearTimeout(watchTimer!);
       watchTimer = setTimeout(() => {
         if (typeof emitFn === 'function') {
           emitFn('templates-changed', { ts: Date.now() });

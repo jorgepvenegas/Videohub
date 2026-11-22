@@ -1,5 +1,5 @@
-// @ts-nocheck
 // Thumbnail brief validation and normalization. The catalog data lives in ui/thumbstudio/catalog.js (shared with the UI).
+import type { Json } from '../types.ts';
 import { thumbStatus, thumbNoteStatus } from '../../ui/values.js';
 import {
   STYLE_PRESETS,
@@ -16,7 +16,7 @@ import {
   catalog
 } from '../../ui/thumbstudio/catalog.js';
 // text preset ids of older (Turkish) versions
-const LEGACY_FONTS = {
+const LEGACY_FONTS: Record<string, string> = {
   'youtube-kal\u0131n': 'youtube-bold',
   'youtube-kalin': 'youtube-bold',
   'belgesel-serif': 'documentary-serif',
@@ -26,17 +26,17 @@ const LEGACY_FONTS = {
 export { STYLE_PRESETS, POSES, EXPRESSIONS, CAMERA_ANGLES, CAMERA_SHOTS, LENSES, LIGHT_KEYS, LIGHT_TIMES, TEXT_PRESETS, EFFECT_KINDS, MOODS, catalog };
 // ---------- brief validation helpers
 // a missing value takes the default d (it used to fall to the lower bound: horizon 0, x -0.5, w 0.01 …)
-const clamp = (v, lo, hi, d = lo) => Math.max(lo, Math.min(hi, typeof v === 'number' && Number.isFinite(v) ? v : d));
+const clamp = (v: unknown, lo: number, hi: number, d = lo) => Math.max(lo, Math.min(hi, typeof v === 'number' && Number.isFinite(v) ? v : d));
 const TID_RE = /^\d{8}-[a-z0-9]{4,8}$/;
 const PID_RE = /^(_|[0-9a-f]{12})$/;
 
-export const validTid = id => TID_RE.test(id);
-export const validPid = id => PID_RE.test(id);
+export const validTid = (id: string) => TID_RE.test(id);
+export const validPid = (id: string) => PID_RE.test(id);
 
 // normalize + validate a brief object; strips unknown fields, clamps numbers, returns cleaned copy
-export function normalizeBrief(raw) {
+export function normalizeBrief(raw: Json) {
   if (!raw || typeof raw !== 'object') throw new Error('Brief is empty or invalid');
-  const b = {};
+  const b: Json = {};
   b.v = 1;
   b.id = typeof raw.id === 'string' && validTid(raw.id) ? raw.id : generateTid();
   b.title = typeof raw.title === 'string' ? raw.title.slice(0, 200) : '';
@@ -84,7 +84,7 @@ export function normalizeBrief(raw) {
   const st = raw.style || {};
   b.style.preset = STYLE_PRESETS.some(s => s.id === st.preset) ? st.preset : 'cinematic-photo';
   b.style.custom = typeof st.custom === 'string' ? st.custom.slice(0, 500) : '';
-  b.style.palette = Array.isArray(st.palette) ? st.palette.filter(c => typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)).slice(0, 10) : [];
+  b.style.palette = Array.isArray(st.palette) ? st.palette.filter((c: Json) => typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)).slice(0, 10) : [];
   b.style.saturation = clamp(st.saturation, 0, 1, 0.6);
   b.style.detail = clamp(st.detail, 0, 1, 0.8);
   b.style.mood = typeof st.mood === 'string' ? st.mood.slice(0, 50) : '';
@@ -101,9 +101,9 @@ export function normalizeBrief(raw) {
   // refs
   b.refs = Array.isArray(raw.refs)
     ? raw.refs
-        .filter(r => r && typeof r === 'object')
+        .filter((r: Json) => r && typeof r === 'object')
         .slice(0, 20)
-        .map(r => ({
+        .map((r: Json) => ({
           id: typeof r.id === 'string' ? r.id : 'R0',
           file: typeof r.file === 'string' ? r.file : '',
           role: ['style', 'character', 'object', 'composition', 'background'].includes(r.role) ? r.role : 'style',
@@ -115,7 +115,7 @@ export function normalizeBrief(raw) {
   // layers (limit 60)
   b.layers = Array.isArray(raw.layers)
     ? raw.layers
-        .filter(l => l && typeof l === 'object')
+        .filter((l: Json) => l && typeof l === 'object')
         .slice(0, 60)
         .map(normalizeLayer)
     : [];
@@ -130,15 +130,15 @@ export function normalizeBrief(raw) {
   // variants
   b.variants = Array.isArray(raw.variants)
     ? raw.variants
-        .filter(v => v && typeof v === 'object' && typeof v.id === 'string' && typeof v.file === 'string')
+        .filter((v: Json) => v && typeof v === 'object' && typeof v.id === 'string' && typeof v.file === 'string')
         .slice(0, 200)
-        .map(v => ({
+        .map((v: Json) => ({
           ...v,
           notes: Array.isArray(v.notes)
             ? v.notes
-                .filter(n => n && typeof n === 'object')
+                .filter((n: Json) => n && typeof n === 'object')
                 .slice(0, 100)
-                .map(n => (n.status === undefined ? n : { ...n, status: thumbNoteStatus(n.status) }))
+                .map((n: Json) => (n.status === undefined ? n : { ...n, status: thumbNoteStatus(n.status) }))
             : []
         }))
     : [];
@@ -161,7 +161,7 @@ export function normalizeBrief(raw) {
   return b;
 }
 
-const TYPE_COLOR = {
+const TYPE_COLOR: Record<string, string> = {
   background: '#1d2432',
   subject: '#6aa0ff',
   object: '#f08a3c',
@@ -171,8 +171,8 @@ const TYPE_COLOR = {
   sketch: '#ff4444',
   trace: '#888888'
 };
-function normalizeLayer(raw) {
-  const l = {};
+function normalizeLayer(raw: Json) {
+  const l: Json = {};
   const types = ['subject', 'object', 'background', 'text', 'effect', 'sketch', 'zone', 'trace'];
   l.id = typeof raw.id === 'string' ? raw.id : 'L0';
   l.type = types.includes(raw.type) ? raw.type : 'object';
@@ -192,7 +192,7 @@ function normalizeLayer(raw) {
   l.color = typeof raw.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw.color) ? raw.color : TYPE_COLOR[l.type] || '#6aa0ff';
   l.hidden = !!raw.hidden;
   l.locked = !!raw.locked;
-  l.refs = Array.isArray(raw.refs) ? raw.refs.filter(r => typeof r === 'string').slice(0, 5) : [];
+  l.refs = Array.isArray(raw.refs) ? raw.refs.filter((r: Json) => typeof r === 'string').slice(0, 5) : [];
 
   // type-specific fields
   if (l.type === 'subject') {
@@ -222,7 +222,7 @@ function normalizeLayer(raw) {
     l.align = ['left', 'center', 'right'].includes(raw.align) ? raw.align : 'center';
     l.lineHeight = clamp(raw.lineHeight, 0.8, 2.0, 1.1);
     l.uppercase = !!raw.uppercase;
-    l.highlightWords = Array.isArray(raw.highlightWords) ? raw.highlightWords.filter(w => typeof w === 'string').slice(0, 10) : [];
+    l.highlightWords = Array.isArray(raw.highlightWords) ? raw.highlightWords.filter((w: Json) => typeof w === 'string').slice(0, 10) : [];
     l.bg = typeof raw.bg === 'string' ? raw.bg : null;
     l.highlight = typeof raw.highlight === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw.highlight) ? raw.highlight : '#ffd400';
   }
@@ -237,7 +237,7 @@ function normalizeLayer(raw) {
     l.strokes = Array.isArray(raw.strokes) ? raw.strokes.slice(0, 500) : [];
     // limit total points to 20000
     let pts = 0;
-    l.strokes = l.strokes.filter(s => {
+    l.strokes = l.strokes.filter((s: Json) => {
       if (!s || !Array.isArray(s.pts)) return false;
       pts += s.pts.length;
       return pts <= 20000;

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -109,11 +108,11 @@ test('serveThumbnailFile blocks path traversal and forbidden files', () => {
     headers: {},
     ended: false,
     body: '',
-    writeHead(code, headers) {
+    writeHead(code: number, headers: Record<string, string>) {
       this.code = code;
       this.headers = headers;
     },
-    end(str) {
+    end(str: string) {
       this.ended = true;
       this.body = str;
     }
@@ -147,11 +146,11 @@ test('createThumbnail with template applies slots and camera properties', async 
   assert.equal(created.brief.camera.lens, 50);
   assert.ok(created.brief.layers.length >= 3);
 
-  const textLayer = created.brief.layers.find(l => l.type === 'text');
+  const textLayer = created.brief.layers.find((l: { type: string }) => l.type === 'text');
   assert.ok(textLayer);
   assert.equal(textLayer.content, 'INCREDIBLE MOMENTS');
 
-  const bgLayer = created.brief.layers.find(l => l.type === 'background');
+  const bgLayer = created.brief.layers.find((l: { type: string }) => l.type === 'background');
   assert.ok(bgLayer);
   assert.ok(bgLayer.desc.includes('flying saucer'));
 });

@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Thumbnail store: CRUD, paths, security, recycle bin, and route bindings
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -13,8 +12,9 @@ import { recyclePaths } from '../janitor.ts';
 import { outputsDir } from '../ciktilar-dir.ts';
 import { describeSpatialTr } from './prompt.ts';
 import crypto from 'node:crypto';
+import type { Json, ReadBody, RouteFn } from '../types.ts';
 
-const MIME = {
+const MIME: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -26,12 +26,12 @@ const MIME = {
 const ALLOWED_FILE_RE =
   /^(layout\.png|sketch\.png|depth\.png|final\.jpg|brief\.md|prompt\.txt|refs\/[\w.\-]{1,80}|variants\/[\w.\-]{1,80}|notes\/[\w.\-]{1,80})$/;
 
-const listeners = new Set();
-export const onStore = fn => {
+const listeners = new Set<(ev: Json) => void>();
+export const onStore = (fn: (ev: Json) => void) => {
   listeners.add(fn);
   return () => listeners.delete(fn);
 };
-function emit(type, data) {
+function emit(type: string, data: Json) {
   for (const fn of listeners) {
     try {
       fn({ type, ...data });
@@ -40,7 +40,7 @@ function emit(type, data) {
 }
 
 // Resolve folder for a thumbnail: pid === '_' means globalDir
-export function resolveThumbDir(pid, tid) {
+export function resolveThumbDir(pid: Json, tid: Json) {
   if (!validTid(tid)) {
     throw Object.assign(new Error('Invalid thumbnail ID: ' + tid), { code: 400 });
   }
@@ -68,7 +68,7 @@ export function resolveThumbDir(pid, tid) {
 }
 
 // Create a new thumbnail record
-export async function createThumbnail(opts = {}) {
+export async function createThumbnail(opts: Json = {}) {
   const tid = opts.tid || generateTid();
   const pid = opts.project && opts.project !== '_' ? opts.project : '_';
   const { dir } = resolveThumbDir(pid, tid);
@@ -122,7 +122,7 @@ export async function createThumbnail(opts = {}) {
 }
 
 // Read an existing thumbnail brief
-export function getThumbnail(pid, tid) {
+export function getThumbnail(pid: Json, tid: Json) {
   const { dir } = resolveThumbDir(pid, tid);
   const file = path.join(dir, 'brief.json');
   if (!fs.existsSync(file)) {
@@ -133,7 +133,7 @@ export function getThumbnail(pid, tid) {
 }
 
 // Update / save an existing thumbnail brief (PUT)
-export function saveThumbnail(pid, tid, patch = {}) {
+export function saveThumbnail(pid: Json, tid: Json, patch: Json = {}) {
   const { dir } = resolveThumbDir(pid, tid);
   const file = path.join(dir, 'brief.json');
   const old = fs.existsSync(file) ? readJson(file) : {};
@@ -146,14 +146,14 @@ export function saveThumbnail(pid, tid, patch = {}) {
 
 // PUT from the editor must not overwrite what the server owns (variants arrive from Claude meanwhile)
 const SERVER_OWNED = ['variants', 'chosen', 'final', 'exported', 'status', 'created', 'id', 'project'];
-export function saveFromEditor(pid, tid, body = {}) {
+export function saveFromEditor(pid: Json, tid: Json, body: Json = {}) {
   const patch = { ...body };
   for (const k of SERVER_OWNED) delete patch[k];
   return saveThumbnail(pid, tid, patch);
 }
 
 // Duplicate a thumbnail
-export async function duplicateThumbnail(pid, tid) {
+export async function duplicateThumbnail(pid: Json, tid: Json) {
   const original = getThumbnail(pid, tid);
   const newTid = generateTid();
   const title = (original.title || 'Thumbnail') + ' (copy)';
@@ -189,7 +189,7 @@ export async function duplicateThumbnail(pid, tid) {
 }
 
 // Delete a thumbnail folder to Trash (never hard delete)
-export async function deleteThumbnail(pid, tid, { recycle = recyclePaths } = {}) {
+export async function deleteThumbnail(pid: Json, tid: Json, { recycle = recyclePaths } = {}) {
   const { dir } = resolveThumbDir(pid, tid);
   if (!fs.existsSync(dir)) {
     throw Object.assign(new Error('Thumbnail not found: ' + tid), { code: 404 });
@@ -207,9 +207,9 @@ export async function deleteThumbnail(pid, tid, { recycle = recyclePaths } = {})
 }
 
 // List all thumbnails (global + projects)
-export function listThumbnails(filterPid) {
-  const list = [];
-  const addFromDir = (dir, pid, projectTitle, projectPath) => {
+export function listThumbnails(filterPid?: Json) {
+  const list: Json[] = [];
+  const addFromDir = (dir: Json, pid: Json, projectTitle: Json, projectPath: Json) => {
     if (!fs.existsSync(dir)) return;
     let entries;
     try {
@@ -244,7 +244,7 @@ export function listThumbnails(filterPid) {
           dir: tdir,
           cover: b.final
             ? 'final.jpg'
-            : (b.chosen && (b.variants || []).find(v => v.id === b.chosen)?.file) ||
+            : (b.chosen && (b.variants || []).find((v: Json) => v.id === b.chosen)?.file) ||
               (b.variants || []).slice(-1)[0]?.file ||
               (fs.existsSync(path.join(tdir, 'layout.png')) ? 'layout.png' : null),
           projectPath: projectPath || null
@@ -275,7 +275,7 @@ export function listThumbnails(filterPid) {
 }
 
 // Serve a specific file from thumbnail directory
-export function serveThumbnailFile(req, res, pid, tid, fileName) {
+export function serveThumbnailFile(req: Json, res: Json, pid: Json, tid: Json, fileName: Json) {
   if (!fileName || typeof fileName !== 'string') {
     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
     return res.end(JSON.stringify({ error: 'Missing file name parameter (f)' }));
@@ -303,7 +303,7 @@ export function serveThumbnailFile(req, res, pid, tid, fileName) {
 }
 
 // Save an uploaded base64 reference image
-export async function saveReference(pid, tid, { name, data, role = 'style', note = '', layer = null, trace = false }) {
+export async function saveReference(pid: Json, tid: Json, { name, data, role = 'style', note = '', layer = null, trace = false }: Json) {
   if (!data || typeof data !== 'string') {
     throw Object.assign(new Error('Missing image data'), { code: 400 });
   }
@@ -361,7 +361,7 @@ export async function saveReference(pid, tid, { name, data, role = 'style', note
 }
 
 // Copy reference from existing file path
-export async function copyReferenceFrom(pid, tid, { sourcePath, role = 'style', note = '', layer = null }) {
+export async function copyReferenceFrom(pid: Json, tid: Json, { sourcePath, role = 'style', note = '', layer = null }: Json) {
   if (!sourcePath || !fs.existsSync(sourcePath)) {
     throw Object.assign(new Error('Source file not found'), { code: 404 });
   }
@@ -412,14 +412,14 @@ export async function copyReferenceFrom(pid, tid, { sourcePath, role = 'style', 
 }
 
 // folders a reference may be copied from: the watched roots, the thumbnail folders and the style library
-function allowedSource(p) {
+function allowedSource(p: Json) {
   const c = config(),
     ts = c.thumbstudio || {};
   return [...(c.roots || []).map(r => r.path), ts.globalDir, ts.templatesDir, ts.styleRefsDir, outputsDir()].filter(Boolean).some(r => isInside(p, r));
 }
 
 // Image size from the file header (PNG, JPEG)
-export function getImageDimensions(filePath) {
+export function getImageDimensions(filePath: Json) {
   try {
     const fd = fs.openSync(filePath, 'r');
     const buf = Buffer.alloc(32);
@@ -449,11 +449,11 @@ export function getImageDimensions(filePath) {
 }
 
 // Export thumbnail layout.png, sketch.png, depth.png, prompt.txt, and brief.md
-export async function exportThumbnail(pid, tid, { layout, sketch, depth }) {
+export async function exportThumbnail(pid: Json, tid: Json, { layout, sketch, depth }: Json) {
   const { dir } = resolveThumbDir(pid, tid);
   const brief = getThumbnail(pid, tid);
 
-  const saveImage = async (dataUrl, fileName) => {
+  const saveImage = async (dataUrl: Json, fileName: Json) => {
     if (!dataUrl) return;
     const m = String(dataUrl).match(/^data:image\/(png|jpeg);base64,(.+)$/);
     if (!m) {
@@ -501,7 +501,7 @@ ${prompt}
 }
 
 // Generate clipboard message for Claude
-export function getClaudeMessage(pid, tid) {
+export function getClaudeMessage(pid: Json, tid: Json) {
   const { dir } = resolveThumbDir(pid, tid);
   const brief = getThumbnail(pid, tid);
   const projArg = pid === '_' ? '_' : pid;
@@ -509,9 +509,9 @@ export function getClaudeMessage(pid, tid) {
   // Check for open notes in variants
   const openNotesInfo = [];
   for (const v of brief.variants || []) {
-    const open = (v.notes || []).filter(n => n.status === 'open');
+    const open = (v.notes || []).filter((n: Json) => n.status === 'open');
     if (open.length > 0) {
-      openNotesInfo.push(`${v.id} has ${open.length} open notes (${open.map(n => `#${n.id}: "${n.text}"`).join(', ')})`);
+      openNotesInfo.push(`${v.id} has ${open.length} open notes (${open.map((n: Json) => `#${n.id}: "${n.text}"`).join(', ')})`);
     }
   }
 
@@ -535,9 +535,9 @@ export function getClaudeMessage(pid, tid) {
 
 // Add a variant (copied to variants/v<round>_<seq>.png)
 export async function addVariant(
-  pid,
-  tid,
-  { file, prompt = '', parent = null, fixes = [], by = 'claude', round: wantRound = null, refs = null, mode = null, inPlace = false }
+  pid: Json,
+  tid: Json,
+  { file, prompt = '', parent = null, fixes = [], by = 'claude', round: wantRound = null, refs = null, mode = null, inPlace = false }: Json
 ) {
   if (!file || !fs.existsSync(file)) {
     throw Object.assign(new Error('Variant image file not found: ' + file), { code: 404 });
@@ -561,25 +561,25 @@ export async function addVariant(
   const brief = getThumbnail(pid, tid);
   const existing = brief.variants || [];
 
-  const same = existing.find(v => v.hash === hash);
+  const same = existing.find((v: Json) => v.hash === hash);
   if (same) throw Object.assign(new Error(`This image is already ${same.id}`), { code: 409 });
 
   // a file from Claude opens a new round (unless the caller names one)
   const round = wantRound || nextRound(existing);
-  let vid, targetFileName, targetPath;
+  let vid: Json, targetFileName: Json, targetPath: Json;
   if (inPlace) {
     // the file is already variants/v<round>_<k>.png
     targetFileName = path.basename(file);
     vid = path.basename(file, path.extname(file));
     targetPath = file;
   } else {
-    const inRound = existing.filter(v => (v.round || 1) === round);
+    const inRound = existing.filter((v: Json) => (v.round || 1) === round);
     let seq = inRound.length + 1;
     do {
       vid = `v${round}_${seq++}`;
       targetFileName = vid + (ext === '.jpeg' ? '.jpg' : ext);
       targetPath = path.join(variantsDir, targetFileName);
-    } while (fs.existsSync(targetPath) || existing.some(v => v.id === vid));
+    } while (fs.existsSync(targetPath) || existing.some((v: Json) => v.id === vid));
     await fsp.copyFile(file, targetPath);
   }
 
@@ -628,32 +628,32 @@ export async function addVariant(
   return { ok: true, variant: newVariant, brief: updatedBrief };
 }
 
-export function nextRound(variants = []) {
+export function nextRound(variants: Json[] = []) {
   return variants.length ? Math.max(...variants.map(v => v.round || 1)) + 1 : 1;
 }
-const findVariant = (brief, vid) => {
-  const v = (brief.variants || []).find(x => x.id === vid);
+const findVariant = (brief: Json, vid: Json) => {
+  const v = (brief.variants || []).find((x: Json) => x.id === vid);
   if (!v) throw Object.assign(new Error('Variant not found: ' + vid), { code: 404 });
   return v;
 };
 
 // the prompt for fixing a variant from its notes
-export function editPrompt(notes, hasMarks) {
-  const list = notes.map((n, i) => `(${i + 1}) at the ${spatialEn(n.x, n.y)}: ${n.text}`).join(' ');
+export function editPrompt(notes: Json, hasMarks: Json) {
+  const list = notes.map((n: Json, i: Json) => `(${i + 1}) at the ${spatialEn(n.x, n.y)}: ${n.text}`).join(' ');
   return (
     `The exact same image as the first reference, identical composition, style, characters and lighting. Only change: ${list}.` +
     (hasMarks ? ' The second reference shows red numbered marks where to change; do not draw the marks.' : '') +
     ' No text, no letters, no watermark.'
   );
 }
-function spatialEn(x, y) {
+function spatialEn(x: Json, y: Json) {
   const hp = x < 0.38 ? 'left' : x > 0.62 ? 'right' : 'center',
     vp = y < 0.38 ? 'top' : y > 0.62 ? 'bottom' : 'middle';
   return hp === 'center' && vp === 'middle' ? 'center' : `${vp} ${hp}`;
 }
 
 // ---------- variant notes
-export function addVariantNote(pid, tid, vid, { x, y, text } = {}) {
+export function addVariantNote(pid: Json, tid: Json, vid: Json, { x, y, text }: Json = {}) {
   const brief = getThumbnail(pid, tid);
   const v = findVariant(brief, vid);
   const t = String(text || '')
@@ -661,17 +661,17 @@ export function addVariantNote(pid, tid, vid, { x, y, text } = {}) {
     .slice(0, 500);
   if (!t) throw Object.assign(new Error('Note is empty'), { code: 400 });
   v.notes = Array.isArray(v.notes) ? v.notes : [];
-  const id = v.notes.reduce((m, n) => Math.max(m, n.id || 0), 0) + 1;
+  const id = v.notes.reduce((m: Json, n: Json) => Math.max(m, n.id || 0), 0) + 1;
   const note = { id, x: clamp01(x), y: clamp01(y), text: t, where: describeSpatialTr(clamp01(x), clamp01(y)), status: 'open', at: new Date().toISOString() };
   v.notes.push(note);
   const b = saveThumbnail(pid, tid, { variants: brief.variants });
   emit('note', { pid, tid, vid, note });
   return { ok: true, note, brief: b };
 }
-export function updateVariantNote(pid, tid, vid, nid, patch = {}) {
+export function updateVariantNote(pid: Json, tid: Json, vid: Json, nid: Json, patch: Json = {}) {
   const brief = getThumbnail(pid, tid);
   const v = findVariant(brief, vid);
-  const i = (v.notes || []).findIndex(n => n.id === +nid);
+  const i = (v.notes || []).findIndex((n: Json) => n.id === +nid);
   if (i < 0) throw Object.assign(new Error('Note not found'), { code: 404 });
   if (patch.remove) v.notes.splice(i, 1);
   else {
@@ -682,10 +682,10 @@ export function updateVariantNote(pid, tid, vid, nid, patch = {}) {
   emit('note', { pid, tid, vid });
   return { ok: true, brief: b };
 }
-const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(+v) ? +v : 0.5));
+const clamp01 = (v: Json) => Math.max(0, Math.min(1, Number.isFinite(+v) ? +v : 0.5));
 
 // the variant with red numbered marks (drawn by the browser), sent as the 2nd reference of an edit
-export async function saveMarked(pid, tid, vid, data) {
+export async function saveMarked(pid: Json, tid: Json, vid: Json, data: Json) {
   const { dir } = resolveThumbDir(pid, tid);
   findVariant(getThumbnail(pid, tid), vid);
   const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(data || '');
@@ -695,7 +695,7 @@ export async function saveMarked(pid, tid, vid, data) {
   return { ok: true, file: `notes/${vid}_marked.png` };
 }
 
-export function chooseVariant(pid, tid, vid) {
+export function chooseVariant(pid: Json, tid: Json, vid: Json) {
   const brief = getThumbnail(pid, tid);
   if (vid) findVariant(brief, vid);
   return saveThumbnail(pid, tid, {
@@ -704,7 +704,7 @@ export function chooseVariant(pid, tid, vid) {
   });
 }
 
-export async function deleteVariant(pid, tid, vid) {
+export async function deleteVariant(pid: Json, tid: Json, vid: Json) {
   const { dir } = resolveThumbDir(pid, tid);
   const brief = getThumbnail(pid, tid);
   const v = findVariant(brief, vid);
@@ -713,7 +713,7 @@ export async function deleteVariant(pid, tid, vid) {
     const r = await recyclePaths([{ path: f }]);
     if (!r.every(x => x.ok)) throw Object.assign(new Error(r.find(x => !x.ok)?.error || 'Could not move to the Trash'), { code: 500 });
   }
-  const variants = brief.variants.filter(x => x.id !== vid);
+  const variants = brief.variants.filter((x: Json) => x.id !== vid);
   const b = saveThumbnail(pid, tid, { variants, chosen: brief.chosen === vid ? null : brief.chosen });
   emit('variant-removed', { pid, tid, vid });
   return { ok: true, brief: b };
@@ -721,7 +721,7 @@ export async function deleteVariant(pid, tid, vid) {
 
 // ---------- final (the browser composes the chosen variant + text; the server stores it)
 export const FINAL_MAX = 2 * 1024 * 1024;
-export async function saveFinal(pid, tid, { data, copyToOutputs = true } = {}) {
+export async function saveFinal(pid: Json, tid: Json, { data, copyToOutputs = true }: Json = {}) {
   const { dir } = resolveThumbDir(pid, tid);
   const brief = getThumbnail(pid, tid);
   const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(data || '');
@@ -738,7 +738,7 @@ export async function saveFinal(pid, tid, { data, copyToOutputs = true } = {}) {
       const out = path.join(outputsDir(), 'thumbnails');
       await fsp.mkdir(out, { recursive: true });
       const d = new Date(),
-        z = n => String(n).padStart(2, '0');
+        z = (n: Json) => String(n).padStart(2, '0');
       const safe = String(brief.title || tid)
         .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
         .trim()
@@ -749,7 +749,7 @@ export async function saveFinal(pid, tid, { data, copyToOutputs = true } = {}) {
       if (old && old !== copy && isInside(old, out) && fs.existsSync(old)) await recyclePaths([{ path: old }]).catch(() => {});
       await fsp.copyFile(file, copy);
     } catch (e) {
-      copyError = e.message;
+      copyError = (e as Error).message;
       copy = null;
     }
   }
@@ -759,7 +759,7 @@ export async function saveFinal(pid, tid, { data, copyToOutputs = true } = {}) {
   return { ok: true, final, path: file, brief: b };
 }
 
-export async function openThumbFolder(pid, tid, file) {
+export async function openThumbFolder(pid: Json, tid: Json, file: Json) {
   const { dir } = resolveThumbDir(pid, tid);
   const clean = file ? String(file).replace(/\\/g, '/') : null;
   const f = clean && ALLOWED_FILE_RE.test(clean) ? path.join(dir, clean) : null;
@@ -768,7 +768,7 @@ export async function openThumbFolder(pid, tid, file) {
 }
 
 // Register all thumbstudio HTTP routes
-export function routes(route, readBody) {
+export function routes(route: RouteFn, readBody: ReadBody) {
   // Catalog
   route('GET', '/api/thumbstudio/catalog', () => catalog());
   // find a thumbnail by its id alone (tools called without a project)
