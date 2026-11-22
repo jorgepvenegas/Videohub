@@ -2,7 +2,7 @@
 
 - Plan ID: `typescript-migration`
 - Master version: 11
-- Status: draft
+- Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
 - Size: large
@@ -33,7 +33,7 @@ flowchart LR
 - [ ] D3 — Lint and format are clean. — verify: `pnpm lint` reports 0 errors and `pnpm format:check` exits 0
 - [ ] D4 — Behavior is preserved: the full suite passes with at least the baseline count. — verify: `pnpm test` reports ≥ 298 pass, 0 fail (baseline: 299 tests, 298 pass, 1 skipped)
 - [ ] D5 — Vite builds the browser code, and the hub serves the built UI. — verify: `pnpm build` exits 0; a scratch hub (`VIDEOHUB_PORT=7799`, scratch data/base, guard and jobs off, no window) serves the library, review and thumbnail studio pages with no console errors
-- [ ] D6 — Fresh setup and update from a JavaScript-era install both work. — verify: in a fake `HOME`/`XDG_*` under `.test-tmp`, `bash setup.sh --yes …` installs, builds the UI and registers MCP at the `.ts` entry point; `bash update.sh --target <scratch install of commit 70cf504>` stops the old hub, re-points integrations and preserves data. Both are covered by tests in `scripts/install.test.ts` and `scripts/agents.test.ts`
+- [ ] D6 — Fresh setup and update from a JavaScript-era install both work. — verify: in a fake `HOME`/`XDG_*` under `.test-tmp`, `bash setup.sh --yes …` installs, builds the UI and registers MCP at the `.ts` entry point; `bash update.sh --target` pointed at a scratch install of commit 70cf504 stops the old hub, re-points integrations and preserves data. Both are covered by tests in `scripts/install.test.ts` and `scripts/agents.test.ts`
 - [ ] D7 — A new film made from the TypeScript starter, and the example, open in live preview and render through the queue. — verify: on a scratch copy of the example, `hub_live` loads the film with no console errors, and after the user reviews the preview and explicitly asks, one queued render completes; template and example `render.ts` stay byte-identical (test)
 - [ ] D8 — Existing JavaScript films still work: `render.js` and `film.js` films preview and queue as before. — verify: legacy tests in `server/jobs.test.ts` and the live-preview tests pass for both `render.js` and `render.ts` projects
 - [ ] D9 — Docs and agent rules describe the TypeScript codebase: entry points, Node ≥ 22.18, the standards commands and the film contract. — verify: `grep -rnE "server/(hub|mcp|cli)\.js|scripts/[a-z-]+\.mjs|node --check" CLAUDE.md AGENTS.md README.md docs skill --exclude-dir=plans` prints nothing
@@ -73,7 +73,7 @@ flowchart LR
 | Upload rule | `scripts/upload-rules.mjs:5` drops dot-prefixed names, and `:8` allows only `.gitattributes` and `.gitignore` | Tool configs need non-dot names (`oxlintrc.json`, `oxfmtrc.json`). Built output is ignored via a new `.gitignore`; today ignores live only in `.git/info/exclude` |
 | Source-reading tests | 20 test files read source text into `vm` or regexes (for example `ui/review/live.test.js:8`, `server/thumbstudio/depth-panel.test.js:8`, `server/encoders.test.js:10-17`) | After conversion they must strip types first (`node:module` `stripTypeScriptTypes`, available on Node 24) |
 | Cross-tree imports | `server/thumbstudio/*.test.js` import `../../ui/thumbstudio/*.js` | Tests that span UI and server must move together, or import across `.js`/`.ts` during the transition |
-| Films | `templates/new-film/package.json` is `"type": "commonjs"` and uses `node render.js`. `index.html:14` loads `<script src="film.js">`. `server/jobs.js:54` and `server/live.js:31,95` default to `render.js`. `server/encoders.test.js:17` asserts template == example | Browsers cannot load `film.ts`. Hub live preview and `render.ts`'s own page server (`render.js:182`) must serve stripped JS. The default script name gains `render.ts`, with `render.js` kept |
+| Films | `templates/new-film/package.json` is `"type": "commonjs"` and uses `node render.js`. `index.html:14` loads `film.js` with a classic script tag. `server/jobs.js:54` and `server/live.js:31,95` default to `render.js`. `server/encoders.test.js:17` asserts template == example | Browsers cannot load `film.ts`. Hub live preview and `render.ts`'s own page server (`render.js:182`) must serve stripped JS. The default script name gains `render.ts`, with `render.js` kept |
 | Engine hooks | `engine-hooks/vh2d.js` and `vhtweaks.js` are page-side scripts that external engines include (`docs/PROJECT-CONTRACT.md:189`) | They need built `.js` output at a stable, documented path |
 | Tooling versions (npm, 2026-11-19) | typescript 7.0.2, oxlint 1.94.0, oxfmt 0.79.0, vite 8.3.8, @types/node 26.6.6 | oxfmt is pre-1.0, so versions are pinned exactly |
 | Baseline | `pnpm test` (2026-11-19, `main` @ 70cf504) — 299 tests, 298 pass, 1 skipped, 0 fail, ~1.1 s | No lint, format or type-check baseline exists |
@@ -85,7 +85,7 @@ flowchart LR
 
 | ID | Phase | Outcome | Depends on | Status | Plan |
 |---|---|---|---|---|---|
-| P1 | Toolchain and format baseline | TypeScript 7, oxlint and oxfmt are pinned and wired into `pnpm typecheck`/`lint`/`format:check`; `pnpm test` also runs `.test.ts`; Node ≥ 22.18 is declared; the repo is formatted once (Vite arrives in P5) | none | planned | [plan](phases/01-toolchain-and-format-baseline/plan.md) |
+| P1 | Toolchain and format baseline | TypeScript 7, oxlint and oxfmt are pinned and wired into `pnpm typecheck`/`lint`/`format:check`; `pnpm test` also runs `.test.ts`; Node ≥ 22.18 is declared; the repo is formatted once (Vite arrives in P5) | none | ready | [plan](phases/01-toolchain-and-format-baseline/plan.md) |
 | P2 | Server core modules to TS | Every top-level `server/*.js` module except the entry/tool layer (`hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib.mjs`, `vhsound.mjs`) plus their tests are strict `.ts`; one shared test helper strips types for source-reading tests | P1 | planned | pending |
 | P3 | Server entry points and thumbstudio to TS | `server/hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib`, `vhsound` and `server/thumbstudio/` (except tests importing `ui/thumbstudio`, which move in P7) are `.ts`; every in-repo reference to the entry points uses `.ts` | P2 | planned | pending |
 | P4 | Installer, scripts and upgrade path to TS | `scripts/` and the lifecycle entry points are `.ts`; shell scripts gate Node ≥ 22.18; setup registers `.ts` entries; update from a JS-era install stops the old hub and re-points MCP and login items | P3 | planned | pending |

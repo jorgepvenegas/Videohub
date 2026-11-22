@@ -4,9 +4,9 @@
 - Phase: P1
 - Plan version: 1
 - Validated against master version: 11
-- Status: draft
-- Approved by: pending
-- Approved at: pending
+- Status: ready
+- Approved by: Jorge Venegas
+- Approved at: 2026-11-21
 - Commit: pending
 - Implementation mode: subagent
 - Implemented by: pending
@@ -87,7 +87,7 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Depends on: S1
 - Files:
   - `tsconfig.json` (create) — compiler options for the Node-side and test code
-- Change: Set `strict: true`, `allowJs: true`, `checkJs: false`, `noEmit: true`, `allowImportingTsExtensions: true`, `erasableSyntaxOnly: true` and `verbatimModuleSyntax: true`. Use `module`/`moduleResolution` `nodenext` and a `target` supported by Node 22.18, with `types: ["node"]`. Include `server`, `scripts`, `ui`, `engine-hooks`, `templates` and `examples`; exclude `node_modules`, `.test-tmp`, `data`, `docs` and `.agents`. Include `dom` in `lib` so that `ui/` JavaScript resolves under `allowJs`. P5 separates browser and Node configs, so record that as a working note, not a TODO comment. If TypeScript 7 rejects or ignores any of these options, stop and report (risk R3).
+- Change: Set `strict: true`, `allowJs: true`, `checkJs: false`, `noEmit: true`, `allowImportingTsExtensions: true`, `erasableSyntaxOnly: true` and `verbatimModuleSyntax: true`. Use `module`/`moduleResolution` `nodenext` and a `target` supported by Node 22.18, with `types: ["node"]`. Include `server`, `scripts`, `ui`, `engine-hooks`, `templates` and `examples`; exclude `node_modules`, `.test-tmp`, `data`, `docs` and `.agents`. Include `dom` in `lib` so that `ui/` JavaScript resolves under `allowJs`. P5 separates browser and Node configs, so record that as a working note in §9 rather than a code comment. If TypeScript 7 rejects or ignores any of these options, stop and report (risk R3).
 - Acceptance:
   - [ ] `pnpm typecheck` exits 0 on the unconverted repo
 - Verification: `pnpm typecheck; echo $?` — expected: `0`, no diagnostics
