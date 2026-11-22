@@ -302,7 +302,7 @@ const u=new Uint32Array(m.buf);for(let i=0;i<u.length;i++)if((u[i]>>>24)!==255){
 }
 
 // ---------- one browser per worker: the page, and how it hands over frames
-async function openPage(br, server, id) {
+async function openPage(br, server, id, frames = true) {
   const p = await br.newPage();
   p.on('pageerror', e => console.error('PAGE ERROR', e.message));
   await p.setViewport({ width: VW, height: VH, deviceScaleFactor: 1 });
@@ -329,7 +329,7 @@ async function openPage(br, server, id) {
     return Buffer.from(data, 'base64');
   };
   let raw = null;
-  if (process.env.VIDEOHUB_TRANSPORT !== 'png') {
+  if (frames && process.env.VIDEOHUB_TRANSPORT !== 'png') {
     const why = await p.evaluate(pageRaw, VW, VH, `ws://127.0.0.1:${server.port}/?w=${id}`).catch(e => 'page check failed: ' + e.message);
     if (why) console.log(`[w${id}] frames: PNG screenshots (${why})`);
     else {
@@ -629,11 +629,13 @@ async function shotChunk(w, a, b, tmp, hold) {
     });
 
   if (process.argv[2] === 'snap') {
-    const br = await launch(),
-      w = await openPage(br, null, 0);
+    const server = await frameServer(), // serves the page; no frame socket is used for stills
+      br = await launch(),
+      w = await openPage(br, server, 0, false);
     fs.mkdirSync('snaps', { recursive: true });
     for (const a of process.argv.slice(3)) fs.writeFileSync(`snaps/${a}.jpg`, await w.shot(+a, 'jpeg'));
     await br.close();
+    server.close();
     return;
   }
 
