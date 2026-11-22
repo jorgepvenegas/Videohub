@@ -2,7 +2,7 @@
 
 VideoHub supports macOS and Linux. macOS on Apple Silicon is **verified on real hardware** (macOS 26.6, M2 Max, 2026-11-15). Linux and Intel macOS are **new, not yet tested on real machines**; their operating-system calls are covered by injected tests. Passing unit tests does not establish desktop integration or render performance on another operating system.
 
-`server/platform.js` owns operating-system integrations. The queue, cleanup, UI and MCP tools keep the same public contracts. Everything stays local: the hub listens on `127.0.0.1`.
+`server/platform.ts` owns operating-system integrations. The queue, cleanup, UI and MCP tools keep the same public contracts. Everything stays local: the hub listens on `127.0.0.1`.
 
 | Feature | Linux desktop | macOS |
 |---|---|---|

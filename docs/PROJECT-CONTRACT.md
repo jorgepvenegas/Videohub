@@ -1,7 +1,7 @@
 # The project contract
 
 What a film project must look like for each VideoHub feature. Everything here is read from the code
-(`server/scan.js`, `live.js`, `jobs.js`, `layers.js`, `transcript.js`, `scenes.js`, `ui/review/scenes.js`).
+(`server/scan.ts`, `live.ts`, `jobs.ts`, `layers.ts`, `transcript.ts`, `scenes.ts`, `ui/review/scenes.ts`).
 `examples/hello-film` follows all of it and is the quickest way to see it working; `templates/new-film` is the starter
 Claude copies for a new film.
 
@@ -10,7 +10,7 @@ Claude copies for a new film.
 | Listed on the Projects page | a folder inside a watched folder that has a video, or code VideoHub can play/render (§1) |
 | Live preview (no render), notes on live frames | a page with `window.renderOut(t)` + `window.READY` (§2) |
 | Notes on a rendered video, compare versions | any MP4 in the project (§3) |
-| Render queue, full renders | a `render.js` / `render.mjs` / `render.py` VideoHub can run (§4), or `mode:"command"` |
+| Render queue, full renders | a `render.ts` / `render.js` / `render.mjs` / `render.py` VideoHub can run (§4), or `mode:"command"` |
 | Partial re-render of only the fixed chunks | a *chunked* render script ("family A", §4.2) |
 | Sound in renders | `audio/mix.wav` (or `render.mux`, §4.4) |
 | Scene lane on the timeline | `window.VH_SCENES` or `shots.json` (§5.1) |
@@ -25,12 +25,12 @@ VideoHub scans the folders listed in Settings → Folders ("roots"). A root has 
 - **container** — every sub-folder is a project (the default films folder, `<workspace>\films`, is one; the
   workspace is chosen in setup, default `Documents\VideoHub`).
   Sub-folders named in `config.skipFolders` (default `tools, fonts, test, render, videos, thumbnails, assets`) and
-  folders starting with `_` or `.` are skipped, unless they have their own `render.js`.
+  folders starting with `_` or `.` are skipped, unless they have their own `render.ts` or `render.js`.
 - **project** — the folder itself is one project.
 - **media** — finished videos; loose files are grouped into films by base name (`film_v2.mp4` + `film_web.mp4`).
 
 A sub-folder of a container is listed when it has a video (`.mp4 .mov .webm .mkv` anywhere inside), or — with no video
-yet — when it (or a folder one level down) has `render.js` / `render.mjs` / `render.py` / `make.mjs` / `index.html` /
+yet — when it (or a folder one level down) has `render.ts` / `render.js` / `render.mjs` / `render.py` / `make.mjs` / `index.html` /
 a `.snipp` file / `STATE.md`, or a `.videohub/notes.json`. Empty folders are not listed. A folder with `make.mjs`,
 `scenes/` and `engine/index.html` is a *studio* (one engine, many scenes): each `scenes/<name>/scene.js` is a project.
 
@@ -44,7 +44,7 @@ Optional; Claude writes it with `hub_project({set:{…}})`. Keys:
 {
   "title": "My film",
   "status": "in-progress",
-  "render": { "script": "render.js", "workers": 2, "env": { "DUR": "42.5" }, "mux": ["-y", "-i", "{video}", "-i", "audio/mix.wav", "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "{out}"] },
+  "render": { "script": "render.ts", "workers": 2, "env": { "DUR": "42.5" }, "mux": ["-y", "-i", "{video}", "-i", "audio/mix.wav", "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "{out}"] },
   "live": { "page": "index.html", "audio": "audio/mix.wav", "dur": 42.5, "fps": 60 },
   "transcript": { "file": "voice/words.json", "offset": 0.5 }
 }
@@ -66,7 +66,7 @@ The live preview plays the film from its page in an iframe — no MP4 — and re
    a different chunk) give the same picture;
 3. set `window.READY = true` once everything it needs (images, fonts, models) is loaded.
 
-`renderOut` is found in the page itself, in a `<script src>` next to it, or in any `.js`/`.mjs` under `src/`.
+`renderOut` is found in the page itself, in a `<script src>` next to it, or in any `.ts`/`.js`/`.mjs` under `src/`. A TypeScript page script such as the starter's `film.ts` is served to the browser with its types stripped (hub preview and `render.ts` alike); `film.js` films work unchanged.
 
 **How VideoHub finds the rest** (first match wins):
 
@@ -103,14 +103,14 @@ The queue (`hub_render` / "🎬 Render" / `POST /api/jobs`) runs one render at a
 render script it runs, in the project folder:
 
 ```
-node render.js <workers>          (render.mjs the same; render.py is listed but rendered only through mode:"command")
+node render.ts <workers>          (render.js and render.mjs the same; render.py is listed but rendered only through mode:"command")
 ```
 
 with these environment variables: `DUR` (from `project.json` `render.env`, else the manifest, else worked out from
 existing chunks), `WK` (= workers), `ONLY` (partial renders), `PREVIEW=1` (preview mode), `FPS` (if the user picked
 one), `VIDEOHUB_ENCODER` (`auto | nvenc | amf | qsv | x264`: Settings → Render speed, or the render dialog; a script may
 ignore it), `VIDEOHUB_JOB` (the job id) and `VIDEOHUB_DIR` (the VideoHub folder — e.g. to load its `puppeteer-core`).
-Any other `render.env` keys are passed too. Progress is read from stdout lines like `12/40 chunks to render` and
+Any other `render.env` keys are passed too. The starter's `render.ts` serves the film folder over `127.0.0.1` for every render (it needs that page server; there is no `file://` fallback). Progress is read from stdout lines like `12/40 chunks to render` and
 `[w0] chunk 3 ok — 5 done` (also `chunk 3 ok  5/40  85s` and `w1] 120/600`).
 
 ### 4.1 Families (what the scan reads from the script's source)
@@ -186,7 +186,7 @@ the mix (the original is kept as `<mix>.vhorig.wav`).
 ### 5.4 Edits the user makes in VideoHub (`tweaks.json`)
 The film's `tweaks.json` holds what the user changed in VideoHub without code: `sound` (levels, "Remove music",
 ducking), `audio.clips` (sounds added on the timeline; files copied into `vhaudio/`), and — for engines with the hooks
-in `engine-hooks/` — `shots`/`cuts` (scene editor: `window.VH_EDIT`), `items2d` / `actors2d` (2D layers: `window.VH2D`,
+in `engine-hooks/` (built into `dist/engine-hooks/*.js`; usage is in the `.ts` sources) — `shots`/`cuts` (scene editor: `window.VH_EDIT`), `items2d` / `actors2d` (2D layers: `window.VH2D`,
 pictures in `vh2d/`). A page that wants these edits in its renders must apply them itself (the hooks show how);
 sound edits are applied by VideoHub when it builds the mix. Never delete or overwrite these keys when editing the film.
 
