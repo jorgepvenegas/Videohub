@@ -5,7 +5,7 @@ import path from 'node:path';
 import { Writable } from 'node:stream';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { renderInfo } from './scan.ts';
-import { pageOf, serve } from './live.ts';
+import { pageOf, serve, liveCapable } from './live.ts';
 import { readScript } from './util.ts';
 import type { Project } from './types.ts';
 
@@ -23,7 +23,10 @@ function film(name: string, files: Record<string, string>) {
   const dir = path.join(ROOT, name);
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  for (const [f, text] of Object.entries(files)) fs.writeFileSync(path.join(dir, f), text);
+  for (const [f, text] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
+    fs.writeFileSync(path.join(dir, f), text);
+  }
   return dir;
 }
 
@@ -82,4 +85,20 @@ test('live serve answers a .ts file with its types stripped as JavaScript, and a
 test('live serve reports a .ts file that cannot be stripped instead of crashing', async () => {
   const dir = film('serve-bad', { 'film.ts': 'enum E { A }\n' });
   assert.equal((await request(dir, 'film.ts')).status, 500);
+});
+
+test('a film is live-capable when its page loads the renderOut hook from a .ts or a .js script', () => {
+  const page = (src: string) => `<!doctype html><canvas id="c"></canvas><script src="${src}"></script>`;
+  const hook = 'window.renderOut = function (t: number) {};\nwindow.READY = true;\n';
+  const dirs = {
+    ts: film('hook-ts', { 'index.html': page('film.ts'), 'film.ts': hook, 'render.ts': ANNOTATED }),
+    js: film('hook-js', { 'index.html': page('film.js'), 'film.js': hook.replace(': number', ''), 'render.js': PLAIN }),
+    none: film('hook-none', { 'index.html': page('film.ts'), 'film.ts': 'const x: number = 1;\n', 'render.ts': ANNOTATED }),
+    src: film('hook-src', { 'index.html': '<canvas id="c"></canvas>', 'src/main.ts': hook, 'render.ts': ANNOTATED })
+  };
+  const capable = (id: string, dir: string, script: string) => liveCapable({ id, name: id, path: dir, studio: null, render: { script } } as unknown as Project);
+  assert.equal(capable('hook-ts', dirs.ts, 'render.ts'), true);
+  assert.equal(capable('hook-js', dirs.js, 'render.js'), true);
+  assert.equal(capable('hook-none', dirs.none, 'render.ts'), false);
+  assert.equal(capable('hook-src', dirs.src, 'render.ts'), true);
 });

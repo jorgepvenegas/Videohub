@@ -73,8 +73,8 @@ export function pageOf(p: Project, rc: Json, meta: Json): string | null {
 function hasHook(p: Project, page: string) {
   const html = read(path.join(p.path, page));
   if (html.includes('renderOut')) return true;
-  // scripts the page loads from its own folder (e.g. <script type=module src=main.js>)
-  for (const m of html.matchAll(/<script[^>]*\ssrc=["']([^"':?#]+\.m?js)["']/gi))
+  // scripts the page loads from its own folder (e.g. <script type=module src=main.js>, or film.ts)
+  for (const m of html.matchAll(/<script[^>]*\ssrc=["']([^"':?#]+\.(?:m?js|ts))["']/gi))
     if (read(path.join(p.path, path.dirname(page), m[1])).includes('window.renderOut')) return true;
   const stack = [path.join(p.path, 'src')];
   let n = 0;
@@ -89,7 +89,7 @@ function hasHook(p: Project, page: string) {
     for (const e of es) {
       const f = path.join(d, e.name);
       if (e.isDirectory()) stack.push(f);
-      else if (/\.m?js$/.test(e.name) && ++n < 400 && read(f).includes('window.renderOut')) return true;
+      else if (/\.(?:m?js|ts)$/.test(e.name) && ++n < 400 && read(f).includes('window.renderOut')) return true;
     }
   }
   return false;

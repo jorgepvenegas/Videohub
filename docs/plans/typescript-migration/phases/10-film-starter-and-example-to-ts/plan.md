@@ -238,6 +238,8 @@ S4 (2026-11-22):
 - `node make-audio.ts` in scratch copies of both folders (`.test-tmp/p10-audio/`, real node binary, scratch HOME and TMPDIR) wrote `audio/mix.wav` (882044 bytes each) and printed `audio/mix.wav: 10 s placeholder` / `10 s, 0.8 MB`.
 - `grep -l "@ts-nocheck"` over both folders: no output. `pnpm format:check`, `lint` (0 errors, 148 warnings, same as before the step), `typecheck`, `build` clean; `pnpm test` 320 tests, 319 pass, 0 fail, 1 skipped. The S2 unit check still passes against `render.ts` (markers `const MIME` and the stripped text).
 
+S1 follow-up (2026-11-22, found in S5): the scratch hub listed `hello-film` and `new-film` as not live-capable (`live: false` in `/api/projects`), while the legacy film was capable. Cause: `hasHook` in `server/live.ts` followed only `.js`/`.mjs` script tags and `src/` files, so a page loading `film.ts` never showed its `window.renderOut`. The S1 tests covered script detection, `pageOf` and serving, but not the hook. Fixed in `server/live.ts` (both patterns also accept `.ts`; comment updated) with a new test in `server/film-ts.test.ts` (a page loading `film.ts`, one loading `film.js`, one whose `.ts` has no hook, and a hook in `src/main.ts`); with the live.ts change reverted the test fails on its first assertion. Standards: format, lint (0 errors, 148 warnings), typecheck, build clean; `pnpm test` 321 tests, 320 pass, 0 fail.
+
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
