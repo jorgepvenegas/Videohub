@@ -93,7 +93,7 @@ flowchart LR
 | P6 | Review UI to TS | `ui/review/` and `ui/review.js` are `.ts` and build with Vite; review pages work in a scratch hub | P5 | done | [plan](phases/06-review-ui-to-ts/plan.md) |
 | P7 | Thumbnail studio UI to TS | `ui/thumbstudio/` (and the server tests importing it) are `.ts`; the thumbnail studio works in a scratch hub | P5 | done | [plan](phases/07-thumbnail-studio-ui-to-ts/plan.md) |
 | P8 | Engine hooks to TS | `engine-hooks/vh2d` and `vhtweaks` are strict `.ts` (with a local `three` declaration, C13); Vite builds them into stable, readable `dist/engine-hooks/vh2d.js` and `vhtweaks.js` that engines copy; `three` stays external | P4,P5 | done | [plan](phases/08-engine-hooks-to-ts/plan.md) |
-| P10 | Film starter and example to TS | templates/new-film and examples/hello-film use render.ts, make-audio.ts and film.ts; hub live preview and render.ts serve film.ts stripped; render.js and film.js films still preview and render; one scratch render after the user reviews the preview | P8 | in_progress | [plan](phases/10-film-starter-and-example-to-ts/plan.md) |
+| P10 | Film starter and example to TS | templates/new-film and examples/hello-film use render.ts, make-audio.ts and film.ts; hub live preview and render.ts serve film.ts stripped; render.js and film.js films still preview and render; one scratch render after the user reviews the preview | P8 | done | [plan](phases/10-film-starter-and-example-to-ts/plan.md) |
 | P9 | Strict repo-wide, no JS left, docs | `allowJs` removed, strict repo-wide, a test fails on any tracked JS file, CLAUDE.md/docs/skill/README updated; full D1–D9 verification | P6,P7,P10 | planned | pending |
 
 Status: `planned`, `ready`, `in_progress`, `done`, `blocked`, `needs_replan`, `superseded`.
@@ -209,12 +209,13 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 | P6 | 2026-11-22 | addressed | A1, A2, A3, A4, A5 | 8241300 | [report](phases/06-review-ui-to-ts/plan.md) |
 | P7 | 2026-11-22 | addressed | A1, A2, A3, A4, A5 | 7a1a29a | [report](phases/07-thumbnail-studio-ui-to-ts/plan.md) |
 | P8 | 2026-11-22 | addressed | A1, A2, A3, A4, A5, A6 | a604555 | [report](phases/08-engine-hooks-to-ts/plan.md) |
+| P10 | 2026-11-22 | addressed | A1, A2, A3, A4, A5, A6 | 80d339f | [report](phases/10-film-starter-and-example-to-ts/plan.md) |
 
 ## 12. Resume brief
 
-- Current phase: P10 (in progress, worker running S1-S5; S6 waits for the user)
-- Last verdict: P8 addressed
-- Next action: review the P10 worker's S1-S5, then run S6 with the user (scratch preview, render only on explicit request)
+- Current phase: P9 (plan not yet written; last phase)
+- Last verdict: P10 addressed (scratch render after user review: 10.0 s, h264 1920x1080 + aac)
+- Next action: write the P9 plan (C15: proceed without the approval stop), implement, then the end-of-plan gate
 - Open decisions: none
 - PR: https://github.com/jorgepvenegas/Videohub/pull/3
 - Last updated: 2026-11-22

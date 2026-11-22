@@ -4,10 +4,10 @@
 - Phase: P10
 - Plan version: 3
 - Validated against master version: 66
-- Status: in_progress
+- Status: done
 - Approved by: Jorge Venegas (standing instruction 2026-11-22, C15)
 - Approved at: 2026-11-22
-- Commit: pending
+- Commit: 80d339f
 - Implementation mode: subagent
 - Implemented by: p10-worker
 - Implemented at: 2026-11-22
@@ -187,11 +187,11 @@ Commit after each step with subject `P10:` followed by the step title, and push.
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — No tracked JS under `templates/` or `examples/`; renames keep history; template and example `render.ts` are byte-identical — verify: `git ls-files templates examples | grep -E '\.js$'` (empty); `cmp` of the two `render.ts`; `git log --follow --oneline templates/new-film/render.ts | wc -l` > 1
-- [ ] A2 — `pnpm typecheck` is strict-clean; no `@ts-nocheck` in the film scripts; S4 is runtime-identical — verify: `pnpm typecheck`, the greps and the §9 AST comparison
-- [ ] A3 — `pnpm test` has 0 failures and ≥ 312 passing, including the new `.ts`/legacy tests, each shown to fail without its change — verify: `pnpm test` and §9
-- [ ] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
-- [ ] A5 — The scratch hub's library and the live review pages of the example copy, a new starter film and a legacy `render.js` film load with zero console errors and failed requests — verify: S5 evidence
+- [x] A1 — No tracked JS under `templates/` or `examples/`; renames keep history; template and example `render.ts` are byte-identical — verify: `git ls-files templates examples | grep -E '\.js$'` (empty); `cmp` of the two `render.ts`; `git log --follow --oneline templates/new-film/render.ts | wc -l` > 1
+- [x] A2 — `pnpm typecheck` is strict-clean; no `@ts-nocheck` in the film scripts; S4 is runtime-identical — verify: `pnpm typecheck`, the greps and the §9 AST comparison
+- [x] A3 — `pnpm test` has 0 failures and ≥ 312 passing, including the new `.ts`/legacy tests, each shown to fail without its change — verify: `pnpm test` and §9
+- [x] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
+- [x] A5 — The scratch hub's library and the live review pages of the example copy, a new starter film and a legacy `render.js` film load with zero console errors and failed requests — verify: S5 evidence
 - [x] A6 — After the user's review and explicit request, one queued render of the example copy completes with the expected duration and streams — verify: S6 evidence
 
 ## 7. Code standards check
