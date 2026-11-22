@@ -1,17 +1,29 @@
-// @ts-nocheck
 // One writer for a film's tweaks.json (scene editor, 2D layers, sound levels, added sounds). Pure helpers: the
 // cleaners, the field-level sound merge, the key-by-key merge PATCH uses, a strict reader and an atomic write.
 // The page-side tweaks API (window.VH_EDIT) drops a file without `shots`, so every write keeps `v: 1, shots`.
 import fs from 'node:fs';
+import type { Json } from './types.ts';
+
+// one sound entry after cleanEntry()
+interface SoundEntry {
+  shot: string;
+  t0: number;
+  t1: number;
+  music?: number;
+  sfx?: number;
+  vo?: number;
+  all?: number;
+  fade?: number;
+}
 
 export const NOTE =
   'VideoHub scene editor: the engine applies these over the scene code on every frame; sound = per-scene sound levels; items2d/actors2d = 2D layers; audio = audio edits';
-const LEVELS = ['music', 'sfx', 'vo', 'all'];
-const fin = v => v != null && v !== '' && Number.isFinite(+v);
+const LEVELS = ['music', 'sfx', 'vo', 'all'] as const;
+const fin = (v: Json) => v != null && v !== '' && Number.isFinite(+v);
 
 // a cut: shifted d s and/or given a transition tr { type, dur, dir, color } (2D films, engine/lib/transitions2d.js)
 const TRT = /^(cut|mix|blur|zoom|whip|slide|ramp|wipe|iris|flash|light-leak|film-burn|portal)$/;
-export function cleanTr(t) {
+export function cleanTr(t: Json) {
   return t && typeof t.type === 'string' && TRT.test(t.type)
     ? {
         type: t.type,
@@ -21,11 +33,11 @@ export function cleanTr(t) {
       }
     : null;
 }
-export function cleanCuts(arr) {
+export function cleanCuts(arr: Json) {
   return Array.isArray(arr)
     ? arr
-        .filter(c => c && Number.isFinite(+c.at) && (Number.isFinite(+c.d) || c.tr))
-        .map(c => {
+        .filter((c: Json) => c && Number.isFinite(+c.at) && (Number.isFinite(+c.d) || c.tr))
+        .map((c: Json) => {
           const tr = cleanTr(c.tr);
           return { at: +c.at, d: Number.isFinite(+c.d) ? +c.d : 0, ...(tr ? { tr } : {}) };
         })
@@ -33,29 +45,29 @@ export function cleanCuts(arr) {
     : [];
 }
 // one sound entry: { shot, t0, t1, music?, sfx?, vo?, all? (0–4), fade? (s, 0.02–5) }
-function cleanEntry(e) {
+function cleanEntry(e: Json): SoundEntry | null {
   if (!e || typeof e.shot !== 'string' || !(+e.t1 > +e.t0)) return null;
-  const o = { shot: e.shot.slice(0, 120), t0: +e.t0, t1: +e.t1 };
+  const o: SoundEntry = { shot: e.shot.slice(0, 120), t0: +e.t0, t1: +e.t1 };
   for (const k of LEVELS) if (fin(e[k])) o[k] = Math.max(0, Math.min(4, +e[k]));
   if (fin(e.fade)) o.fade = Math.max(0.02, Math.min(5, +e.fade));
   return o;
 }
-export function cleanSound(arr) {
-  return Array.isArray(arr) ? arr.map(cleanEntry).filter(Boolean) : [];
+export function cleanSound(arr: Json): SoundEntry[] {
+  return Array.isArray(arr) ? (arr.map(cleanEntry).filter(Boolean) as SoundEntry[]) : [];
 }
-const hasLevel = e => LEVELS.some(k => e[k] != null && Math.abs(e[k] - 1) > 1e-3);
+const hasLevel = (e: SoundEntry) => LEVELS.some(k => e[k] != null && Math.abs(e[k] - 1) > 1e-3);
 
 // ops = { set: [{ shot, t0?, t1?, music?, sfx?, vo?, all?, fade? }], remove: [shot] }: merged by `shot`, field by
 // field (a given field replaces, null removes it); an entry with no level ≠ 1 left is dropped; sorted by t0
-export function applySoundOps(list, ops) {
+export function applySoundOps(list: Json, ops: Json) {
   const out = cleanSound(list).map(e => ({ ...e }));
   const o = ops && typeof ops === 'object' ? ops : {};
-  const rm = new Set((Array.isArray(o.remove) ? o.remove : []).filter(s => typeof s === 'string'));
-  let L = out.filter(e => !rm.has(e.shot));
+  const rm = new Set((Array.isArray(o.remove) ? o.remove : []).filter((s: unknown) => typeof s === 'string'));
+  let L: SoundEntry[] = out.filter(e => !rm.has(e.shot));
   for (const s of Array.isArray(o.set) ? o.set : []) {
     if (!s || typeof s.shot !== 'string') continue;
     const i = L.findIndex(e => e.shot === s.shot),
-      cur = i >= 0 ? { ...L[i] } : { shot: s.shot };
+      cur: Json = i >= 0 ? { ...L[i] } : { shot: s.shot };
     for (const k of ['t0', 't1', ...LEVELS, 'fade'])
       if (s[k] !== undefined) {
         if (s[k] === null) {
@@ -72,11 +84,15 @@ export function applySoundOps(list, ops) {
 
 // a new tweaks.json from the old one and a body: each key given replaces only that key (through its cleaner),
 // `soundOps` merges into the current `sound`; keys left out (and unknown keys of the old file) stay as they are
-export function mergeTweaks(old, body, { cleanAudio, cleanItems, cleanActors } = {}) {
+export function mergeTweaks(
+  old: Json,
+  body: Json,
+  { cleanAudio, cleanItems, cleanActors }: { cleanAudio?: (x: Json) => Json; cleanItems?: (x: Json) => Json; cleanActors?: (x: Json) => Json } = {}
+) {
   const o = old && typeof old === 'object' && !Array.isArray(old) ? old : {},
     b = body || {};
-  const isObj = x => x && typeof x === 'object' && !Array.isArray(x);
-  const out = { ...o, v: 1, note: NOTE };
+  const isObj = (x: Json) => x && typeof x === 'object' && !Array.isArray(x);
+  const out: Json = { ...o, v: 1, note: NOTE };
   out.shots = 'shots' in b && isObj(b.shots) ? b.shots : isObj(o.shots) ? o.shots : {};
   if ('cuts' in b) out.cuts = cleanCuts(b.cuts);
   if ('sound' in b) out.sound = cleanSound(b.sound);
@@ -90,12 +106,12 @@ export function mergeTweaks(old, body, { cleanAudio, cleanItems, cleanActors } =
 
 // the file as it is: {} when there is none; a file that exists but does not parse throws (409), so nothing ever
 // overwrites a half-written or hand-broken file with a blank one
-export function readTweaksStrict(file) {
-  let txt;
+export function readTweaksStrict(file: string) {
+  let txt: string;
   try {
     txt = fs.readFileSync(file, 'utf8');
   } catch (e) {
-    if (e.code === 'ENOENT') return {};
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return {};
     throw e;
   }
   if (!txt.trim()) return {};
@@ -109,7 +125,7 @@ export function readTweaksStrict(file) {
 
 // tmp file + rename (readers never see half a file); the rename can fail while someone reads the file, so
 // retry 6 × 120 ms like vhsound.mjs replaceFile, then write in place
-export function writeTweaks(file, obj) {
+export function writeTweaks(file: string, obj: unknown) {
   const txt = JSON.stringify(obj, null, 1),
     tmp = file + '.' + process.pid + '.tmp';
   fs.writeFileSync(tmp, txt);
@@ -118,7 +134,7 @@ export function writeTweaks(file, obj) {
       fs.renameSync(tmp, file);
       return;
     } catch (e) {
-      if (!['EPERM', 'EBUSY', 'EACCES'].includes(e.code)) {
+      if (!['EPERM', 'EBUSY', 'EACCES'].includes((e as NodeJS.ErrnoException).code as string)) {
         try {
           fs.unlinkSync(tmp);
         } catch {}

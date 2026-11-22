@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { norm } from './util.ts';
 // The film's sound as layers for the review timeline (Nov 5): voice / music / SFX stems found next to the mix, and the
 // SFX cue list the engine wrote. Formats in use:
@@ -10,15 +9,16 @@ import { norm } from './util.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import { project } from './scan.ts';
+import type { RouteFn } from './types.ts';
 
 const CAND = {
   vo: ['audio/st_vo.wav', 'data/vo.wav', 'audio/vo.wav', 'audio/voice.wav', 'stems/vo.wav', 'stems/voice.wav'],
   music: ['audio/music.wav', 'audio/st_bed.wav', 'audio/bed.wav', 'stems/music.wav', 'stems/bed.wav'],
   sfx: ['audio/sfx.wav', 'audio/st_sfx.wav', 'stems/sfx.wav']
 };
-const LABEL = { vo: 'Voice', music: 'Music', sfx: 'Effects' };
-const media = f => '/media?p=' + encodeURIComponent(f);
-const big = f => {
+const LABEL: Record<string, string> = { vo: 'Voice', music: 'Music', sfx: 'Effects' };
+const media = (f: string) => '/media?p=' + encodeURIComponent(f);
+const big = (f: string) => {
   try {
     const s = fs.statSync(f);
     return s.isFile() && s.size > 10000;
@@ -27,9 +27,9 @@ const big = f => {
   }
 };
 
-export function layersOf(p) {
+export function layersOf(p: { path: string }) {
   const base = p.path,
-    layers = [],
+    layers: { id: string; label: string; file: string; audio: string }[] = [],
     used = new Set();
   for (const [id, list] of Object.entries(CAND)) {
     const f = list.map(r => path.join(base, r)).find(big);
@@ -62,7 +62,7 @@ export function layersOf(p) {
   return { layers, cues };
 }
 
-export function routes(route) {
+export function routes(route: RouteFn) {
   route('GET', '/api/project/:id/layers', (req, url, { id }) => {
     const p = project(id);
     if (!p) throw Object.assign(new Error('Project not found'), { code: 404 });

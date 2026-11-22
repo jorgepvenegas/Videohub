@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -25,7 +24,7 @@ test('cleanup preserves finals and review material and only releases approved ch
   const { config } = await import('./config.ts');
   config().roots = [{ path: root, type: 'project', enabled: true }];
   try {
-    const make = (name, bytes = 1) => {
+    const make = (name: string, bytes = 1) => {
       const f = path.join(root, name);
       fs.mkdirSync(path.dirname(f), { recursive: true });
       fs.writeFileSync(f, 'x');
@@ -56,7 +55,7 @@ test('cleanup preserves finals and review material and only releases approved ch
         { path: tempFinal, rel: 'render/tmp/valuable.mp4', name: 'valuable.mp4', role: 'final', mtime: now - 1000, audio: true }
       ]
     };
-    index().projects = [p];
+    index().projects = [p as never]; // a partial project: only the fields the cleanup rules read
     let c = await findCandidates(true);
     assert(c.some(x => x.path === silent));
     assert(c.some(x => x.path.includes('chunks_v1')));

@@ -310,7 +310,7 @@ export function createPlatform({
     }
     return out;
   }
-  async function recycleStream(items: (string | { path: string })[], onItem: (item: string | { path: string }, code: number, error: string | null) => void) {
+  async function recycleStream<T extends string | { path: string }>(items: T[], onItem: (item: T, code: number, error: string | null) => void) {
     for (const item of items) {
       const [r] = await trash([item]);
       onItem(item, r.ok ? 0 : -3, r.error);

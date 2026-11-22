@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { norm } from './util.ts';
 // The example film (examples/hello-film): a first-run helper copies it into the default films folder so a new user
 // (and their Claude) can see the whole loop — live preview, notes, render — before writing a film of their own.
@@ -6,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { config, saveConfig, defaultFilmsDir } from './config.ts';
 import { HUB_DIR, isInside } from './util.ts';
+import type { ReadBody, RouteFn } from './types.ts';
 
 const SRC = path.join(HUB_DIR, 'examples', 'hello-film');
 const SKIP = /^(node_modules|render|\.videohub|out|videohub-project\.json)$/i;
@@ -20,7 +20,7 @@ export function info() {
     installed = fs.existsSync(path.join(dir, 'hello-film', 'index.html'));
   return { available: fs.existsSync(path.join(SRC, 'index.html')), source: SRC, target: path.join(dir, 'hello-film'), installed };
 }
-function copyDir(a, b) {
+function copyDir(a: string, b: string) {
   fs.mkdirSync(b, { recursive: true });
   for (const e of fs.readdirSync(a, { withFileTypes: true })) {
     if (SKIP.test(e.name)) continue;
@@ -50,7 +50,7 @@ export function install() {
     saveConfig({ roots: [{ path: dir, type: 'container', enabled: true }, ...roots.filter(r => norm(r.path) !== norm(dir))] });
   return { ok: true, path: dest };
 }
-export function routes(route, readBody, rescan) {
+export function routes(route: RouteFn, readBody: ReadBody, rescan: () => unknown) {
   route('GET', '/api/example', () => info());
   route('POST', '/api/example/install', async () => {
     const r = install();

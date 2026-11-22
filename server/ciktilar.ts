@@ -1,4 +1,3 @@
-// @ts-nocheck
 // The global outputs folder (config.outputsDir, default Documents\VideoHub\outputs): every finished render's MP4 in one
 // place, named "2026-11-03 My film v2.mp4", so nobody has to dig through project folders.
 // Each file is an NTFS hard link to the render (the same data under a second name: no extra disk space; deleting either
@@ -11,6 +10,7 @@
 // Every video goes into a folder per day, <outputs>\2026-11-08\…;
 // videos left in the top folder by older versions are moved into their day's folder once (tidy, on the first sync).
 import fs from 'node:fs';
+import type { Dirent, Stats } from 'node:fs';
 import path from 'node:path';
 import { reveal } from './platform.ts';
 import { index } from './scan.ts';
@@ -18,19 +18,26 @@ import { recyclePaths } from './janitor.ts';
 import { vhDir } from './notes.ts';
 import { outputsDir } from './ciktilar-dir.ts';
 import { DATA_DIR, readJson, writeJson, isInside, norm } from './util.ts';
+import type { RouteFn } from './types.ts';
+
+interface LinkEntry {
+  link: string;
+  mode: string;
+  at: string;
+}
 
 const IDX = path.join(DATA_DIR, 'ciktilar.json');
-let idx = null;
-const load = () => idx || (idx = readJson(IDX, {}));
+let idx: Record<string, LinkEntry> | null = null;
+const load = (): Record<string, LinkEntry> => idx || (idx = readJson(IDX, {}));
 const save = () => writeJson(IDX, idx);
 const key = norm;
-const clean = s =>
+const clean = (s: unknown) =>
   String(s || '')
     .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 110);
-const fid = f => {
+const fid = (f: string) => {
   try {
     const s = fs.statSync(f, { bigint: true });
     return s.dev + ':' + s.ino;
@@ -38,18 +45,18 @@ const fid = f => {
     return null;
   }
 };
-const day = t => {
+const day = (t: number | string) => {
   const d = new Date(t);
-  const z = n => String(n).padStart(2, '0');
+  const z = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
 };
 const DAY_RE = /^(\d{4}-\d{2}-\d{2})(?: |$)/;
-const dayDir = d => {
+const dayDir = (d: string) => {
   const dir = path.join(outputsDir(), d);
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 };
-const free = (dir, base, ext) => {
+const free = (dir: string, base: string, ext: string) => {
   let f = path.join(dir, base + ext);
   for (let n = 2; fs.existsSync(f); n++) f = path.join(dir, `${base} (${n})${ext}`);
   return f;
@@ -61,7 +68,7 @@ let tidied = false;
 export function tidy() {
   tidied = true;
   const root = outputsDir();
-  let es = [],
+  let es: Dirent[] = [],
     n = 0;
   try {
     es = fs.readdirSync(root, { withFileTypes: true });
@@ -69,7 +76,7 @@ export function tidy() {
     return 0;
   }
   const I = load(),
-    byLink = new Map(Object.entries(I).map(([s, e]) => [key(e.link), s]));
+    byLink = new Map(Object.entries(I).map(([s, e]): [string, string] => [key(e.link), s]));
   for (const e of es) {
     const m = e.isFile() && DAY_RE.exec(e.name);
     if (!m) continue;
@@ -100,7 +107,10 @@ export function tidy() {
   return n;
 }
 
-export function linkOutput(file, { title, v, kind, when } = {}) {
+export function linkOutput(
+  file: string | null | undefined,
+  { title, v, kind, when }: { title?: string; v?: number | string | null; kind?: string; when?: number | string } = {}
+) {
   try {
     if (!file || !fs.existsSync(file)) return null;
     const I = load(),
@@ -132,7 +142,7 @@ export function linkOutput(file, { title, v, kind, when } = {}) {
     save();
     return dest;
   } catch (e) {
-    console.error('outputs:', e.message);
+    console.error('outputs:', (e as Error).message);
     return null;
   }
 }
@@ -144,7 +154,7 @@ export function sync() {
     try {
       tidy();
     } catch (e) {
-      console.error('outputs tidy:', e.message);
+      console.error('outputs tidy:', (e as Error).message);
     }
   let n = 0;
   for (const p of index().projects || []) {
@@ -154,7 +164,7 @@ export function sync() {
     if (load()[key(o.path)]) continue;
     let v = null;
     try {
-      v = (readJson(path.join(vhDir(p), 'versions.json'), []).find(x => x.file === o.rel) || {}).v || null;
+      v = (readJson(path.join(vhDir(p), 'versions.json'), []).find((x: { file?: string }) => x.file === o.rel) || {}).v || null;
     } catch {}
     if (!v) {
       const m = /_v(\d+)(?:[_.]|$)/i.exec(o.name);
@@ -166,8 +176,8 @@ export function sync() {
 }
 
 // renders the janitor just recycled or archived: their links follow to the Trash (never deleted outright)
-export async function afterClean(results) {
-  const gone = (results || []).filter(r => r.status === 'ok' && r.path).map(r => r.path);
+export async function afterClean(results?: { status: string; path?: string }[]) {
+  const gone = (results || []).filter(r => r.status === 'ok' && r.path).map(r => r.path as string);
   if (!gone.length) return 0;
   const I = load(),
     links = [];
@@ -188,8 +198,8 @@ export function stats() {
   let count = 0,
     total = 0,
     extra = 0;
-  const add = f => {
-    let st;
+  const add = (f: string) => {
+    let st: Stats;
     try {
       st = fs.statSync(f);
     } catch {
@@ -200,14 +210,14 @@ export function stats() {
     total += st.size;
     if (!(st.nlink > 1)) extra += st.size;
   };
-  let es = [];
+  let es: Dirent[] = [];
   try {
     es = fs.readdirSync(dir, { withFileTypes: true });
   } catch {}
   for (const e of es) {
     if (e.isFile()) add(path.join(dir, e.name));
     else if (e.isDirectory() && DAY_RE.test(e.name)) {
-      let sub = [];
+      let sub: string[] = [];
       try {
         sub = fs.readdirSync(path.join(dir, e.name));
       } catch {}
@@ -217,7 +227,7 @@ export function stats() {
   return { dir, count, total, extra };
 }
 
-export function routes(route) {
+export function routes(route: RouteFn) {
   route('GET', '/api/ciktilar', () => stats());
   route('POST', '/api/ciktilar/open', async () => {
     const dir = outputsDir();

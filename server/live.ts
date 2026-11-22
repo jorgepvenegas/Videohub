@@ -1,18 +1,20 @@
-// @ts-nocheck
 import { norm } from './util.ts';
 // Live preview: play a film straight from its code, no render. Our films draw any moment with
 // window.renderOut(t) on fixed-size canvases and set window.READY; render.js only screenshots that.
 // Here the hub serves the project's page at /live/<id>/..., says where its audio is, and tells open
 // players when the code changed so they can reload in place.
 import fs from 'node:fs';
+import type { Dirent, FSWatcher, Stats } from 'node:fs';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
 import { probe, isInside } from './util.ts';
 import { readMeta } from './legacy.ts';
 import { vhDir } from './notes.ts';
 import { recipe } from './jobs.ts';
 import { sourceRevision, invalidateSource, watchSource } from './source-revision.ts';
+import type { Json, Project, SourceProject } from './types.ts';
 
-const MIME = {
+const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
@@ -45,7 +47,7 @@ const AUDIO = /\.(wav|mp3|m4a|ogg|aac|flac)$/i;
 // at any depth: a studio scene keeps its notes in scenes\<name>\.videohub, and saving a note reloaded the live preview
 const SKIP = /(^|[\\/])(render|snaps|out|node_modules|\.videohub|chunks[^\\/]*|tmp|profiles?|\.git|vh2d|vhaudio)([\\/]|$)/i; // vh2d/vhaudio: pictures and sounds added in VideoHub (the editors show them already)
 
-const read = f => {
+const read = (f: string) => {
   try {
     return fs.readFileSync(f, 'utf8');
   } catch {
@@ -54,7 +56,7 @@ const read = f => {
 };
 
 // the page render.js opens (PAGE env, a goto(.../x.html) or path.resolve('x.html')), else index.html
-function pageOf(p, rc, meta) {
+function pageOf(p: Project, rc: Json, meta: Json): string | null {
   if (meta.live?.page) return meta.live.page;
   if (rc.env?.PAGE) return rc.env.PAGE;
   const js = read(path.join(p.path, rc.script || 'render.js'));
@@ -67,7 +69,7 @@ function pageOf(p, rc, meta) {
 }
 
 // does the page (or the scripts next to it) define window.renderOut?
-function hasHook(p, page) {
+function hasHook(p: Project, page: string) {
   const html = read(path.join(p.path, page));
   if (html.includes('renderOut')) return true;
   // scripts the page loads from its own folder (e.g. <script type=module src=main.js>)
@@ -76,8 +78,8 @@ function hasHook(p, page) {
   const stack = [path.join(p.path, 'src')];
   let n = 0;
   while (stack.length && n < 400) {
-    const d = stack.pop();
-    let es = [];
+    const d = stack.pop() as string;
+    let es: Dirent[] = [];
     try {
       es = fs.readdirSync(d, { withFileTypes: true });
     } catch {
@@ -93,11 +95,11 @@ function hasHook(p, page) {
 }
 
 // newest code file of a project (its folder, src/; a studio scene's own folder): a live thumbnail older than this is redrawn
-export const codeStamp = p => sourceRevision(p).stamp;
-export const codeRevision = (p, opts) => sourceRevision(p, opts).revision; // { fresh: true } walks now (cards use the cached one)
+export const codeStamp = (p: SourceProject) => sourceRevision(p).stamp;
+export const codeRevision = (p: SourceProject, opts?: { fresh?: boolean }) => sourceRevision(p, opts).revision; // { fresh: true } walks now (cards use the cached one)
 // can this project play live? A cheap check for the cards, cached until its code changes
-const capCache = new Map();
-export function liveCapable(p) {
+const capCache = new Map<string, { stamp: string; ok: boolean }>();
+export function liveCapable(p: Project) {
   if (p.group || p.rootType === 'media') return false;
   const stamp = codeRevision(p),
     c = capCache.get(p.id);
@@ -116,7 +118,7 @@ export function liveCapable(p) {
 }
 
 // the film's sound: a mix in audio/, else the inputs of render.mux, else any audio file, else the last render's track
-export function audioOf(p, meta) {
+export function audioOf(p: Project, meta: Json): string | null {
   if (meta.live?.audio) {
     const f = path.resolve(p.path, meta.live.audio);
     if (fs.existsSync(f)) return f;
@@ -132,9 +134,9 @@ export function audioOf(p, meta) {
         const f = path.resolve(p.path, mux[i + 1]);
         if (fs.existsSync(f)) return f;
       }
-  const pool = [];
+  const pool: { f: string; size: number; mix: number }[] = [];
   for (const dir of ['audio', '.']) {
-    let es = [];
+    let es: string[] = [];
     try {
       es = fs.readdirSync(path.join(p.path, dir));
     } catch {}
@@ -152,7 +154,7 @@ export function audioOf(p, meta) {
   return fin?.path || null;
 }
 
-function sizeOf(p, rc, page) {
+function sizeOf(p: Project, rc: Json, page: string | null) {
   // the page's own data (otomasyon films: data.js window.DATA = {"width":1080,"height":1920,...})
   if (page)
     for (const f of ['data.js', 'data.json']) {
@@ -165,11 +167,11 @@ function sizeOf(p, rc, page) {
   return { w: w ? +w[1] : 1920, h: h ? +h[1] : 1080 };
 }
 
-const rootOf = p => p.studio || p.path; // where the page's files are served from
-async function studioInfo(p) {
-  const engine = read(path.join(p.studio, 'engine', 'runtime.js'));
+const rootOf = (p: Project) => p.studio || p.path; // where the page's files are served from
+async function studioInfo(p: Project) {
+  const engine = read(path.join(p.studio as string, 'engine', 'runtime.js'));
   if (!engine.includes('window.renderOut')) return { ok: false, reason: 'The studio engine (engine/runtime.js) does not define window.renderOut.' };
-  const audio = path.join(p.outDir, 'audio.wav'),
+  const audio = path.join(p.outDir as string, 'audio.wav'),
     hasAudio = fs.existsSync(audio);
   let dur = 0,
     durFrom = 'page';
@@ -196,7 +198,7 @@ async function studioInfo(p) {
     studio: true
   };
 }
-export async function liveInfo(p) {
+export async function liveInfo(p: Project) {
   if (p.studio) return { ...(await studioInfo(p)), revision: codeRevision(p, { fresh: true }) };
   const meta = readMeta(path.join(vhDir(p), 'project.json'), {});
   const rc = await recipe(p);
@@ -219,7 +221,7 @@ export async function liveInfo(p) {
   if (!dur) {
     const last = (p.outputs || []).filter(o => o.dur).sort((a, b) => b.mtime - a.mtime)[0];
     if (last) {
-      dur = last.dur;
+      dur = last.dur as number;
       durFrom = 'last video';
     }
   }
@@ -246,14 +248,14 @@ export async function liveInfo(p) {
 }
 
 // GET /live/<id>/<file>: the project's own files, never cached (a reload must pick up Claude's edits)
-export function serve(req, res, p, rel) {
+export function serve(req: IncomingMessage, res: ServerResponse, p: Project, rel?: string) {
   const base = rootOf(p),
     f = path.resolve(base, decodeURIComponent(rel || 'index.html'));
   if (!isInside(f, base)) {
     res.writeHead(403);
     return res.end();
   }
-  let st;
+  let st: Stats;
   try {
     st = fs.statSync(f);
   } catch {
@@ -285,23 +287,23 @@ export function serve(req, res, p, rel) {
 }
 
 // code changes → open live players reload. One watcher per project, started when a player asks for the info.
-const watchers = new Map();
+const watchers = new Map<string, FSWatcher>();
 // files VideoHub writes itself (the mix with the scene editor's sound levels): not a code change, for a few seconds
-const quiet = new Map();
-export function quietFile(file, ms = 4000) {
+const quiet = new Map<string, number>();
+export function quietFile(file: string, ms = 4000) {
   quiet.set(norm(file), Date.now() + ms);
 }
-export function watch(p, onChange) {
+export function watch(p: Project, onChange: (ev: { project: string; files: string[] }) => void) {
   if (watchers.has(p.id)) return;
-  let timer = null,
-    files = new Set();
+  let timer: NodeJS.Timeout | null = null,
+    files = new Set<string>();
   // fs.watch can also report files being READ: serving the page's own files made the
   // preview reload itself ("Code changed" with nothing changed). Only a newer modification time counts.
   const root = rootOf(p),
     since = Date.now(),
     mtimes = new Map();
-  const reallyChanged = name => {
-    let m;
+  const reallyChanged = (name: string) => {
+    let m: number;
     try {
       m = fs.statSync(path.join(root, name)).mtimeMs;
     } catch {
@@ -324,10 +326,10 @@ export function watch(p, onChange) {
       if (!reallyChanged(name)) return;
       invalidateSource(p);
       files.add(name.replace(/\\/g, '/'));
-      clearTimeout(timer);
+      clearTimeout(timer as NodeJS.Timeout);
       timer = setTimeout(() => {
         onChange({ project: p.id, files: [...files].slice(0, 20) });
-        files = new Set();
+        files = new Set<string>();
       }, 600);
     });
     w.on('error', () => {

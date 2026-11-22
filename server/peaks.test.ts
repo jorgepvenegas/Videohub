@@ -1,11 +1,10 @@
-// @ts-nocheck
-// peaksOf from server/media.js, read from the source (importing media.js would set up its cache folders)
+// peaksOf from server/media.ts, read from the source (importing media.js would set up its cache folders)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
+import { readSource } from '../scripts/test-source.ts';
 
-const src = fs.readFileSync(new URL('./media.ts', import.meta.url), 'utf8');
-const body = src.match(/export function peaksOf[\s\S]*?\r?\n}\r?\n/)[0].replace(/^export /, ''); // \r?: tolerate CRLF checkouts
+const src = readSource(new URL('./media.ts', import.meta.url));
+const body = src.match(/export function peaksOf[\s\S]*?\r?\n}\r?\n/)![0].replace(/^export /, ''); // \r?: tolerate CRLF checkouts
 const peaksOf = new Function(body + '; return peaksOf;')();
 
 test('peaksOf: min/max pairs per 80 samples, ×127, a short last bucket', () => {

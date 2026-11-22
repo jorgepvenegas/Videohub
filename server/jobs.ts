@@ -1,10 +1,10 @@
-// @ts-nocheck
 // Render queue: one render at a time on this computer (also waits while a render started elsewhere is running).
 // Partial renders re-render only the chunks a note touches, concatenate the film again, put the previous
 // final's audio back on, and register the result as a new version with the seconds that changed.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { linkOutput } from './ciktilar.ts';
 import { pickFolder as pickFolderWin } from './pickfolder.ts';
@@ -17,18 +17,23 @@ import { DATA_DIR, HUB_DIR, readJson, writeJson, run, TOOLS, now, pLimit, refers
 import { audioOf } from './live.ts';
 import { ENCODERS, LABELS, PROBE_ORDER, encoderEnv } from './encoders.ts';
 import { killTree, shellCommand, renderSpawnOptions, findBrowser } from './platform.ts';
+import type { Job, Json, OutputEntry, Project, ReadBody, Recipe, RouteFn } from './types.ts';
+
+type JobEvent = { type: string; job: Job };
+type JobListener = (ev: JobEvent) => void;
+type SpawnResult = { code: number | string | null; stdout: string; stderr: string };
 
 const FILE = path.join(DATA_DIR, 'jobs.json');
-let jobs = readJson(FILE, []);
-const listeners = new Set();
-const procs = new Map();
-const stopping = new Map(); // Unix tree termination can outlive the root process during its grace period.
+let jobs: Job[] = readJson(FILE, []);
+const listeners = new Set<JobListener>();
+const procs = new Map<string, Set<ChildProcess>>();
+const stopping = new Map<string, Promise<unknown>>(); // Unix tree termination can outlive the root process during its grace period.
 const executing = new Set(); // Includes preparation, validation and muxing, even after cancellation was requested.
-export const onJob = fn => {
+export const onJob = (fn: JobListener) => {
   listeners.add(fn);
   return () => listeners.delete(fn);
 };
-const emit = (type, job) => {
+const emit = (type: string, job: Job) => {
   if (type === 'progress' || type === 'running') job.progressAt = Date.now();
   save();
   for (const fn of listeners)
@@ -37,27 +42,28 @@ const emit = (type, job) => {
     } catch {}
 };
 const save = () => writeJson(FILE, jobs.slice(-200));
-const pub = j => j && { ...j };
-export const list = () => {
+const pub = (j: Job) => j && { ...j };
+export const list = (): Job[] => {
   const q = jobs.filter(j => j.state === 'queued');
   return jobs
     .slice()
     .reverse()
     .map(j => ({ ...j, position: j.state === 'queued' ? q.indexOf(j) + 1 : null }));
 };
-export const get = id => jobs.find(j => j.id === id) || null;
+export const get = (id: string) => jobs.find(j => j.id === id) || null;
 export const busy = () => jobs.some(j => j.state === 'running' || j.state === 'queued');
 
 // ---------- render recipe of a project
 // A 3D studio scene (a studio folder with make.mjs: scenes/<name>) renders through the studio's make.mjs into out/<name>; its chunks,
 // manifest, logs and new versions live there. Everything else renders in its own folder.
-const rdir = p => (p.studio ? p.outDir : p.path);
-function chunkDir(p) {
+const rdir = (p: Project) => (p.studio ? (p.outDir as string) : p.path);
+function chunkDir(p: Project) {
   return path.join(rdir(p), 'render', 'chunks');
 }
 // a file's name in the project's outputs/versions (studio outputs are listed as out\<file>)
-const relOf = (p, file) => (p.studio && isInside(file, p.outDir) ? path.join('out', path.relative(p.outDir, file)) : path.relative(p.path, file));
-function chunkFiles(p) {
+const relOf = (p: Project, file: string) =>
+  p.studio && isInside(file, p.outDir as string) ? path.join('out', path.relative(p.outDir as string, file)) : path.relative(p.path, file);
+function chunkFiles(p: Project) {
   try {
     return fs
       .readdirSync(chunkDir(p))
@@ -67,13 +73,13 @@ function chunkFiles(p) {
     return [];
   }
 }
-async function framesOf(file, job) {
+async function framesOf(file: string, job?: Job) {
   const args = ['-v', 'error', '-select_streams', 'v:0', '-count_packets', '-show_entries', 'stream=nb_read_packets', '-of', 'csv=p=0', file];
   const r = job ? await spawnLogged(job, TOOLS.ffprobe, args) : await run(TOOLS.ffprobe, args);
   return parseInt(r.stdout, 10) || 0; // ffprobe prints "120," here
 }
 // DUR is not stored anywhere in older projects: work it out from the chunks on disk
-export async function recipe(p) {
+export async function recipe(p: Project): Promise<Recipe> {
   const meta = readJson(path.join(vhDir(p), 'project.json'), {});
   // a 2D studio scene (film2d, Canvas2D) waits on the GPU, not on its work: 3 Chrome copies render it 19 % faster than 2
   // (measured on a 7-minute 2D film: 30.5 -> 36.3 fps; 4 copies 37.7). 3D scenes stay at 2.
@@ -84,7 +90,7 @@ export async function recipe(p) {
       return false;
     }
   };
-  const r = { workers: p.studio ? (is2d() ? 3 : 2) : 1, env: {}, ...(meta.render || {}) };
+  const r: Recipe = { workers: p.studio ? (is2d() ? 3 : 2) : 1, env: {}, ...(meta.render || {}) };
   r.script = r.script || p.render?.script || 'render.js';
   r.fps = r.fps || p.render?.fps || 60;
   r.chunkFrames = r.chunkFrames || p.render?.chunkFrames || null;
@@ -102,7 +108,7 @@ export async function recipe(p) {
     const files = chunkFiles(p);
     const last = files[files.length - 1];
     if (last) {
-      const n = +last.match(/\d+/)[0] + 1,
+      const n = +last.match(/\d+/)![0] + 1,
         lastFrames = await framesOf(path.join(chunkDir(p), last));
       r.env.DUR = String(+(((n - 1) * r.chunkFrames + lastFrames) / r.fps).toFixed(3));
       r.durInferred = true;
@@ -112,9 +118,9 @@ export async function recipe(p) {
   return r;
 }
 
-const merge = rs => {
+const merge = (rs: [number, number][]) => {
   const s = rs.slice().sort((a, b) => a[0] - b[0]),
-    o = [];
+    o: [number, number][] = [];
   for (const [a, b] of s) {
     const l = o[o.length - 1];
     if (l && a <= l[1] + 1e-6) l[1] = Math.max(l[1], b);
@@ -124,7 +130,7 @@ const merge = rs => {
 };
 
 // ---------- create
-export async function create(body) {
+export async function create(body: Json): Promise<Job> {
   const p = project(body.project);
   if (!p) throw Object.assign(new Error('Project not found: ' + body.project), { code: 404 });
   const rc = await recipe(p);
@@ -133,7 +139,7 @@ export async function create(body) {
   const workers = +(body.workers ?? rc.workers ?? 1);
   if (!Number.isInteger(workers) || workers < 1 || workers > (p.studio ? 4 : 8))
     throw Object.assign(new Error('Invalid number of render workers.'), { code: 400 });
-  const job = {
+  const job: Job = {
     id: 'j' + Date.now().toString(36) + '-' + randomUUID().slice(0, 8),
     project: p.id,
     projectName: p.title || p.name,
@@ -148,35 +154,35 @@ export async function create(body) {
     progress: 0
   };
   if (mode === 'partial') {
-    if (p.studio && !rc.chunkSec)
+    if (p.studio && !rc.chunkSec!)
       throw Object.assign(
         new Error(
           `This 3D scene has no chunked render yet (out\\${p.name}\\render\\manifest.json). Render it in full once first: hub_render({mode:"full"}) or node make.mjs ${p.name}.`
         ),
         { code: 400 }
       );
-    if (!p.studio && (p.family !== 'A' || !rc.chunkSec))
+    if (!p.studio && (p.family !== 'A' || !rc.chunkSec!))
       throw Object.assign(
         new Error(
           `Partial renders need a chunked render script (family A, see docs/PROJECT-CONTRACT.md) or a 3D studio scene; this project is "${p.family}". Use mode:"full", or mode:"command" with your own command.`
         ),
         { code: 400 }
       );
-    let chunks = new Set(body.chunks || []);
+    let chunks: Json = new Set(body.chunks || []);
     for (const [a, b] of body.seconds || [])
-      for (let c = Math.floor(Math.max(0, a) / rc.chunkSec); c <= Math.floor(Math.max(a, b - 1e-6) / rc.chunkSec); c++) chunks.add(c);
+      for (let c = Math.floor(Math.max(0, a) / rc.chunkSec!); c <= Math.floor(Math.max(a, b - 1e-6) / rc.chunkSec!); c++) chunks.add(c);
     if (job.notes.length) {
-      const ns = listNotes(p).filter(n => job.notes.includes(n.id));
+      const ns = listNotes(p).filter((n: Json) => job.notes.includes(n.id));
       for (const n of ns) {
         const a = Math.max(0, Math.min(n.t - 0.5, n.at ?? Infinity)),
           b = Math.max((n.t2 ?? n.t) + 0.5, n.at != null ? n.at + 0.5 : 0);
-        for (let c = Math.floor(a / rc.chunkSec); c <= Math.floor(b / rc.chunkSec); c++) chunks.add(c);
+        for (let c = Math.floor(a / rc.chunkSec!); c <= Math.floor(b / rc.chunkSec!); c++) chunks.add(c);
       }
     }
-    chunks = [...chunks].filter(c => c >= 0 && (rc.chunks == null || c < rc.chunks)).sort((a, b) => a - b);
+    chunks = [...chunks].filter((c: number) => c >= 0 && (rc.chunks == null || c < rc.chunks)).sort((a: number, b: number) => a - b);
     if (!chunks.length) throw Object.assign(new Error('Which chunks to re-render is not clear (give notes, seconds or chunks).'), { code: 400 });
     job.chunks = chunks;
-    job.changedRanges = merge(chunks.map(c => [c * rc.chunkSec, Math.min((c + 1) * rc.chunkSec, +rc.env.DUR || Infinity)]));
+    job.changedRanges = merge(chunks.map((c: number) => [c * rc.chunkSec!, Math.min((c + 1) * rc.chunkSec!, +rc.env.DUR || Infinity)]));
   } else if (mode === 'command') {
     if (!body.cmd) throw Object.assign(new Error('mode "command" needs cmd'), { code: 400 });
     job.cmd = body.cmd;
@@ -211,7 +217,7 @@ export async function create(body) {
 // ---------- run
 const APPROVAL = 'waiting for your approval in VideoHub (custom command)';
 let pumping = false,
-  waitTimer = null; // one pending retry while a render elsewhere runs (not one more 5 s chain per call)
+  waitTimer: NodeJS.Timeout | null = null; // one pending retry while a render elsewhere runs (not one more 5 s chain per call)
 // wait while a render started elsewhere is actually running; renders frozen for RAM only block
 // us while free RAM is short (otherwise a forgotten frozen render would block the queue forever)
 function busyElsewhere() {
@@ -220,8 +226,8 @@ function busyElsewhere() {
   const ours = new Set([...procs.values()].flatMap(children => [...children].map(child => child.pid)));
   const others = (g.renders || []).filter(r => !ours.has(r.rootPid) && !refersToHub((r.cmd || '') + ' ' + (r.cwd || '')));
   const active = others.find(r => !r.paused);
-  if (active) return `${active.session?.title || 'another session'} · ${active.project || ''} is rendering`;
-  if (others.length && (g.ramAvailMB || 0) < 3000) return `low RAM (${Math.round(g.ramAvailMB)} MB free) and a paused render`;
+  if (active) return `${(active as { session?: { title?: string } }).session?.title || 'another session'} · ${active.project || ''} is rendering`;
+  if (others.length && (g.ramAvailMB || 0) < 3000) return `low RAM (${Math.round(g.ramAvailMB!)} MB free) and a paused render`;
   return null;
 }
 async function pump() {
@@ -271,7 +277,7 @@ async function pump() {
 
 // a partial render that failed or was cancelled: put every backed-up chunk whose place is still empty back, so the
 // film's chunk set stays whole (a later partial render would fail with "Only N of M chunks exist")
-function restoreChunks(job) {
+function restoreChunks(job: Job) {
   if (job.mode !== 'partial' || !job.chunkBackup) return;
   const p = project(job.project);
   if (!p) return;
@@ -288,7 +294,7 @@ function restoreChunks(job) {
   }
 }
 // a free name for `f` (x, x_2, x_3 ...): renames never overwrite, and renaming a folder onto an existing one fails
-const freeName = f => {
+const freeName = (f: string) => {
   const ext = path.extname(f),
     b = f.slice(0, f.length - ext.length);
   let d = f;
@@ -296,11 +302,11 @@ const freeName = f => {
   return d;
 };
 
-function assertActive(job) {
+function assertActive(job?: Job | null) {
   if (job?.state === 'cancelled') throw Object.assign(new Error('Render cancelled.'), { code: 'CANCELLED' });
 }
 
-function setPhase(job, phase) {
+function setPhase(job: Job, phase: string) {
   assertActive(job);
   if (job.phase && job.phaseStartedAt) {
     job.phaseSeconds ||= {};
@@ -311,26 +317,26 @@ function setPhase(job, phase) {
   emit('progress', job);
 }
 
-function spawnLogged(job, cmd, args, opts = {}) {
+function spawnLogged(job: Job, cmd: string, args: string[], opts: Json = {}): Promise<SpawnResult> {
   assertActive(job);
-  return new Promise(resolve => {
+  return new Promise<SpawnResult>(resolve => {
     const log = fs.createWriteStream(job.log, { flags: 'a' });
     log.write(`\n# ${now()}  ${cmd} ${args.join(' ')}\n`);
     const child = spawn(cmd, args, { ...renderSpawnOptions, ...opts, shell: opts.shell || false });
-    const children = procs.get(job.id) || new Set();
+    const children = procs.get(job.id) || new Set<ChildProcess>();
     children.add(child);
     procs.set(job.id, children);
     job.pid = child.pid;
-    const guardToken = guardTrack(child.pid, { cwd: opts.cwd || '', project: job.projectName || '', what: job.mode || '' });
+    const guardToken = guardTrack(child.pid as number, { cwd: opts.cwd || '', project: job.projectName || '', what: job.mode || '' });
     emit('running', job);
-    let q0 = null,
+    let q0: number | null = null,
       done = 0,
       t0 = Date.now(),
       stdout = '',
       stderr = '',
       settled = false;
-    const lines = { stdout: '', stderr: '' };
-    const onLine = line => {
+    const lines: Record<string, string> = { stdout: '', stderr: '' };
+    const onLine = (line: string) => {
       let m = line.match(/^(\d+)\/(\d+) chunks(?: to render|,)/);
       if (m) {
         q0 = +m[1];
@@ -361,20 +367,20 @@ function spawnLogged(job, cmd, args, opts = {}) {
         emit('progress', job);
       }
     };
-    const onData = (d, stream) => {
+    const onData = (d: Buffer, stream: string) => {
       log.write(d);
       if (stream === 'stdout') stdout = (stdout + d).slice(-65536);
       else stderr = (stderr + d).slice(-65536);
       const parts = (lines[stream] + String(d)).split(/\r?\n/);
-      lines[stream] = parts.pop();
+      lines[stream] = parts.pop() as string;
       if (job.state !== 'cancelled') for (const line of parts) onLine(line);
     };
     child.stdout.on('data', d => onData(d, 'stdout'));
     child.stderr.on('data', d => onData(d, 'stderr'));
-    const settle = code => {
+    const settle = (code: number | null) => {
       if (settled) return;
       settled = true;
-      guardUntrack(child.pid, guardToken);
+      guardUntrack(child.pid as number, guardToken as never);
       if (job.state !== 'cancelled') for (const line of Object.values(lines)) if (line) onLine(line);
       children.delete(child);
       if (!children.size && procs.get(job.id) === children) procs.delete(job.id);
@@ -390,7 +396,7 @@ function spawnLogged(job, cmd, args, opts = {}) {
   });
 }
 
-async function runJob(job) {
+async function runJob(job: Job) {
   const p = project(job.project);
   if (!p) throw new Error('The project is gone');
   job.state = 'running';
@@ -406,7 +412,7 @@ async function runJob(job) {
   // VIDEOHUB_DIR: render scripts may load puppeteer-core from VideoHub's node_modules; VIDEOHUB_ENCODER: the encoder chosen in
   // setup/Settings (render.encoder) unless the job sets its own (scripts that do not read it are not affected)
   const browser = findBrowser().path;
-  const env = {
+  const env: Record<string, string | undefined> = {
     FFMPEG: TOOLS.ffmpeg,
     FFPROBE: TOOLS.ffprobe,
     VIDEOHUB_ENCODER_ORDER: PROBE_ORDER.join(','),
@@ -422,7 +428,7 @@ async function runJob(job) {
   const versions = readJson(path.join(vhDir(p), 'versions.json'), []);
   const vN =
     Math.max(
-      versions.reduce((m, v) => Math.max(m, v.v || 0), 0),
+      versions.reduce((m: number, v: { v?: number }) => Math.max(m, v.v || 0), 0),
       maxNameVersion(p)
     ) + 1;
 
@@ -460,7 +466,7 @@ async function runJob(job) {
         ['make.mjs', p.name, '--chunks', ...(job.chunks ? ['--only', job.chunks.join(',')] : []), '--jobs', String(job.workers)],
         { cwd: p.studio, env }
       )
-    : await spawnLogged(job, TOOLS.node, [rc.script, String(job.workers)], { cwd: p.path, env });
+    : await spawnLogged(job, TOOLS.node, [rc.script as string, String(job.workers)], { cwd: p.path, env });
   assertActive(job);
   if (code !== 0) throw new Error(`The render ended with code ${code} (log: ${job.log})`);
 
@@ -476,9 +482,9 @@ async function runJob(job) {
   const files = chunkFiles(p);
   if (rc.chunks && files.length < rc.chunks) throw new Error(`Only ${files.length} of ${rc.chunks} chunks exist; some chunks are missing.`);
   if (job.chunks) {
-    const bad = (await pLimit(job.chunks, 3, async c => ({ c, n: await framesOf(path.join(chunkDir(p), `c_${String(c).padStart(3, '0')}.mp4`), job) }))).filter(
-      x => x.c < (rc.chunks || Infinity) - 1 && x.n !== rc.chunkFrames
-    );
+    const bad = (
+      await pLimit(job.chunks, 3, async (c: number) => ({ c, n: await framesOf(path.join(chunkDir(p), `c_${String(c).padStart(3, '0')}.mp4`), job) }))
+    ).filter(x => x.c < (rc.chunks || Infinity) - 1 && x.n !== rc.chunkFrames);
     if (bad.length) throw new Error('Chunks with the wrong frame count: ' + bad.map(x => `${x.c} (${x.n})`).join(', '));
   }
   const listFile = path.join(rdir(p), 'render', 'list.txt');
@@ -497,7 +503,7 @@ async function runJob(job) {
 
 // the highest _vN in the film's video names; a film without numbers counts as v1, so its first queue render is v2 — a project
 // with no film yet starts at v1
-function maxNameVersion(p) {
+function maxNameVersion(p: Project) {
   const films = p.outputs.filter(o => ['final', 'web', 'preview'].includes(o.role));
   return films.reduce(
     (m, o) => {
@@ -508,18 +514,18 @@ function maxNameVersion(p) {
   );
 }
 // the project's last film (scan.js: test clips never count), else the newest final / web copy
-const lastFilm = p =>
+const lastFilm = (p: Project) =>
   p.outputs.find(o => o.rel === p.latest && (o.role === 'final' || o.role === 'web')) ||
   p.outputs.filter(o => o.role === 'final').sort((a, b) => b.mtime - a.mtime)[0] ||
   null;
-function baseOf(p) {
+function baseOf(p: Project) {
   const f = lastFilm(p) || p.outputs.find(o => o.role === 'web');
   let b = f ? f.name.replace(/\.[^.]+$/, '') : p.name;
   for (let i = 0; i < 4; i++) b = b.replace(/[_\- ](v\d+|web|1080p|2160p|preview)$/i, '');
   return b;
 }
 // audio: the project's own mux recipe if it has one, otherwise the previous final's audio track as is
-async function withAudio(p, video, out, rc = {}, job) {
+async function withAudio(p: Project, video: string, out: string, rc: Json = {}, job: Job) {
   if (p.studio) {
     // the studio's own sound (audio.wav, loudness normalisation) exactly as a full make.mjs render adds it
     const r = await spawnLogged(job, TOOLS.node, ['make.mjs', p.name, '--mux', video, out], { cwd: p.studio, env: { ...process.env, ...job?.env } });
@@ -529,7 +535,7 @@ async function withAudio(p, video, out, rc = {}, job) {
   }
   const meta = readJson(path.join(vhDir(p), 'project.json'), {});
   if (Array.isArray(meta.render?.mux) && meta.render.mux.length) {
-    const args = meta.render.mux.map(a => a.replace('{video}', video).replace('{out}', out));
+    const args = meta.render.mux.map((a: string) => a.replace('{video}', video).replace('{out}', out));
     const r = await spawnLogged(job, TOOLS.ffmpeg, args, { cwd: p.path });
     assertActive(job);
     if (r.code !== 0) throw new Error('Adding the sound (render.mux recipe) failed: ' + r.stderr.slice(0, 300));
@@ -604,7 +610,7 @@ async function withAudio(p, video, out, rc = {}, job) {
   // no mix file at all: the sound of the last film, and only of one about as long as the new picture (never a short test clip)
   const vdur = +(await spawnLogged(job, TOOLS.ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', video])).stdout || 0;
   assertActive(job);
-  const fits = o => o.audio && (!vdur || (o.dur || 0) >= vdur * 0.9);
+  const fits = (o: OutputEntry) => o.audio && (!vdur || (o.dur || 0) >= vdur * 0.9);
   const last = lastFilm(p);
   const prev = (last && fits(last) ? last : null) || p.outputs.filter(o => o.role === 'final' && fits(o)).sort((a, b) => b.mtime - a.mtime)[0];
   // neither a mix nor an earlier video with sound: fail instead of quietly delivering a silent film
@@ -634,7 +640,7 @@ async function withAudio(p, video, out, rc = {}, job) {
 }
 
 // the film's mix when VideoHub built it with edits in it (sound.json written for this very file, with levels or clips)
-export function editedMix(p) {
+export function editedMix(p: Project) {
   try {
     const rec = readJson(path.join(vhDir(p), 'sound.json'), null);
     if (!rec || !rec.written || !((rec.entries || 0) + (rec.clips || 0))) return null;
@@ -646,7 +652,7 @@ export function editedMix(p) {
   }
 }
 
-async function register(p, job, file, vN, changedRanges, kind = 'final') {
+async function register(p: Project, job: Json, file: string, vN: number, changedRanges: Json, kind = 'final') {
   assertActive(job);
   if (!fs.existsSync(file)) throw new Error('Output missing: ' + file);
   const vf = path.join(vhDir(p), 'versions.json'),
@@ -695,7 +701,7 @@ async function register(p, job, file, vN, changedRanges, kind = 'final') {
   }
 }
 
-async function finish(p, job) {
+async function finish(p: Project, job: Job) {
   assertActive(job);
   // the user asked for a copy somewhere else too (the original stays in the project: versions, notes and partial renders need it)
   if (job.copyTo && job.outputPath) {
@@ -708,7 +714,7 @@ async function finish(p, job) {
       await fs.promises.copyFile(job.outputPath, dst);
       job.copiedTo = dst;
     } catch (e) {
-      job.copyError = e.message;
+      job.copyError = (e as Error).message;
     }
   }
   await rescanProject(p.id).catch(() => {});
@@ -722,7 +728,7 @@ async function finish(p, job) {
 }
 
 // the user said yes to a custom command on the Renders page: it takes its turn in the queue
-export function approve(id) {
+export function approve(id: string) {
   const j = get(id);
   if (!j || j.state !== 'queued' || !j.needsApproval) return false;
   delete j.needsApproval;
@@ -733,7 +739,7 @@ export function approve(id) {
   return true;
 }
 
-export function cancel(id) {
+export function cancel(id: string) {
   const j = get(id);
   if (!j) return false;
   if (!['queued', 'running'].includes(j.state)) return false;
@@ -749,7 +755,7 @@ export function cancel(id) {
       id,
       Promise.allSettled(
         children.map(c =>
-          killTree(c.pid).catch(() => {
+          killTree(c.pid as number).catch(() => {
             try {
               c.kill();
             } catch {}
@@ -774,7 +780,7 @@ export function resume() {
   pump();
 }
 
-export async function wait(id, maxSec = 540) {
+export async function wait(id: string, maxSec = 540) {
   const t0 = Date.now();
   while (Date.now() - t0 < maxSec * 1000) {
     const j = get(id);
@@ -788,32 +794,32 @@ export async function wait(id, maxSec = 540) {
 // render settings a project supports, read from what its render script reads (process.env.X): PREVIEW (half size,
 // 30 fps), FPS, workers (WK or the script's first argument), the encoder (VIDEOHUB_ENCODER); a 3D studio scene: Chrome
 // copies + encoder (make.mjs)
-export async function renderOptions(p) {
+export async function renderOptions(p: Project) {
   const o = await renderOptions0(p);
   o.info = await renderInfo(p).catch(() => ({}));
   return o;
 }
 // what the next render will be: size, fps, length, file name and folder, and time/size from earlier renders
-async function renderInfo(p) {
+async function renderInfo(p: Project) {
   const rc = await recipe(p);
   const out = (p.outputs || []).find(o => o.rel === p.latest) || (p.outputs || []).find(o => o.role === 'final');
-  let w = out?.w || null,
-    h = out?.h || null,
-    dur = +rc.env.DUR || out?.dur || null;
+  let w: number | null = out?.w || null,
+    h: number | null = out?.h || null,
+    dur: number | null = +rc.env.DUR || out?.dur || null;
   if (!w || !dur) {
     try {
       const li = await (await import('./live.ts')).liveInfo(p);
       if (li.ok) {
-        w = w || li.w;
-        h = h || li.h;
-        dur = dur || li.dur;
+        w = w || (li.w as number);
+        h = h || (li.h as number);
+        dur = dur || (li.dur as number);
       }
     } catch {}
   }
   const versions = readJson(path.join(vhDir(p), 'versions.json'), []);
   const vN =
     Math.max(
-      versions.reduce((m, v) => Math.max(m, v.v || 0), 0),
+      versions.reduce((m: number, v: { v?: number }) => Math.max(m, v.v || 0), 0),
       maxNameVersion(p)
     ) + 1;
   const done = jobs.filter(j => j.project === p.id && j.state === 'done' && j.durationSec).reverse();
@@ -833,7 +839,7 @@ async function renderInfo(p) {
     partSecPerChunk: lastPart ? lastPart.durationSec / lastPart.chunks.length : null
   };
 }
-async function renderOptions0(p) {
+async function renderOptions0(p: Project): Promise<Record<string, unknown>> {
   const rc = await recipe(p);
   if (p.studio)
     return {
@@ -847,12 +853,12 @@ async function renderOptions0(p) {
     };
   let src = '';
   try {
-    src = fs.readFileSync(path.join(p.path, rc.script), 'utf8');
+    src = fs.readFileSync(path.join(p.path, rc.script as string), 'utf8');
   } catch {}
   const env = new Set([...src.matchAll(/process\.env\.([A-Z_]+)/g)].map(m => m[1]));
   return {
     studio: false,
-    script: fs.existsSync(path.join(p.path, rc.script)) ? rc.script : null,
+    script: fs.existsSync(path.join(p.path, rc.script as string)) ? rc.script : null,
     partial: p.family === 'A' && !!rc.chunkSec,
     preview: env.has('PREVIEW'),
     fps: env.has('FPS') ? { default: rc.fps || 30 } : null,
@@ -870,11 +876,11 @@ async function renderOptions0(p) {
   };
 }
 
-export function routes(route, readBody) {
+export function routes(route: RouteFn, readBody: ReadBody) {
   route('POST', '/api/pick-folder', async req => {
     const b = await readBody(req),
       picked = await pickFolderWin(b.start, b.title || 'Choose a folder');
-    return picked?.unsupported ? picked : { path: picked };
+    return (picked as { unsupported?: boolean } | null)?.unsupported ? picked : { path: picked };
   });
   route('GET', '/api/project/:id/render-options', async (req, url, { id }) => {
     const p = project(id);
@@ -907,10 +913,10 @@ export function routes(route, readBody) {
       throw Object.assign(new Error('The file must be inside the project folder'), { code: 400 });
     const vN =
       Math.max(
-        versions.reduce((m, v) => Math.max(m, v.v || 0), 0),
+        versions.reduce((m: number, v: { v?: number }) => Math.max(m, v.v || 0), 0),
         maxNameVersion(p)
       ) + 1;
-    const job = { id: 'manual', mode: 'manual', session: b.session || null, notes: b.notes || [], note: b.note || null };
+    const job: Json = { id: 'manual', mode: 'manual', session: b.session || null, notes: b.notes || [], note: b.note || null };
     await register(p, job, file, vN, b.changedRanges || null, b.kind || 'final');
     await rescanProject(id).catch(() => {});
     return { v: vN, file: job.output };

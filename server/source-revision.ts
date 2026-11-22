@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import type { Dirent } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import type { Project } from './types.ts';
+import type { SourceProject } from './types.ts';
 interface SourceRev {
   at: number;
   stamp: number;
@@ -21,17 +21,17 @@ const notCode = /^tweaks\.json$/i;
 // scan (refreshSources, in the background). Unwatched projects are re-walked in the background once older than STALE.
 // Callers that must be right (live info, live-thumb uploads) pass { fresh: true }.
 const STALE = 5 * 60e3;
-const keyOf = (p: Project) => p.id || p.path;
-export function invalidateSource(p: Project) {
+const keyOf = (p: SourceProject) => p.id || p.path;
+export function invalidateSource(p: SourceProject) {
   const k = keyOf(p);
   cache.delete(k);
   gens.set(k, (gens.get(k) || 0) + 1);
 }
-export function watchSource(p: Project, on = true) {
+export function watchSource(p: SourceProject, on = true) {
   on ? watched.add(keyOf(p)) : watched.delete(keyOf(p));
 }
 // the walk, as a generator that pauses every 300 entries (the background refresh yields there, the sync path runs through)
-function* collect(p: Project): Generator<void, SourceRev, void> {
+function* collect(p: SourceProject): Generator<void, SourceRev, void> {
   const roots = [p.path, ...(p.studio ? [path.join(p.studio, 'engine')] : [])];
   const parts: string[] = [];
   let stamp = 0,
@@ -70,7 +70,7 @@ function* collect(p: Project): Generator<void, SourceRev, void> {
   add(path.join(p.path, '.videohub', 'project.json'));
   return { at: Date.now(), stamp: Math.round(stamp), revision: crypto.createHash('sha1').update(parts.sort().join('\n')).digest('hex').slice(0, 16) };
 }
-function computeSync(p: Project) {
+function computeSync(p: SourceProject) {
   const it = collect(p);
   let r: IteratorResult<void, SourceRev>;
   do r = it.next();
@@ -78,23 +78,23 @@ function computeSync(p: Project) {
   cache.set(keyOf(p), r.value);
   return r.value;
 }
-export function sourceRevision(p: Project, { fresh = false }: { fresh?: boolean } = {}) {
+export function sourceRevision(p: SourceProject, { fresh = false }: { fresh?: boolean } = {}) {
   const hit = !fresh && cache.get(keyOf(p));
   if (!hit) return computeSync(p);
   if (!watched.has(keyOf(p)) && Date.now() - hit.at > STALE) refreshSources([p]);
   return hit;
 }
 // background refresh, one project after another, yielding to requests; a change seen meanwhile (gen) wins
-const queue = new Map<string, Project>();
+const queue = new Map<string, SourceProject>();
 let running = false;
-export function refreshSources(list: Project[]) {
+export function refreshSources(list: SourceProject[]) {
   for (const p of list) if (!p.group && p.rootType !== 'media') queue.set(keyOf(p), p);
   if (running || !queue.size) return;
   running = true;
   (async () => {
     try {
       while (queue.size) {
-        const [k, p] = queue.entries().next().value as [string, Project];
+        const [k, p] = queue.entries().next().value as [string, SourceProject];
         queue.delete(k);
         const gen = gens.get(k) || 0,
           it = collect(p);

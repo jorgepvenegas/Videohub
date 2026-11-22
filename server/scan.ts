@@ -1,14 +1,15 @@
-// @ts-nocheck
 import { casePath } from './platform.ts';
 import { norm } from './util.ts';
 // Finds every video project under the configured roots and works out what each file is.
 import fs from 'node:fs';
+import type { Dirent, FSWatcher, Stats } from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { config, DEFAULT_SKIP_FOLDERS } from './config.ts';
 import { outputsDir } from './ciktilar-dir.ts';
 import { invalidateSource } from './source-revision.ts';
 import { readNotes, readMeta, isOpenNote } from './legacy.ts';
+import type { Json, OutputEntry, ProbeInfo, Project, ProjectBase, RenderInfo, Root } from './types.ts';
 import { DATA_DIR, idOf, readJson, writeJson, probe, flushProbeCache, fingerprint, pLimit, shortPath, run, TOOLS, now } from './util.ts';
 
 const VIDEO = /\.(mp4|mov|webm|mkv)$/i,
@@ -17,8 +18,21 @@ const VIDEO = /\.(mp4|mov|webm|mkv)$/i,
 const SKIP_DIRS = new Set(['node_modules', '.git', '.videohub-trash']);
 const INDEX = path.join(DATA_DIR, 'index.json');
 
+// A file found by walk(); `info` and `role` are added for videos.
+interface ScanFile {
+  path: string;
+  rel: string;
+  name: string;
+  size: number;
+  mtime: number;
+  cat: string;
+  info?: ProbeInfo;
+  role?: string;
+  coveredBy?: string;
+}
+
 // ---------- what a single file is
-function category(rel, name) {
+function category(rel: string, name: string) {
   const r = '\\' + rel.toLowerCase().replaceAll('/', '\\');
   if (/\\render\\profiles\\|\\profiles\\w\d|\\chrome-profile/.test(r)) return 'profile';
   if (/\\chunks_(prev|v\d)[^\\]*\\/.test(r)) return 'oldChunk';
@@ -34,15 +48,15 @@ function category(rel, name) {
 
 // lets the hub answer requests in between: a project with 50k+ files once froze VideoHub for ~20 s
 export const breather = () => new Promise(r => setImmediate(r));
-async function walk(dir) {
-  const files = [];
+async function walk(dir: string) {
+  const files: ScanFile[] = [];
   const stack = [dir];
   let n = 0;
   const outs = norm(outputsDir()); // the global outputs folder (hard links of renders): never a project or a duplicate
   const globalThumb = norm(config().thumbstudio?.globalDir || '');
   while (stack.length) {
-    const d = stack.pop();
-    let ents = [];
+    const d = stack.pop() as string;
+    let ents: Dirent[] = [];
     try {
       ents = fs.readdirSync(d, { withFileTypes: true });
     } catch {
@@ -59,7 +73,7 @@ async function walk(dir) {
         continue;
       }
       if (!e.isFile()) continue;
-      let st;
+      let st: Stats;
       try {
         st = fs.statSync(p);
       } catch {
@@ -73,8 +87,8 @@ async function walk(dir) {
 }
 
 // ---------- how the project renders (read from its render script)
-function renderInfo(dir) {
-  const info = { family: null, fps: null, chunkFrames: null, chunkSec: null, supportsOnly: false, script: null, w: null, h: null };
+function renderInfo(dir: string) {
+  const info: RenderInfo = { family: null, fps: null, chunkFrames: null, chunkSec: null, supportsOnly: false, script: null, w: null, h: null };
   const script = ['render.js', 'render.mjs', 'render.py'].map(f => path.join(dir, f)).find(f => fs.existsSync(f));
   const man = readJson(path.join(dir, 'render', 'manifest.json'));
   if (script) {
@@ -83,7 +97,7 @@ function renderInfo(dir) {
     try {
       src = fs.readFileSync(script, 'utf8');
     } catch {}
-    const num = re => {
+    const num = (re: RegExp) => {
       const m = src.match(re);
       return m ? +m[1] : null;
     };
@@ -113,23 +127,23 @@ function renderInfo(dir) {
 
 // ---------- do two videos show the same picture? (16x9 grey thumbnails at 3 points, cached)
 const SIM_FILE = path.join(DATA_DIR, 'similar-cache.json');
-const simCache = readJson(SIM_FILE, {});
-async function tinyFrame(file, t) {
-  const r = await new Promise(res => {
+const simCache: Record<string, boolean> = readJson(SIM_FILE, {});
+async function tinyFrame(file: string, t: number) {
+  const r = await new Promise<Buffer>(res => {
     const p = spawn(TOOLS.ffmpeg, ['-v', 'error', '-ss', t.toFixed(2), '-i', file, '-frames:v', '1', '-vf', 'scale=16:9,format=gray', '-f', 'rawvideo', '-']);
-    const bufs = [];
+    const bufs: Buffer[] = [];
     p.stdout.on('data', b => bufs.push(b));
     p.on('close', () => res(Buffer.concat(bufs)));
     p.on('error', () => res(Buffer.alloc(0)));
   });
   return r.length === 144 ? r : null;
 }
-async function samePicture(a, b) {
+async function samePicture(a: ScanFile, b: ScanFile) {
   const key = JSON.stringify([casePath(a.path), a.size, Math.round(a.mtime), casePath(b.path), b.size, Math.round(b.mtime)]);
   if (key in simCache) return simCache[key];
   let same = true;
   for (const f of [0.25, 0.5, 0.75]) {
-    const t = Math.min(a.info.dur, b.info.dur) * f;
+    const t = Math.min(a.info!.dur!, b.info!.dur!) * f;
     const [x, y] = await Promise.all([tinyFrame(a.path, t), tinyFrame(b.path, t)]);
     if (!x || !y) {
       same = false;
@@ -148,7 +162,7 @@ async function samePicture(a, b) {
 }
 
 // ---------- roles of finished videos
-function roleOf(o) {
+function roleOf(o: ScanFile) {
   const n = o.name.toLowerCase();
   if (!o.info?.ok) return 'broken';
   if (!o.info.audio) return 'silent';
@@ -163,21 +177,21 @@ function roleOf(o) {
 // unless VideoHub registered it as a version (versions.json), which is always a film.
 const CLIP_DIRS = /\\(qa|lookdev|tests?|tmp|temp|debug|bench|clips?|scratch|previews?|probe)\\/i;
 const CLIP_NAME = /(^|[_\-. ])(test|clip|qa|probe|bench|debug)([_\-. \d]|$)/i;
-function markClips(outs, filmDur, registered) {
+function markClips(outs: ScanFile[], filmDur: number, registered: Set<string>) {
   for (const o of outs) {
-    if (!['final', 'web', 'preview'].includes(o.role) || registered.has(casePath(o.rel))) continue;
-    const short = filmDur >= 20 && (o.info.dur || 0) < filmDur * 0.5;
+    if (!['final', 'web', 'preview'].includes(o.role!) || registered.has(casePath(o.rel))) continue;
+    const short = filmDur >= 20 && (o.info!.dur || 0) < filmDur * 0.5;
     if (short || CLIP_DIRS.test('\\' + o.rel.replaceAll('/', '\\')) || CLIP_NAME.test(o.name.replace(/\.[^.]+$/, ''))) o.role = 'clip';
   }
 }
 // the newest film; files written within 2 min of each other (a copy, a touched file) go by version number
-function newestFilm(films, vOf) {
+function newestFilm(films: ScanFile[], vOf: (o: ScanFile) => number) {
   if (!films.length) return null;
   const top = Math.max(...films.map(o => o.mtime));
   return films.filter(o => o.mtime >= top - 120e3).sort((a, b) => vOf(b) - vOf(a) || b.mtime - a.mtime)[0];
 }
 
-function baseName(file) {
+function baseName(file: string) {
   let b = path
     .basename(file)
     .replace(/\.[^.]+$/, '')
@@ -186,11 +200,11 @@ function baseName(file) {
   return b;
 }
 
-const autoStatusOf = finals => (!finals.length ? 'in-progress' : Date.now() - finals[0].mtime > 7 * 864e5 ? 'done' : 'review'); // finals newest first
-async function describe(project) {
+const autoStatusOf = (finals: { mtime: number }[]) => (!finals.length ? 'in-progress' : Date.now() - finals[0].mtime > 7 * 864e5 ? 'done' : 'review'); // finals newest first
+async function describe(project: ProjectBase): Promise<Project> {
   const files = await walk(project.path);
   if (project.outDir) for (const f of await walk(project.outDir)) files.push({ ...f, rel: path.join('out', f.rel) }); // a studio scene renders into out/<name>
-  const sizes = { total: 0, output: 0, chunk: 0, oldChunk: 0, part: 0, profile: 0, snap: 0, audio: 0, other: 0 };
+  const sizes: Record<string, number> = { total: 0, output: 0, chunk: 0, oldChunk: 0, part: 0, profile: 0, snap: 0, audio: 0, other: 0 };
   for (const f of files) {
     sizes.total += f.size;
     sizes[f.cat] = (sizes[f.cat] || 0) + f.size;
@@ -206,8 +220,8 @@ async function describe(project) {
   for (const o of outs) {
     if (o.role !== 'silent') continue;
     const cands = voiced
-      .filter(v => v.info.w === o.info.w && v.info.h === o.info.h && Math.abs(v.info.dur - o.info.dur) <= 1.5)
-      .sort((a, b) => Math.abs(a.info.dur - o.info.dur) - Math.abs(b.info.dur - o.info.dur));
+      .filter(v => v.info!.w === o.info!.w && v.info!.h === o.info!.h && Math.abs(v.info!.dur! - o.info!.dur!) <= 1.5)
+      .sort((a, b) => Math.abs(a.info!.dur! - o.info!.dur!) - Math.abs(b.info!.dur! - o.info!.dur!));
     for (const v of cands)
       if (await samePicture(o, v)) {
         o.coveredBy = v.rel;
@@ -218,16 +232,18 @@ async function describe(project) {
   const notes = readNotes(path.join(project.path, '.videohub', 'notes.json'));
   const versions = readJson(path.join(project.path, '.videohub', 'versions.json'), []);
   // the film's length: render manifest, the saved DUR, or the longest voiced video
-  const vByRel = new Map(versions.filter(v => v.file).map(v => [casePath(v.file), v.v || 0]));
+  const vByRel = new Map<string, number>(
+    versions.filter((v: { file?: string }) => v.file).map((v: { file?: string; v?: number }) => [casePath(v.file), v.v || 0])
+  );
   const filmDur = Math.max(
     0,
     +readJson(path.join(project.outDir || project.path, 'render', 'manifest.json'))?.dur || 0,
     +meta.render?.env?.DUR || 0,
-    ...outs.filter(o => o.info?.ok && o.info.audio).map(o => o.info.dur || 0)
+    ...outs.filter(o => o.info?.ok && o.info.audio).map(o => o.info!.dur || 0)
   );
   markClips(outs, filmDur, new Set(vByRel.keys()));
   outs.sort((a, b) => b.mtime - a.mtime);
-  const vOf = o => vByRel.get(casePath(o.rel)) || 0;
+  const vOf = (o: ScanFile) => vByRel.get(casePath(o.rel)) || 0;
   const finals = outs.filter(o => o.role === 'final');
   const latest =
     newestFilm(finals, vOf) ||
@@ -241,9 +257,9 @@ async function describe(project) {
     ) ||
     null; // never a clip, part or silent file (a 3 s test clip once became a film's "last video")
   // a studio scene renders into out/<scene>: its chunk layout (fps, 2 s chunks) is in the manifest make.mjs writes there
-  const ri = project.rootType === 'media' ? { family: project.family } : renderInfo(project.studio ? project.outDir : project.path);
+  const ri: RenderInfo = project.rootType === 'media' ? { family: project.family } : renderInfo((project.studio ? project.outDir : project.path) as string);
   const manifest = readJson(path.join(project.path, 'manifest.json'));
-  let family = project.family || ri.family;
+  let family: string | null | undefined = project.family || ri.family;
   if (manifest && (manifest.anim || manifest.voice || manifest.video)) family = 'otomasyon'; // a text-to-video pipeline's project (family id kept for compatibility)
   if (files.some(f => /\.snipp$/i.test(f.name)) && !ri.script) family = family || 'snipp';
 
@@ -267,7 +283,7 @@ async function describe(project) {
       name: o.name,
       size: o.size,
       mtime: o.mtime,
-      role: o.role,
+      role: o.role as string,
       coveredBy: o.coveredBy || null,
       ...(o.info || {})
     })),
@@ -284,9 +300,11 @@ async function describe(project) {
 
 // ---------- projects under the roots
 // a studio: one engine for many scenes: scenes/<name>/scene.js, engine/index.html?scene=<name>, renders in out/<name>
-const isStudio = d => fs.existsSync(path.join(d, 'make.mjs')) && fs.existsSync(path.join(d, 'scenes')) && fs.existsSync(path.join(d, 'engine', 'index.html'));
-function studioScenes(d, mk) {
-  let names = [];
+const isStudio = (d: string) =>
+  fs.existsSync(path.join(d, 'make.mjs')) && fs.existsSync(path.join(d, 'scenes')) && fs.existsSync(path.join(d, 'engine', 'index.html'));
+type Mk = (p: string, name: string, extra?: Partial<ProjectBase>) => ProjectBase;
+function studioScenes(d: string, mk: Mk) {
+  let names: string[] = [];
   try {
     names = fs
       .readdirSync(path.join(d, 'scenes'), { withFileTypes: true })
@@ -301,14 +319,14 @@ function studioScenes(d, mk) {
 // when it is a film being started (STATE.md) or when the user left notes on it.
 const FILM_MARK = /^(render\.(m?js|py)|make\.mjs|index\.html|.*\.snipp|STATE\.md)$/i;
 const NOT_INSIDE = /^(node_modules|render|out|output|audio|snaps.*|qa|frames?|\.git|\.videohub|chunks.*)$/i;
-function filmKind(dir) {
-  let ents = [];
+function filmKind(dir: string) {
+  let ents: Dirent[] = [];
   try {
     ents = fs.readdirSync(dir, { withFileTypes: true });
   } catch {
     return null;
   }
-  const has = list => list.some(e => e.isFile() && FILM_MARK.test(e.name));
+  const has = (list: Dirent[]) => list.some(e => e.isFile() && FILM_MARK.test(e.name));
   if (has(ents))
     return ents.some(e => /^(render\.(m?js|py)|make\.mjs|index\.html)$/i.test(e.name))
       ? 'code'
@@ -317,7 +335,7 @@ function filmKind(dir) {
         : 'started';
   for (const e of ents) {
     if (!e.isDirectory() || NOT_INSIDE.test(e.name)) continue;
-    let sub = [];
+    let sub: Dirent[] = [];
     try {
       sub = fs.readdirSync(path.join(dir, e.name), { withFileTypes: true });
     } catch {
@@ -329,10 +347,10 @@ function filmKind(dir) {
   return null;
 }
 // projects the user removed from the list (Settings → Hidden projects brings them back)
-export const hideKey = p => casePath(p.path + (p.group ? '#' + p.group : ''));
+export const hideKey = (p: { path: string; group?: string }) => casePath(p.path + (p.group ? '#' + p.group : ''));
 const hiddenKeys = () => new Set((config().hiddenProjects || []).map(h => h.key));
 // what an empty card says
-const EMPTY = {
+const EMPTY: Record<string, string> = {
   studio: 'no render yet · live preview available',
   code: 'no video · has code (not rendered yet, or its video was deleted)',
   snipp: 'Snipp project · no video yet',
@@ -340,14 +358,14 @@ const EMPTY = {
   notes: 'no video yet'
 };
 
-function projectsIn(root) {
-  const out = [];
+function projectsIn(root: Root): ProjectBase[] {
+  const out: ProjectBase[] = [];
   const rp = root.path;
   const globalThumb = norm(config().thumbstudio?.globalDir || '');
   // helper folders next to films (config.skipFolders): never projects unless they have their own render script
   const skip = new Set((Array.isArray(config().skipFolders) ? config().skipFolders : DEFAULT_SKIP_FOLDERS).map(s => String(s).toLowerCase()));
-  const mk = (p, name, extra = {}) => ({ id: idOf(p + (extra.group ? '#' + extra.group : '')), name, path: p, root: rp, rootType: root.type, ...extra });
-  let ents = [];
+  const mk: Mk = (p, name, extra = {}) => ({ id: idOf(p + (extra.group ? '#' + extra.group : '')), name, path: p, root: rp, rootType: root.type, ...extra });
+  let ents: Dirent[] = [];
   try {
     ents = fs.readdirSync(rp, { withFileTypes: true });
   } catch {
@@ -359,7 +377,7 @@ function projectsIn(root) {
     if (!e.isDirectory() || SKIP_DIRS.has(e.name) || e.name.startsWith('.') || (root.type === 'container' && e.name.startsWith('_'))) continue; // _engine, _backup: helpers
     const p = path.join(rp, e.name);
     if (globalThumb && norm(p) === globalThumb) continue;
-    let inner = [];
+    let inner: string[] = [];
     try {
       inner = fs.readdirSync(p);
     } catch {
@@ -376,11 +394,11 @@ function projectsIn(root) {
   if (root.type === 'media') {
     // loose videos in the root, grouped by their base name (film_v2.mp4 + film_web.mp4 = one film)
     const loose = ents.filter(e => e.isFile() && VIDEO.test(e.name));
-    const groups = new Map();
+    const groups = new Map<string, string[]>();
     for (const e of loose) {
       const b = baseName(e.name);
       if (!groups.has(b)) groups.set(b, []);
-      groups.get(b).push(e.name);
+      groups.get(b)!.push(e.name);
     }
     for (const [b, names] of groups)
       out.push(
@@ -390,9 +408,9 @@ function projectsIn(root) {
   return out;
 }
 
-async function describeGroup(p) {
+async function describeGroup(p: ProjectBase): Promise<Project> {
   // loose files of a media root: describe only the files in the group
-  const files = p.groupFiles.map(n => {
+  const files: ScanFile[] = p.groupFiles!.map(n => {
     const f = path.join(p.path, n);
     const st = fs.statSync(f);
     return { path: f, rel: n, name: n, size: st.size, mtime: st.mtimeMs, cat: 'output' };
@@ -411,7 +429,16 @@ async function describeGroup(p) {
     status: 'published',
     meta: {},
     sizes: { total, output: total },
-    outputs: files.map(o => ({ path: o.path, rel: o.rel, name: o.name, size: o.size, mtime: o.mtime, role: o.role, coveredBy: null, ...(o.info || {}) })),
+    outputs: files.map(o => ({
+      path: o.path,
+      rel: o.rel,
+      name: o.name,
+      size: o.size,
+      mtime: o.mtime,
+      role: o.role as string,
+      coveredBy: null,
+      ...(o.info || {})
+    })),
     latest: latest?.rel,
     finalSize: latest?.size || 0,
     notesOpen: 0,
@@ -422,13 +449,24 @@ async function describeGroup(p) {
   };
 }
 
-let state = { scanning: false, at: null, projects: readJson(INDEX, { projects: [] }).projects || [], dups: [] };
-const listeners = new Set();
-export const onScan = fn => {
+export interface ScanState {
+  scanning: boolean;
+  at: string | null;
+  projects: Project[];
+  dups: { size: number; files: { path: string; project: string; projectName: string }[] }[];
+  ms?: number;
+  soft?: boolean;
+  walked?: number;
+}
+export type ScanEvent = { type: string; [key: string]: unknown };
+type ScanListener = (ev: ScanEvent) => void;
+let state: ScanState = { scanning: false, at: null, projects: readJson(INDEX, { projects: [] }).projects || [], dups: [] };
+const listeners = new Set<ScanListener>();
+export const onScan = (fn: ScanListener) => {
   listeners.add(fn);
   return () => listeners.delete(fn);
 };
-const emit = ev => {
+const emit = (ev: ScanEvent) => {
   for (const fn of listeners)
     try {
       fn(ev);
@@ -438,7 +476,7 @@ const emit = ev => {
 export function index() {
   return state;
 }
-export function project(id) {
+export function project(id: string) {
   return state.projects.find(p => p.id === id) || null;
 }
 
@@ -447,18 +485,27 @@ export function project(id) {
 // projects a root watcher saw change; new and removed project folders still come from projectsIn (cheap). A root is
 // walked in full at hub start, on the manual refresh, after a config change or a cleanup, and whenever its watcher is
 // new, overflowed (no file name) or failed.
-const watchers = new Map(); // lower-case root path -> { w, root, whole, full, all, dirty: Set of keys, at: key -> when it was last described }
-const described = new Map(); // project id -> { d, base }: every described project (also the ones the list leaves out)
+interface WatchRec {
+  w: FSWatcher | null;
+  root: Root;
+  whole: boolean;
+  full: boolean;
+  all: boolean;
+  dirty: Set<string>;
+  at: Map<string, number>;
+}
+const watchers = new Map<string, WatchRec>(); // lower-case root path -> { w, root, whole, full, all, dirty: Set of keys, at: key -> when it was last described }
+const described = new Map<string, { d: Project; base: string }>(); // project id -> { d, base }: every described project (also the ones the list leaves out)
 const VH_KEEP = /^(notes|versions|project)\.json$/i; // .videohub files a card shows (counts, title, status)
-const lc = p => norm(p);
-const wholeRoot = r => r.type === 'project' || (r.type !== 'media' && isStudio(r.path));
+const lc = (p: string) => norm(p);
+const wholeRoot = (r: Root) => r.type === 'project' || (r.type !== 'media' && isStudio(r.path));
 // which part of a root a project lives in: its first folder below the root ('' = the root itself: loose media, whole roots)
-const keyIn = (rec, p) => (rec.whole ? '' : casePath(path.relative(rec.root.path, p.path).split(/[\\/]/)[0] || ''));
-const baseOf = p => JSON.stringify([p.path, p.group, p.groupFiles, p.studio, p.outDir, p.rootType, p.family]);
-function watchRoot(root) {
-  const rec = { w: null, root, whole: wholeRoot(root), full: true, all: false, dirty: new Set(), at: new Map() };
+const keyIn = (rec: WatchRec, p: ProjectBase) => (rec.whole ? '' : casePath(path.relative(rec.root.path, p.path).split(/[\\/]/)[0] || ''));
+const baseOf = (p: ProjectBase) => JSON.stringify([p.path, p.group, p.groupFiles, p.studio, p.outDir, p.rootType, p.family]);
+function watchRoot(root: Root) {
+  const rec: WatchRec = { w: null, root, whole: wholeRoot(root), full: true, all: false, dirty: new Set(), at: new Map() };
   const skipUnder = [outputsDir(), config().thumbstudio?.globalDir].filter(Boolean).map(d => lc(d) + path.sep);
-  const onEvent = (ev, name) => {
+  const onEvent = (ev: string, name: string | null) => {
     if (!name) {
       rec.all = true;
       return;
@@ -485,7 +532,7 @@ function watchRoot(root) {
     rec.w = fs.watch(root.path, { recursive: true }, onEvent);
     rec.w.on('error', () => {
       try {
-        rec.w.close();
+        rec.w!.close();
       } catch {}
       watchers.delete(lc(root.path));
     }); // the next scan walks it in full
@@ -495,19 +542,19 @@ function watchRoot(root) {
   watchers.set(lc(root.path), rec);
   return rec;
 }
-function syncWatchers(roots) {
+function syncWatchers(roots: Root[]) {
   const want = new Map(roots.map(r => [lc(r.path), r]));
   for (const [k, rec] of watchers)
-    if (!want.has(k) || want.get(k).type !== rec.root.type) {
+    if (!want.has(k) || want.get(k)!.type !== rec.root.type) {
       try {
-        rec.w.close();
+        rec.w!.close();
       } catch {}
       watchers.delete(k);
     }
   for (const [k, r] of want) if (!watchers.has(k)) watchRoot(r);
 }
 
-let again = false; // false | 'soft' | 'full'
+let again: false | 'soft' | 'full' = false;
 export async function scan({ soft = false } = {}) {
   // a scan asked for while one runs (e.g. after a settings change) runs once more afterwards (full if any ask was full)
   if (state.scanning) {
@@ -524,11 +571,18 @@ export async function scan({ soft = false } = {}) {
     }
   }
 }
-async function scanOnce(soft) {
+interface PlanEntry {
+  r: Root;
+  rec: WatchRec | null;
+  inc: boolean;
+  dirty: Set<string> | null;
+  started: Set<string>;
+}
+async function scanOnce(soft: boolean) {
   state.scanning = true;
   emit({ type: 'scan', phase: 'start', soft });
   const t0 = Date.now();
-  let plan = [],
+  let plan: PlanEntry[] = [],
     walked = 0;
   try {
     const roots = config().roots.filter(r => r.enabled !== false && fs.existsSync(r.path));
@@ -552,7 +606,7 @@ async function scanOnce(soft) {
       const base = baseOf(p),
         prev = described.get(p.id);
       let d;
-      if (x.inc && prev && prev.base === base && !x.dirty.has(keyIn(x.rec, p))) {
+      if (x.inc && prev && prev.base === base && !x.dirty!.has(keyIn(x.rec!, p))) {
         d = { ...prev.d, outputs: prev.d.outputs.map(o => ({ ...o })) }; // a copy: the list being served stays as it is until this scan ends
         if (d.statusAuto && !d.group) d.status = autoStatusOf(d.outputs.filter(o => o.role === 'final')); // "a week old" moves on by itself
       } else {
@@ -597,26 +651,26 @@ async function scanOnce(soft) {
     }
     // byte-identical copies anywhere (same size first, then a content fingerprint)
     const all = projects.flatMap(p => p.outputs.map(o => ({ o, p })));
-    const bySize = new Map();
+    const bySize = new Map<number, { o: OutputEntry; p: Project }[]>();
     for (const x of all)
       if (x.o.size > 1 << 20) {
         const k = x.o.size;
         if (!bySize.has(k)) bySize.set(k, []);
-        bySize.get(k).push(x);
+        bySize.get(k)!.push(x);
       }
-    const dups = [];
+    const dups: ScanState['dups'] = [];
     for (const group of bySize.values()) {
       if (group.length < 2) continue;
-      const byFp = new Map();
+      const byFp = new Map<string, { o: OutputEntry; p: Project }[]>();
       for (const x of group) {
-        let fp;
+        let fp: string;
         try {
           fp = await fingerprint(x.o.path, x.o.size);
         } catch {
           continue;
         }
         if (!byFp.has(fp)) byFp.set(fp, []);
-        byFp.get(fp).push(x);
+        byFp.get(fp)!.push(x);
       }
       for (const same of byFp.values())
         if (same.length > 1) {
@@ -632,14 +686,14 @@ async function scanOnce(soft) {
   } catch (e) {
     for (const x of plan) if (x.rec) x.rec.full = true; // its change marks were taken: walk those roots in full next time
     state.scanning = false;
-    emit({ type: 'scan', phase: 'error', error: String(e.message || e) });
+    emit({ type: 'scan', phase: 'error', error: String((e as Error).message || e) });
     throw e;
   }
   return state;
 }
 
 // after a note change only the counts move (a full rescan walks every file of the project)
-export function setNoteCounts(id, notes) {
+export function setNoteCounts(id: string, notes: Json[]) {
   const p = state.projects.find(x => x.id === id);
   if (!p || p.groupFiles) return;
   p.notesOpen = notes.filter(isOpenNote).length;
@@ -648,16 +702,16 @@ export function setNoteCounts(id, notes) {
 }
 
 // a project leaves the list at once (hidden, or its folder went to the Trash)
-export function dropProject(id) {
+export function dropProject(id: string) {
   state.projects = state.projects.filter(x => x.id !== id);
   writeJson(INDEX, { at: state.at, projects: state.projects });
   emit({ type: 'scan', phase: 'done', count: state.projects.length, ms: 0 });
 }
 
-export async function rescanProject(id) {
+export async function rescanProject(id: string) {
   const p = project(id);
   if (!p) return null;
-  const base = {
+  const base: ProjectBase = {
     id: p.id,
     name: p.name,
     path: p.path,
@@ -672,7 +726,7 @@ export async function rescanProject(id) {
   const d = p.groupFiles ? await describeGroup(base) : await describe(base);
   flushProbeCache();
   invalidateSource(p);
-  if (described.has(id)) described.set(id, { d, base: described.get(id).base }); // a soft scan reuses this one
+  if (described.has(id)) described.set(id, { d, base: described.get(id)!.base }); // a soft scan reuses this one
   state.projects = state.projects.map(x => (x.id === id ? d : x));
   writeJson(INDEX, { at: state.at, projects: state.projects });
   emit({ type: 'project', id });
@@ -683,15 +737,15 @@ export async function rescanProject(id) {
 const THUMBS = path.join(DATA_DIR, 'thumbs');
 // at most two ffmpeg processes for thumbnails at a time (keeps RAM free for renders), one job per file
 let thumbSlots = 2;
-const thumbWait = [];
-const thumbInflight = new Map();
-const thumbAcquire = () => (thumbSlots > 0 ? (thumbSlots--, Promise.resolve()) : new Promise(r => thumbWait.push(r)));
+const thumbWait: (() => void)[] = [];
+const thumbInflight = new Map<string, Promise<string | null>>();
+const thumbAcquire = () => (thumbSlots > 0 ? (thumbSlots--, Promise.resolve()) : new Promise<void>(r => thumbWait.push(r)));
 const thumbRelease = () => {
   const n = thumbWait.shift();
   n ? n() : thumbSlots++;
 };
-export async function thumbnail(p) {
-  const usable = x => x.ok !== false && x.role !== 'broken' && fs.existsSync(x.path);
+export async function thumbnail(p: Project) {
+  const usable = (x: OutputEntry) => x.ok !== false && x.role !== 'broken' && fs.existsSync(x.path);
   const o = p.outputs.find(x => x.rel === p.latest && usable(x)) || p.outputs.filter(usable).sort((a, b) => b.mtime - a.mtime)[0];
   if (!o) return null;
   const st = fs.statSync(o.path);
@@ -718,4 +772,4 @@ export async function thumbnail(p) {
   return job;
 }
 
-export const describeLabel = p => shortPath(p.path) + (p.group ? ' · ' + p.group : '');
+export const describeLabel = (p: { path: string; group?: string }) => shortPath(p.path) + (p.group ? ' · ' + p.group : '');

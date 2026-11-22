@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { norm } from './util.ts';
 // Things the review player needs from a video: a film strip, a waveform, exact frames, and a
 // "review copy" with a keyframe every 6 frames so stepping back one frame is instant.
@@ -9,6 +8,23 @@ import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { DATA_DIR, TOOLS, run, probe, readJson, writeJson, now, refersToHub } from './util.ts';
 import { guardState } from './guard.ts';
+import type { Json, RouteFn } from './types.ts';
+
+interface ProxyJob {
+  file: string;
+  out: string;
+  key: string;
+  state: string;
+  progress: number;
+  waiting?: string | null;
+  error?: string;
+}
+interface ProxyEntry {
+  file?: string;
+  done?: string;
+  used: number;
+  size?: number;
+}
 
 export const CACHE = path.join(DATA_DIR, 'media');
 export const PROXY = path.join(DATA_DIR, 'proxy');
@@ -16,7 +32,7 @@ fs.mkdirSync(CACHE, { recursive: true });
 fs.mkdirSync(PROXY, { recursive: true });
 const PROXY_MAX = 15 * 1073741824;
 
-const keyOf = (file, st) =>
+const keyOf = (file: string, st: { size: number; mtimeMs: number }) =>
   crypto
     .createHash('sha1')
     .update(norm(file) + '|' + st.size + '|' + Math.round(st.mtimeMs))
@@ -24,11 +40,11 @@ const keyOf = (file, st) =>
     .slice(0, 16);
 
 // one heavy media job at a time; light ones (strip, wave, frame) share a separate lane
-function lane(n) {
+function lane(n: number) {
   let free = n;
-  const q = [];
-  return fn =>
-    new Promise((res, rej) => {
+  const q: (() => void)[] = [];
+  return <T>(fn: () => Promise<T>) =>
+    new Promise<T>((res, rej) => {
       const go = () => {
         free--;
         fn()
@@ -43,16 +59,16 @@ function lane(n) {
     });
 }
 const light = lane(1);
-const inflight = new Map();
-const once = (k, fn) => {
-  if (inflight.has(k)) return inflight.get(k);
+const inflight = new Map<string, Promise<unknown>>();
+const once = <T>(k: string, fn: () => Promise<T>): Promise<T> => {
+  if (inflight.has(k)) return inflight.get(k) as Promise<T>;
   const p = fn().finally(() => inflight.delete(k));
   inflight.set(k, p);
   return p;
 };
 
 // ---------- film strip: one sprite of small frames (from keyframes only, so it is fast)
-export async function strip(file) {
+export async function strip(file: string) {
   const st = fs.statSync(file),
     k = keyOf(file, st),
     meta = path.join(CACHE, k + '-strip.json');
@@ -66,7 +82,7 @@ export async function strip(file) {
         step = Math.max(2, Math.ceil(dur / 240)),
         n = Math.max(1, Math.ceil(dur / step));
       const tw = 160,
-        th = 2 * Math.round((tw * info.h) / info.w / 2),
+        th = 2 * Math.round((tw * info.h!) / info.w! / 2),
         cols = 16,
         rows = Math.ceil(n / cols);
       const img = k + '-strip.jpg';
@@ -96,7 +112,7 @@ export async function strip(file) {
 }
 
 // ---------- waveform picture
-export async function wave(file) {
+export async function wave(file: string) {
   const st = fs.statSync(file),
     k = keyOf(file, st),
     img = k + '-wave.png',
@@ -126,11 +142,11 @@ export async function wave(file) {
 // ---------- waveform peaks for the timeline: Int8 [min0,max0,min1,max1,…] at 100 buckets/s (mono, 8 kHz, 80 samples
 // per bucket); cached as <key>.peaks, so a rebuilt mix (new mtime/size) gets new peaks
 export const PEAKS_RATE = 100;
-export function peaksOf(f32, per = 80) {
+export function peaksOf(f32: Float32Array, per = 80) {
   // Float32Array of samples → Int8Array of min/max pairs
   const n = Math.ceil(f32.length / per),
     out = new Int8Array(n * 2),
-    q = v => Math.max(-127, Math.min(127, Math.round(v * 127)));
+    q = (v: number) => Math.max(-127, Math.min(127, Math.round(v * 127)));
   for (let i = 0; i < n; i++) {
     let lo = 1,
       hi = -1;
@@ -145,7 +161,7 @@ export function peaksOf(f32, per = 80) {
   }
   return out;
 }
-export async function peaks(file) {
+export async function peaks(file: string) {
   const st = fs.statSync(file),
     k = keyOf(file, st),
     f = path.join(CACHE, k + '.peaks');
@@ -156,19 +172,19 @@ export async function peaks(file) {
     light(async () => {
       if (fs.existsSync(f)) return f;
       // streamed: one bucket (80 samples = 320 bytes) at a time, so an hour of sound never sits in memory as PCM
-      const data = await new Promise((resolve, reject) => {
+      const data = await new Promise<Int8Array>((resolve, reject) => {
         const p = spawn(TOOLS.ffmpeg, ['-v', 'error', '-i', file, '-vn', '-ac', '1', '-ar', '8000', '-f', 'f32le', 'pipe:1']);
         const BUCKET = 80 * 4,
-          out = [];
+          out: Int8Array[] = [];
         let rest = Buffer.alloc(0),
           err = '';
-        const take = buf => {
+        const take = (buf: Buffer) => {
           const n = Math.floor(buf.length / 4),
             f = new Float32Array(n);
           for (let i = 0; i < n; i++) f[i] = buf.readFloatLE(i * 4);
           out.push(peaksOf(f));
         };
-        p.stdout.on('data', d => {
+        p.stdout.on('data', (d: Buffer) => {
           const b = rest.length ? Buffer.concat([rest, d]) : d,
             whole = b.length - (b.length % BUCKET);
           if (whole) take(b.subarray(0, whole));
@@ -178,7 +194,7 @@ export async function peaks(file) {
           err = (err + d).slice(-400);
         });
         p.on('error', reject);
-        p.on('close', c => {
+        p.on('close', (c: number | null) => {
           if (c !== 0) return reject(new Error('ffmpeg ' + c + ': ' + err));
           if (rest.length >= 4) take(rest);
           const all = new Int8Array(out.reduce((s, a) => s + a.length, 0));
@@ -199,7 +215,7 @@ export async function peaks(file) {
 }
 
 // ---------- one exact frame as PNG (frame number -> time)
-export async function frame(file, n) {
+export async function frame(file: string, n: number) {
   const st = fs.statSync(file),
     k = keyOf(file, st),
     info = await probe(file, st),
@@ -210,19 +226,19 @@ export async function frame(file, n) {
 }
 
 // ---------- review copy (same frames, a keyframe every 6 frames, <= 1080p)
-const listeners = new Set();
-export const onProxy = fn => {
+const listeners = new Set<(ev: Json) => void>();
+export const onProxy = (fn: (ev: Json) => void) => {
   listeners.add(fn);
   return () => listeners.delete(fn);
 };
-const emit = ev => {
+const emit = (ev: Json) => {
   for (const fn of listeners)
     try {
       fn(ev);
     } catch {}
 };
 const INDEX = path.join(PROXY, 'index.json');
-let index = readJson(INDEX, {});
+let index: Record<string, ProxyEntry> = readJson(INDEX, {});
 // drop copies that are gone, and copies whose source video was deleted or moved
 function prune() {
   for (const [k, x] of Object.entries(index)) {
@@ -241,13 +257,13 @@ function prune() {
 }
 prune();
 writeJson(INDEX, index);
-const jobs = new Map(); // key -> { file, progress, state }
-const queue = [];
+const jobs = new Map<string, ProxyJob>(); // key -> { file, progress, state }
+const queue: string[] = [];
 let working = false;
 
 export const makingCopies = () => working || queue.length > 0; // review copies being made or waiting
 
-export function proxyStatus(file) {
+export function proxyStatus(file: string) {
   const st = fs.statSync(file),
     k = keyOf(file, st),
     out = path.join(PROXY, k + '.mp4');
@@ -279,7 +295,7 @@ async function pump() {
   try {
     while (queue.length) {
       const k = queue[0],
-        j = jobs.get(k);
+        j = jobs.get(k)!;
       const why = busy();
       if (why) {
         if (j.waiting !== why) {
@@ -299,7 +315,7 @@ async function pump() {
         await makeProxy(j);
       } catch (e) {
         j.state = 'failed';
-        j.error = String(e.message || e);
+        j.error = String((e as Error).message || e);
         emit({ key: k, file: j.file, state: 'failed', error: j.error });
       }
       jobs.delete(k);
@@ -309,7 +325,7 @@ async function pump() {
   }
 }
 
-async function makeProxy(j) {
+async function makeProxy(j: ProxyJob) {
   const info = await probe(j.file);
   const dur = info.dur || 1;
   const tmp = j.out.replace(/\.mp4$/, '.part.mp4');
@@ -356,13 +372,13 @@ async function makeProxy(j) {
     '-nostats',
     tmp
   ];
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     const p = spawn(TOOLS.ffmpeg, args);
     try {
-      os.setPriority(p.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
+      os.setPriority(p.pid as number, os.constants.priority.PRIORITY_BELOW_NORMAL);
     } catch {}
     let last = 0;
-    p.stdout.on('data', d => {
+    p.stdout.on('data', (d: Buffer) => {
       const m = String(d).match(/out_time_us=(\d+)/g);
       if (!m) return;
       const us = +m[m.length - 1].split('=')[1];
@@ -376,7 +392,7 @@ async function makeProxy(j) {
     p.stderr.on('data', d => {
       err += d;
     });
-    p.on('close', c => (c === 0 ? resolve() : reject(new Error('ffmpeg ' + c + ': ' + err.slice(0, 200)))));
+    p.on('close', (c: number | null) => (c === 0 ? resolve() : reject(new Error('ffmpeg ' + c + ': ' + err.slice(0, 200)))));
   });
   fs.renameSync(tmp, j.out);
   index[j.key] = { file: j.file, done: now(), used: Date.now(), size: fs.statSync(j.out).size };
@@ -401,8 +417,8 @@ function evict() {
   writeJson(INDEX, index);
 }
 
-export function routes(route, allowed) {
-  const need = url => {
+export function routes(route: RouteFn, allowed: (f: string) => boolean) {
+  const need = (url: URL) => {
     const f = url.searchParams.get('p');
     if (!f || !allowed(f) || !fs.existsSync(f)) throw Object.assign(new Error('access denied'), { code: 403 });
     return f;
@@ -430,10 +446,10 @@ export function routes(route, allowed) {
   });
   route('GET', '/api/media/proxy', (req, url) => {
     const s = proxyStatus(need(url));
-    return s.state === 'ready' ? { ...s, url: '/media?p=' + encodeURIComponent(s.path) } : s;
+    return s.state === 'ready' ? { ...s, url: '/media?p=' + encodeURIComponent(s.path as string) } : s;
   });
   route('GET', '/api/media/frame', async (req, url, _, res) => {
-    const f = await frame(need(url), +url.searchParams.get('n') || 0);
+    const f = await frame(need(url), +(url.searchParams.get('n') as string) || 0);
     if (!f) {
       res.writeHead(404);
       return res.end();

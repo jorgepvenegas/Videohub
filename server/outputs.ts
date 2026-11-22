@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Every finished render in one list (Renders → "Recent renders"), so nobody has to ask a chat "show me the video":
 //   jobs      VideoHub's queue (done, failed, cancelled; running ones with no progress for 10 min = "may be stuck")
 //   versions  versions.json of every project (chats registering renders made outside the queue)
@@ -14,13 +13,14 @@ import * as jobs from './jobs.ts';
 import { guardHistory } from './guard.ts';
 import { vhDir } from './notes.ts';
 import { DATA_DIR, DESKTOP, HOME, readJson, writeJson, refersToHub, norm } from './util.ts';
+import type { Json, OutputEntry, Project, ReadBody, RouteFn } from './types.ts';
 // RenderGuard writes a render's folder shortened (relative to the Desktop, or ~\ for the home folder): back to a full path
-const guardPath = s => (!s ? '' : s.startsWith('~') ? path.join(HOME, s.replace(/^~[\\/]*/, '')) : path.isAbsolute(s) ? s : path.join(DESKTOP, s));
+const guardPath = (s?: string) => (!s ? '' : s.startsWith('~') ? path.join(HOME, s.replace(/^~[\\/]*/, '')) : path.isAbsolute(s) ? s : path.join(DESKTOP, s));
 
 const SEEN = path.join(DATA_DIR, 'seen-outputs.json');
 const STUCK_MS = 10 * 60e3;
 const keyOf = norm;
-let seen = null;
+let seen: Record<string, string> | null = null;
 function seenMap() {
   if (!seen) seen = readJson(SEEN, null);
   return seen;
@@ -29,22 +29,22 @@ function saveSeen() {
   writeJson(SEEN, seen);
 }
 
-const vOfName = n => {
+const vOfName = (n?: string | null) => {
   const m = /_v(\d+)(?:[_.]|$)/i.exec(n || '');
   return m ? +m[1] : null;
 };
-const iso = x => {
+const iso = (x?: number | string | null) => {
   const t = typeof x === 'number' ? x : Date.parse(x || '');
   return Number.isFinite(t) && t > 0 ? new Date(t).toISOString() : null;
 };
 
 function collect() {
-  const items = new Map(),
-    out = [];
+  const items = new Map<string, Json>(),
+    out: Json[] = [];
   const projects = index().projects || [];
-  const byPath = new Map();
+  const byPath = new Map<string, { p: Project; o: OutputEntry }>();
   for (const p of projects) for (const o of p.outputs || []) byPath.set(keyOf(o.path), { p, o });
-  const put = (key, it) => {
+  const put = (key: string, it: Json) => {
     const old = items.get(key);
     if (old) {
       for (const [k, v] of Object.entries(it)) if (old[k] == null || old[k] === '') old[k] = v;
@@ -155,19 +155,19 @@ function collect() {
     out.push(it);
   }
   // 4. renders RenderGuard saw end outside the queue (a chat's own render.js / make.mjs), when VideoHub has no file for them
-  const hist = guardHistory(600);
+  const hist = guardHistory(600) as NonNullable<ReturnType<typeof guardHistory>[number]>[];
   for (const g of hist) {
     if (!/^FINISHED|^ERROR|^KILLED|^STOPPED/i.test(g.event) || refersToHub(guardPath(g.project))) continue; // the hub's own processes, by path (films live in Documents\VideoHub\films)
     if (!/render|make\.mjs|chunks|--range/i.test(g.detail)) continue;
     // a minute or more (muxing, probes and checks are seconds)
     const dm = /(\d+)\s*(s|min|h)\b/.exec(g.detail),
-      secs = dm ? +dm[1] * { s: 1, min: 60, h: 3600 }[dm[2]] : 0;
+      secs = dm ? +dm[1] * ({ s: 1, min: 60, h: 3600 } as Record<string, number>)[dm[2]] : 0;
     if (secs < 60) continue;
     // already in the list: a render of the same folder that ended within 15 min (the queue's own, or a version a chat registered)
     const at = Date.parse(g.at) || 0,
       seg = String(g.project || '')
         .split(/[\\/]/)
-        .pop()
+        .pop()!
         .toLowerCase();
     if (
       seg &&
@@ -233,7 +233,7 @@ export function outputs(limit = 150) {
   for (const it of all) it.isNew = it.state === 'done' && !!it.exists && !s[it.key];
   return { items: all.slice(0, limit), unseen: all.filter(x => x.isNew).length, active: active() };
 }
-export function markSeen(key) {
+export function markSeen(key?: string) {
   const s = seenMap() || (seen = {});
   if (key) s[key.includes(':') && !/^[a-z]:\\/i.test(key) ? key : keyOf(key)] = new Date().toISOString();
   saveSeen();
@@ -245,11 +245,11 @@ export function markAllSeen() {
 }
 
 // Keep the existing export for callers; the platform chooses the system notification.
-export function notifyDesktop(title, body) {
+export function notifyDesktop(title: string, body: string) {
   return notify(title, body);
 }
 
-export function routes(route, readBody) {
+export function routes(route: RouteFn, readBody: ReadBody) {
   route('GET', '/api/outputs', (req, url) => outputs(Math.min(1000, +(url.searchParams.get('limit') || 150))));
   route('POST', '/api/outputs/seen', async req => {
     const b = await readBody(req);

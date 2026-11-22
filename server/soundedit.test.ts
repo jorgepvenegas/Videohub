@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Added sound clips: validation and mixing (uses ffmpeg on small temp WAVs). RG_TEST
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,7 +15,7 @@ test.after(() => {
   } catch {}
 });
 const sr = 8000;
-function tone(sec, amp, f = 440) {
+function tone(sec: number, amp: number, f = 440) {
   const n = Math.round(sec * sr),
     c = new Float32Array(n);
   for (let i = 0; i < n; i++) c[i] = amp * Math.sin((2 * Math.PI * f * i) / sr);
@@ -53,9 +52,9 @@ test('mixClips puts a clip at its time with its gain; loop fills to the end; mut
     }
   });
   assert.equal(clips.length, 1);
-  const n = mixClips(mix, clips, s => path.join(tmp, s));
+  const n = mixClips(mix, clips, (s: string) => path.join(tmp, s));
   assert.equal(n, 1);
-  const peak = (a, b) => {
+  const peak = (a: number, b: number) => {
     let m = 0;
     for (let i = Math.round(a * sr); i < Math.round(b * sr); i++) m = Math.max(m, Math.abs(mix.ch[0][i]));
     return m;
@@ -64,7 +63,7 @@ test('mixClips puts a clip at its time with its gain; loop fills to the end; mut
   assert.ok(Math.abs(peak(1.05, 1.45) - 0.25) < 0.02, 'gain 0.5 of a 0.5 tone');
   assert.ok(peak(1.6, 3) < 1e-4, 'silent after');
   const loop = { sr, ch: [new Float32Array(sr * 3), new Float32Array(sr * 3)], bits: 16 };
-  mixClips(loop, [{ src: 'vhaudio/beep.wav', t: 0.5, loop: true, gain: 1 }], s => path.join(tmp, s));
+  mixClips(loop, [{ src: 'vhaudio/beep.wav', t: 0.5, loop: true, gain: 1 }], (s: string) => path.join(tmp, s));
   let m = 0;
   for (let i = Math.round(2.6 * sr); i < Math.round(2.9 * sr); i++) m = Math.max(m, Math.abs(loop.ch[0][i]));
   assert.ok(m > 0.4, 'the loop still plays near the end');

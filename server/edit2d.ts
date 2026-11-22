@@ -1,29 +1,29 @@
-// @ts-nocheck
 // 2D layers of the live editor ("🧩 2D layers", ui/review/edit2d.js; page side engine-hooks/vh2d.js):
 // validation of tweaks.json "items2d" / "actors2d", and the pictures the user adds (<film>/vh2d/<name>).
 import fs from 'node:fs';
 import path from 'node:path';
 import { project } from './scan.ts';
+import type { Json, ReadBody, RouteFn } from './types.ts';
 
 const KINDS = new Set(['image', 'text', 'rect', 'ellipse', 'arrow']);
-const num = (v, d, lo = -1e6, hi = 1e6) => {
+const num = <D extends number | null>(v: Json, d: D, lo = -1e6, hi = 1e6): number | D => {
   const n = +v;
   return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : d;
 };
-const str = (v, n = 200) => (typeof v === 'string' ? v.slice(0, n) : undefined);
-const col = v => (typeof v === 'string' && /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(v.trim()) ? v.trim() : undefined);
+const str = (v: Json, n = 200) => (typeof v === 'string' ? v.slice(0, n) : undefined);
+const col = (v: Json) => (typeof v === 'string' && /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(v.trim()) ? v.trim() : undefined);
 const SRC_RE = /^vh2d\/[\p{L}\p{N}_.\- ()]{1,120}\.(png|jpe?g|webp|gif|svg)$/iu;
 
-export function cleanItems(list) {
+export function cleanItems(list: Json) {
   if (!Array.isArray(list)) return [];
-  const out = [],
+  const out: Json[] = [],
     ids = new Set();
   for (const it of list.slice(0, 500)) {
     if (!it || typeof it !== 'object' || !KINDS.has(it.kind)) continue;
     let id = str(it.id, 40) || 'i' + Math.random().toString(36).slice(2, 8);
     while (ids.has(id)) id += 'x';
     ids.add(id);
-    const o = {
+    const o: Json = {
       id,
       kind: it.kind,
       name: str(it.name, 60) || '',
@@ -65,12 +65,12 @@ export function cleanItems(list) {
   return out;
 }
 
-export function cleanActors(obj) {
-  const out = {};
+export function cleanActors(obj: Json) {
+  const out: Json = {};
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return out;
-  for (const [k, v] of Object.entries(obj).slice(0, 2000)) {
+  for (const [k, v] of (Object.entries(obj) as [string, Record<string, unknown>][]).slice(0, 2000)) {
     if (typeof k !== 'string' || k.length > 160 || !k.includes('|') || !v || typeof v !== 'object') continue;
-    const o = {};
+    const o: Json = {};
     if (Math.abs(num(v.dx, 0)) > 1e-3) o.dx = num(v.dx, 0, -20000, 20000);
     if (Math.abs(num(v.dy, 0)) > 1e-3) o.dy = num(v.dy, 0, -20000, 20000);
     if (Math.abs(num(v.s, 1) - 1) > 1e-3) o.s = num(v.s, 1, 0.05, 20);
@@ -81,7 +81,7 @@ export function cleanActors(obj) {
 }
 
 // a picture the user adds to the film: saved in the film's own folder so previews and renders find it
-export function saveAsset(p, { name, data }) {
+export function saveAsset(p: { path: string }, { name, data }: { name?: string; data?: string }) {
   const m = /^data:image\/(png|jpeg|webp|gif);base64,([A-Za-z0-9+/=]+)$/.exec(data || '');
   if (!m) throw Object.assign(new Error('Must be a PNG, JPEG, WEBP or GIF'), { code: 400 });
   const buf = Buffer.from(m[2], 'base64');
@@ -99,7 +99,7 @@ export function saveAsset(p, { name, data }) {
   fs.writeFileSync(path.join(dir, file), buf);
   return { src: 'vh2d/' + file };
 }
-export function listAssets(p) {
+export function listAssets(p: { path: string }) {
   try {
     return fs
       .readdirSync(path.join(p.path, 'vh2d'))
@@ -110,8 +110,8 @@ export function listAssets(p) {
   }
 }
 
-export function routes(route, readBody) {
-  const need = id => {
+export function routes(route: RouteFn, readBody: ReadBody) {
+  const need = (id: string) => {
     const p = project(id);
     if (!p) throw Object.assign(new Error('Project not found'), { code: 404 });
     return p;

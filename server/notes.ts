@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Review notes: a moment (or range) in a video, a drawing on the frame, a text, and a status
 // that goes  open → claude → fixed → approved  (or "reopened" back to Claude when a fix did not work).
 // Stored with the project: <project>\.videohub\notes.json + notes\nNN_*.{jpg,png}
@@ -9,46 +8,50 @@ import { project, setNoteCounts } from './scan.ts';
 import { spokenAt } from './transcript.ts';
 import { readNotes, NOTE_STATUSES, NOTE_KINDS, noteStatus, noteKind, byWho, isOpenNote } from './legacy.ts';
 import { DATA_DIR, readJson, writeJson, now, run, TOOLS, isInside } from './util.ts';
+import type { Json, Note, OutputEntry, Project, ReadBody, RouteFn } from './types.ts';
+
+type VhProject = { path: string; id: string; group?: string };
+type FrameResult = { frame: string; annotated?: string; crop?: string };
 
 export const STATUSES = NOTE_STATUSES;
 export const KINDS = NOTE_KINDS;
 
-export const vhDir = p => (p.group ? path.join(DATA_DIR, 'projects', p.id) : path.join(p.path, '.videohub'));
-const notesFile = p => path.join(vhDir(p), 'notes.json');
+export const vhDir = (p: VhProject) => (p.group ? path.join(DATA_DIR, 'projects', p.id) : path.join(p.path, '.videohub'));
+const notesFile = (p: VhProject) => path.join(vhDir(p), 'notes.json');
 // a picture path read from notes.json is only deleted or served when it is inside the project's notes folder: a downloaded
 // project could carry a notes.json whose pictures point at any file on the PC ("Remove all old notes" would delete them)
-const notesDir = p => path.join(vhDir(p), 'notes');
-const inNotes = (dir, f) => typeof f === 'string' && path.isAbsolute(f) && isInside(path.dirname(path.resolve(f)), dir);
-const unlinkImg = (dir, f) => {
+const notesDir = (p: VhProject) => path.join(vhDir(p), 'notes');
+const inNotes = (dir: string, f: unknown): f is string => typeof f === 'string' && path.isAbsolute(f) && isInside(path.dirname(path.resolve(f)), dir);
+const unlinkImg = (dir: string, f: unknown) => {
   if (inNotes(dir, f))
     try {
       fs.unlinkSync(f);
     } catch {}
 };
-export const list = p =>
-  readNotes(notesFile(p)).map(n => {
+export const list = (p: VhProject): Note[] =>
+  (readNotes(notesFile(p)) as Note[]).map(n => {
     if (n.images) for (const [k, f] of Object.entries(n.images)) if (!f || !fs.existsSync(f)) delete n.images[k]; // removed from Disk page
     return n;
   });
-export const versions = p => readJson(path.join(vhDir(p), 'versions.json'), []);
-const save = (p, notes) => writeJson(notesFile(p), notes);
+export const versions = (p: VhProject) => readJson(path.join(vhDir(p), 'versions.json'), []);
+const save = (p: VhProject, notes: Note[]) => writeJson(notesFile(p), notes);
 
 // Pictures are cut after the answer, one job at a time for the whole hub (ffmpeg is heavy);
 // the note is saved at once with pending: true and an SSE 'note' event brings its pictures when ready.
-const subs = new Set();
-export const onNote = fn => {
+const subs = new Set<(ev: Json) => void>();
+export const onNote = (fn: (ev: Json) => void) => {
   subs.add(fn);
   return () => subs.delete(fn);
 };
-const emit = (p, note, extra) => {
+const emit = (p: VhProject, note: Note | null, extra?: Json) => {
   for (const fn of subs)
     try {
       fn({ project: p.id, note, ...extra });
     } catch {}
 };
-let chain = Promise.resolve();
+let chain: Promise<unknown> = Promise.resolve();
 let queued = 0;
-export function later(fn) {
+export function later<T>(fn: () => T | Promise<T>): Promise<T> {
   queued++;
   const job = chain.then(fn).finally(() => {
     queued--;
@@ -58,10 +61,10 @@ export function later(fn) {
 }
 export const busyPictures = () => queued > 0;
 export const settled = () => chain; // tests: wait until every picture is cut
-const counts = p => setNoteCounts(p.id, readNotes(notesFile(p)));
+const counts = (p: VhProject) => setNoteCounts(p.id, readNotes(notesFile(p)));
 // change one stored note in place (re-read: the user may have edited or deleted it meanwhile)
-function patch(p, id, fn) {
-  const notes = readNotes(notesFile(p)),
+function patch(p: VhProject, id: number, fn: (n: Note) => unknown) {
+  const notes = readNotes(notesFile(p)) as Note[],
     n = notes.find(x => x.id === id);
   if (!n) return null;
   if (fn(n) === false) return null;
@@ -69,7 +72,7 @@ function patch(p, id, fn) {
   return n;
 }
 
-function saveDataUrl(dataUrl, file) {
+function saveDataUrl(dataUrl: string | null | undefined, file: string) {
   const m = /^data:image\/(png|jpeg);base64,(.+)$/.exec(dataUrl || '');
   if (!m) return null;
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -77,11 +80,11 @@ function saveDataUrl(dataUrl, file) {
   return file;
 }
 
-export function chunkOf(p, t) {
+export function chunkOf(p: Project, t: number) {
   const cs = p.render?.chunkSec;
   return cs ? Math.floor(t / cs) : null;
 }
-function noteChunks(p, t, t2, at) {
+function noteChunks(p: Project, t: number, t2: number | null | undefined, at: number | null | undefined) {
   let a = t2 == null ? t - 0.5 : t,
     b = (t2 ?? t) + 0.5;
   if (at != null) {
@@ -90,11 +93,11 @@ function noteChunks(p, t, t2, at) {
   }
   const lo = chunkOf(p, Math.max(0, a)),
     hi = chunkOf(p, b);
-  return lo == null ? null : Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
+  return lo == null ? null : Array.from({ length: hi! - lo + 1 }, (_, i) => lo + i);
 }
-const frameOf = (t, fps) => Math.floor(t * fps + 1e-6);
+const frameOf = (t: number, fps: number) => Math.floor(t * fps + 1e-6);
 // a range note also gets its first and last frame as pictures, so Claude sees where it starts and ends
-async function rangeImages(n, out, fps, dir, tag) {
+async function rangeImages(n: Json, out: OutputEntry, fps: number, dir: string, tag: string) {
   n.images = n.images || {};
   for (const k of ['start', 'end']) {
     if (n.images[k]) unlinkImg(dir, n.images[k]);
@@ -108,7 +111,7 @@ async function rangeImages(n, out, fps, dir, tag) {
     if (s?.frame) n.images.start = s.frame;
   }
 }
-function liveRangeImages(n, images, dir, tag) {
+function liveRangeImages(n: Json, images: Json, dir: string, tag: string) {
   n.images = n.images || {};
   for (const k of ['start', 'end']) {
     if (n.images[k]) unlinkImg(dir, n.images[k]);
@@ -123,13 +126,13 @@ function liveRangeImages(n, images, dir, tag) {
 // after the range of a note was edited: frames, chunks and the start/end pictures again
 // same picture files: same queue. It works on the note as stored when its turn comes and only writes the range
 // fields back (a copy taken before the wait used to undo the add job's pictures and Claude's status changes)
-export function refreshRange(p, n, images) {
+export function refreshRange(p: Project, n: Note, images: Json) {
   return later(async () => {
-    const cur = readNotes(notesFile(p)).find(x => x.id === n.id);
+    const cur = (readNotes(notesFile(p)) as Note[]).find(x => x.id === n.id);
     return cur ? refreshRangeNow(p, { ...cur, images: { ...(cur.images || {}) } }, images) : n;
   });
 }
-async function refreshRangeNow(p, n, images) {
+async function refreshRangeNow(p: Project, n: Note, images: Json): Promise<Note> {
   const out = p.outputs.find(o => o.rel === n.file) || null,
     fps = n.fps || out?.fps || p.render?.fps || 30;
   n.frames = n.t2 != null ? [frameOf(n.t, fps), frameOf(n.t2, fps)] : null;
@@ -158,7 +161,7 @@ async function refreshRangeNow(p, n, images) {
 // The exact frame comes from ffmpeg (frame number -> time), not from the browser, whose
 // canvas copy of a <video> can come back black. The browser only sends the drawing as a
 // transparent PNG at 1280 px wide; ffmpeg lays it over the frame and cuts the close-up.
-async function frameImages(out, t, fps, strokesPng, region, dir, tag) {
+async function frameImages(out: OutputEntry, t: number, fps: number, strokesPng: string | null | undefined, region: Json, dir: string, tag: string) {
   const frameNo = Math.floor(t * fps + 1e-6),
     ss = (frameNo / fps).toFixed(6);
   const frame = path.join(dir, tag + '_frame.jpg');
@@ -168,10 +171,10 @@ async function frameImages(out, t, fps, strokesPng, region, dir, tag) {
   return { frameNo, ...(await annotate(frame, strokesPng, region, dir, tag)) };
 }
 // the drawing over a frame image + the close-up of the drawn region
-async function annotate(frame, strokesPng, region, dir, tag) {
+async function annotate(frame: string, strokesPng: string | null | undefined, region: Json, dir: string, tag: string) {
   const ann = path.join(dir, tag + '_ann.jpg'),
     crop = path.join(dir, tag + '_crop.jpg'); // JPEG: ~5x smaller than PNG
-  const res = { frame };
+  const res: FrameResult = { frame };
   if (strokesPng) {
     const st = saveDataUrl(strokesPng, path.join(dir, tag + '_strokes.png'));
     await run(TOOLS.ffmpeg, [
@@ -181,7 +184,7 @@ async function annotate(frame, strokesPng, region, dir, tag) {
       '-i',
       frame,
       '-i',
-      st,
+      st as string,
       '-filter_complex',
       '[1:v][0:v]scale2ref[s][f];[f][s]overlay=format=auto',
       '-frames:v',
@@ -191,7 +194,7 @@ async function annotate(frame, strokesPng, region, dir, tag) {
       ann
     ]);
     try {
-      fs.unlinkSync(st);
+      fs.unlinkSync(st as string);
     } catch {}
     if (fs.existsSync(ann)) res.annotated = ann;
   }
@@ -209,7 +212,7 @@ async function annotate(frame, strokesPng, region, dir, tag) {
   return res;
 }
 
-export async function add(p, body) {
+export async function add(p: Project, body: Json) {
   const notes = list(p),
     seqFile = path.join(vhDir(p), 'notes-seq.json');
   const id =
@@ -229,7 +232,7 @@ export async function add(p, body) {
   // a live note's frame comes from the browser: writing it is quick, so it is there right away
   const liveShot = !out && body.images?.frame ? saveDataUrl(body.images.frame, path.join(dir, tag + '_frame.jpg')) : null;
   const kind = noteKind(body.kind);
-  const note = {
+  const note: Note = {
     id,
     t,
     t2,
@@ -268,7 +271,7 @@ export async function add(p, body) {
   save(p, notes);
   if (work)
     later(async () => {
-      const imgs = {};
+      const imgs: Record<string, string | undefined> = {};
       if (out) {
         const fx = await frameImages(out, at ?? t, fps, body.images?.strokes, body.region, dir, tag);
         if (fx) Object.assign(imgs, { frame: fx.frame, annotated: fx.annotated, crop: fx.crop });
@@ -278,7 +281,7 @@ export async function add(p, body) {
           Object.assign(imgs, tmp.images);
         }
       } else {
-        const lx = await annotate(liveShot, body.images.strokes, body.region, dir, tag);
+        const lx = await annotate(liveShot as string, body.images.strokes, body.region, dir, tag);
         Object.assign(imgs, { annotated: lx.annotated, crop: lx.crop });
       }
       const done = patch(p, id, n => {
@@ -301,11 +304,11 @@ export async function add(p, body) {
   return note;
 }
 
-export function resumePending(projects) {
+export function resumePending(projects: Project[]) {
   for (const p of projects) {
-    let ns = [];
+    let ns: Note[] = [];
     try {
-      ns = readNotes(notesFile(p));
+      ns = readNotes(notesFile(p)) as Note[];
     } catch {}
     for (const n of ns.filter(x => x.pending))
       later(async () => {
@@ -313,7 +316,7 @@ export function resumePending(projects) {
           fps = n.fps || out?.fps || 30,
           dir = path.join(vhDir(p), 'notes'),
           tag = 'n' + String(n.id).padStart(3, '0');
-        const imgs = {};
+        const imgs: Record<string, string> = {};
         if (out && fs.existsSync(out.path)) {
           const fx = await frameImages(out, n.at ?? n.t, fps, null, null, dir, tag);
           if (fx?.frame) imgs.frame = fx.frame;
@@ -334,7 +337,7 @@ export function resumePending(projects) {
   }
 }
 
-export function update(p, id, patch, by = 'user') {
+export function update(p: VhProject, id: number | string, patch: Json, by = 'user') {
   const notes = list(p),
     n = notes.find(x => x.id === +id);
   if (!n) throw Object.assign(new Error('Note not found'), { code: 404 });
@@ -349,7 +352,7 @@ export function update(p, id, patch, by = 'user') {
   return n;
 }
 
-export function remove(p, id) {
+export function remove(p: VhProject, id: number | string) {
   const notes = list(p),
     n = notes.find(x => x.id === +id);
   if (!n) return false;
@@ -362,15 +365,15 @@ export function remove(p, id) {
 }
 
 // notes written before the newest version (all notes when the project has no version yet)
-export function oldNotes(p) {
+export function oldNotes(p: VhProject) {
   const versions = readJson(path.join(vhDir(p), 'versions.json'), []);
-  const last = versions.reduce((m, v) => Math.max(m, Date.parse(v.created || 0) || 0), 0);
-  return list(p).filter(n => !last || (Date.parse(n.createdAt || 0) || 0) < last);
+  const last = versions.reduce((m: number, v: { created?: string }) => Math.max(m, Date.parse((v.created || 0) as string) || 0), 0);
+  return list(p).filter(n => !last || (Date.parse((n.createdAt || 0) as string) || 0) < last);
 }
 // many notes at once (after a new version): "approve" marks them approved; "remove" takes them off the list into
 // .videohub/notes-archive.json (text only) and deletes their pictures, like a single note's "Delete" (the pictures are
 // cut from the video and can be made again)
-export function bulk(p, action, ids) {
+export function bulk(p: VhProject, action: string, ids?: number[]) {
   const notes = list(p),
     pick = new Set((ids || oldNotes(p).map(n => n.id)).map(Number));
   const hit = notes.filter(n => pick.has(n.id));
@@ -414,7 +417,7 @@ export function bulk(p, action, ids) {
 }
 
 // the short message the user pastes into the chat ("Send to Claude")
-export function prompt(p, ids) {
+export function prompt(p: Project, ids?: number[]) {
   const open = list(p).filter(n => (ids ? ids.includes(n.id) : isOpenNote(n)));
   return (
     `VideoHub: ${open.length} note${open.length === 1 ? '' : 's'} on "${p.title || p.name}" (${open.map(n => '#' + n.id).join(', ')}).\n` +
@@ -424,8 +427,8 @@ export function prompt(p, ids) {
   );
 }
 
-export function routes(route, readBody) {
-  const need = id => {
+export function routes(route: RouteFn, readBody: ReadBody) {
+  const need = (id: string) => {
     const p = project(id);
     if (!p) throw Object.assign(new Error('Project not found'), { code: 404 });
     return p;
@@ -469,7 +472,7 @@ export function routes(route, readBody) {
   });
   route('GET', '/api/project/:id/noteimg/:nid/:kind', (req, url, { id, nid, kind }, res) => {
     const p = need(id),
-      n = readJson(notesFile(p), []).find(x => x.id === +nid),
+      n = readJson(notesFile(p), []).find((x: Note) => x.id === +nid),
       f = n?.images?.[kind]; // no existence check of every note's pictures
     if (!inNotes(notesDir(p), f) || !fs.existsSync(f)) {
       res.writeHead(404);

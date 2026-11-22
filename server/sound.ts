@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Per-shot sound levels set in the scene editor (tweaks.json "sound") put into the film's mix, the file the live
 // preview plays and renders mux:
 //   studio  3D studio scene: the engine builds its mix itself (node make.mjs <scene> --audio reads tweaks.json)
@@ -14,12 +13,24 @@ import { TOOLS, isInside } from './util.ts';
 import { audioOf, quietFile } from './live.ts';
 import { readJson, writeJson } from './util.ts';
 import { readTweaksStrict } from './tweaks.ts';
+import type { Json, Project, RouteFn } from './types.ts';
 
-const vh = p => path.join(p.path, '.videohub');
-export function soundInfo(p) {
+type SoundInfo =
+  | { mode: 'studio'; channels: string[]; target: string; stale: boolean }
+  | { mode: 'none'; channels: string[]; reason: string }
+  | { mode: 'stems' | 'all'; channels: string[]; target: string; music: string; sfx: string };
+interface SoundResult {
+  ok: boolean;
+  mode: string;
+  ms: number;
+  note: string;
+}
+
+const vh = (p: Project) => path.join(p.path, '.videohub');
+export function soundInfo(p: Project): SoundInfo {
   if (p.studio) {
     // stale: the engine's last mix was built with other levels / clips than tweaks.json has now (its .vh key, make.mjs)
-    const target = path.join(p.outDir, 'audio.wav');
+    const target = path.join(p.outDir as string, 'audio.wav');
     let stale = false;
     try {
       const tw = readTweaksStrict(path.join(p.path, 'tweaks.json'));
@@ -32,7 +43,7 @@ export function soundInfo(p) {
     return { mode: 'none', channels: [], reason: target ? 'the film audio is not a WAV file' : 'the film has no audio file' };
   // stems next to the mix: spotlight music/sfx.wav, paper-hands st_bed/st_sfx.wav
   const dir = path.dirname(target),
-    pick = (...n) => n.map(x => path.join(dir, x)).find(f => fs.existsSync(f)) || path.join(dir, n[0]);
+    pick = (...n: string[]) => n.map(x => path.join(dir, x)).find(f => fs.existsSync(f)) || path.join(dir, n[0]);
   const music = pick('music.wav', 'st_bed.wav'),
     sfx = pick('sfx.wav', 'st_sfx.wav');
   const stems = fs.existsSync(music) && fs.existsSync(sfx);
@@ -40,7 +51,7 @@ export function soundInfo(p) {
 }
 
 // the line that says what went wrong (a Node crash ends with its version line, which said nothing)
-export function errLine(err, code) {
+export function errLine(err: unknown, code: unknown) {
   const L = String(err || '')
     .split(/\r?\n/)
     .map(l => l.trim())
@@ -49,9 +60,9 @@ export function errLine(err, code) {
 }
 // one build per film at a time; a call while one runs gets the next build (made once, after the running one), so a
 // change saved during a build is always built once more and every caller waits for the build that has its change
-const busy = new Map(),
-  again = new Map();
-export function applySound(p) {
+const busy = new Map<string, Promise<SoundResult>>(),
+  again = new Map<string, Promise<SoundResult>>();
+export function applySound(p: Project): Promise<SoundResult> {
   const cur = busy.get(p.id);
   if (cur) {
     let nx = again.get(p.id);
@@ -68,16 +79,16 @@ export function applySound(p) {
   }
   return startSound(p);
 }
-function startSound(p) {
-  const job = (async () => {
+function startSound(p: Project): Promise<SoundResult> {
+  const job = (async (): Promise<SoundResult> => {
     // the stems / all build is synchronous: start it on the next turn, so calls arriving together join this one
-    await new Promise(r => setImmediate(r));
+    await new Promise<void>(r => setImmediate(r));
     const info = soundInfo(p),
       t0 = Date.now();
     if (info.mode === 'none') throw Object.assign(new Error(info.reason), { code: 400 });
     if (info.mode === 'studio') {
       // the engine's own audio build reads the levels (engine/audio/vhsound.mjs); one at a time, hidden
-      await new Promise((ok, no) => {
+      await new Promise<void>((ok, no) => {
         const c = spawn(process.execPath, ['make.mjs', path.basename(p.path), '--audio'], { cwd: p.studio, stdio: ['ignore', 'ignore', 'pipe'] });
         let err = '';
         c.stderr.on('data', d => {
@@ -95,13 +106,13 @@ function startSound(p) {
     const st = fs.statSync(info.target);
     if (!fs.existsSync(orig) || !rec.written || Math.abs(st.mtimeMs - rec.written) > 1500) fs.copyFileSync(info.target, orig); // first time, or the score made a new mix
     // strict: a half-written or broken file must not read as 'no levels' (that would put the untouched mix back)
-    let tw;
+    let tw: Json;
     try {
       tw = readTweaksStrict(path.join(p.path, 'tweaks.json'));
     } catch (e) {
       throw Object.assign(new Error('could not read tweaks.json'), { code: 409 });
     }
-    const entries = (tw.sound || []).filter(e => e && +e.t1 > +e.t0),
+    const entries = (tw.sound || []).filter((e: Json) => e && +e.t1 > +e.t0),
       clips = clipsOf(tw);
     let note = 'original audio restored';
     if (!entries.length && !clips.length) {
@@ -122,7 +133,7 @@ function startSound(p) {
         ? mixClips(
             mix,
             clips,
-            src => {
+            (src: string) => {
               const f = path.join(p.path, src);
               return isInside(f, p.path) ? f : null;
             },
@@ -150,14 +161,14 @@ function startSound(p) {
   return job;
 }
 
-export function routes(route, project) {
-  const need = id => {
+export function routes(route: RouteFn, project: (id: string) => Project | null) {
+  const need = (id: string) => {
     const p = project(id);
     if (!p) throw Object.assign(new Error('Project not found'), { code: 404 });
     return p;
   };
   route('GET', '/api/project/:id/sound-info', (req, url, { id }) => {
-    const { target, music, sfx, ...r } = soundInfo(need(id));
+    const { target, music, sfx, ...r } = soundInfo(need(id)) as { target?: string; music?: string; sfx?: string; [key: string]: unknown };
     return r;
   });
   route('POST', '/api/project/:id/sound-apply', (req, url, { id }) => applySound(need(id)));

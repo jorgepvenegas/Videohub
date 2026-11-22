@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { norm } from './util.ts';
 // Sound editing from the review timeline (ui/review/soundedit.js): clips the user adds to a film (sound effects,
 // another music bed), kept in tweaks.json "audio" { clips: [...] } and mixed by server/sound.js (VideoHub-built
@@ -8,25 +7,34 @@ import { norm } from './util.ts';
 // with an optional 3D studio engine's synth (config.studioDir; data/sfx-lib, server/sfxlib.mjs). Without that engine the
 // library just has no ready-made effects (library().sfxAvailable = false; the UI hides the button).
 import fs from 'node:fs';
+import type { Dirent } from 'node:fs';
+import type { IncomingMessage } from 'node:http';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { project } from './scan.ts';
 import { config, baseDir } from './config.ts';
 import { DATA_DIR, TOOLS, isInside } from './util.ts';
+import type { Json, ReadBody, RouteFn } from './types.ts';
+
+interface LibItem {
+  file: string;
+  name: string;
+  folder: string;
+}
 
 const AUDIO_RE = /\.(wav|mp3|m4a|ogg|flac|aac)$/i;
 const SFX_DIR = path.join(DATA_DIR, 'sfx-lib');
-const num = (v, d, lo, hi) => {
+const num = <D extends number | null>(v: Json, d: D, lo: number, hi: number): number | D => {
   const n = +v;
   return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : d;
 };
 const SRC_RE = /^vhaudio\/[^\\/:*?"<>|]{1,140}\.(wav|mp3|m4a|ogg|flac|aac)$/i;
 
-export function cleanAudio(a) {
-  const out = { clips: [] };
+export function cleanAudio(a: Json) {
+  const out: { clips: Json[] } = { clips: [] };
   if (!a || typeof a !== 'object') return out;
-  const ids = new Set();
+  const ids = new Set<string>();
   for (const c of (Array.isArray(a.clips) ? a.clips : []).slice(0, 400)) {
     if (!c || typeof c !== 'object') continue;
     const src = typeof c.src === 'string' ? c.src.replace(/\\/g, '/') : '';
@@ -60,10 +68,10 @@ const libDir = () => config().soundLibDir || path.join(baseDir(), 'sounds');
 const synthPath = () =>
   [config().studioDir]
     .filter(Boolean)
-    .map(d => path.join(d, 'engine', 'audio', 'synth.js'))
+    .map(d => path.join(d as string, 'engine', 'audio', 'synth.js'))
     .find(f => fs.existsSync(f)) || null;
-function walk(dir, base, out, depth = 0) {
-  let es = [];
+function walk(dir: string, base: string, out: LibItem[], depth = 0) {
+  let es: Dirent[] = [];
   try {
     es = fs.readdirSync(dir, { withFileTypes: true });
   } catch {
@@ -78,8 +86,8 @@ function walk(dir, base, out, depth = 0) {
 }
 // what the user can pick: ready-made effects + their sound folder (music beds, voices, effects)
 export function library() {
-  const sfx = [],
-    user = [];
+  const sfx: LibItem[] = [],
+    user: LibItem[] = [];
   walk(SFX_DIR, SFX_DIR, sfx);
   walk(libDir(), libDir(), user);
   return {
@@ -94,7 +102,7 @@ export function library() {
 }
 
 // the ready-made effects, made once with the studio's synth (a few seconds); one run at a time
-let building = null;
+let building: Promise<unknown> | null = null;
 export function buildSfx() {
   if (building) return building;
   const synth = synthPath();
@@ -106,7 +114,7 @@ export function buildSfx() {
       )
     );
   const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'sfxlib.mjs');
-  building = new Promise((ok, no) => {
+  building = new Promise<unknown>((ok, no) => {
     const c = spawn(TOOLS.node || process.execPath, [script, synth, SFX_DIR], { stdio: ['ignore', 'pipe', 'pipe'] });
     let err = '';
     c.stderr.on('data', d => {
@@ -121,8 +129,8 @@ export function buildSfx() {
 }
 
 // a sound for the film: copied into <film>/vhaudio/ (never moved), its length measured
-async function duration(file) {
-  return new Promise(res => {
+async function duration(file: string) {
+  return new Promise<number>(res => {
     const c = spawn(TOOLS.ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]);
     let out = '';
     c.stdout.on('data', d => {
@@ -132,7 +140,7 @@ async function duration(file) {
     c.on('error', () => res(0));
   });
 }
-function target(p, name, ext) {
+function target(p: { path: string }, name: string | undefined, ext: string) {
   const dir = path.join(p.path, 'vhaudio');
   fs.mkdirSync(dir, { recursive: true });
   const base =
@@ -147,7 +155,7 @@ function target(p, name, ext) {
   return { abs: path.join(dir, f), src: 'vhaudio/' + f };
 }
 // a copy already in <film>/vhaudio/ with the same name (or name_n) and size: reused instead of copying again
-function findSame(p, name, size) {
+function findSame(p: { path: string }, name: string, size: number) {
   const want = String(name || '').toLowerCase(),
     dir = path.join(p.path, 'vhaudio');
   try {
@@ -159,7 +167,7 @@ function findSame(p, name, size) {
   } catch {}
   return null;
 }
-export async function addFromLibrary(p, file) {
+export async function addFromLibrary(p: { path: string }, file: string) {
   const lib = library(),
     known = [...lib.sfx, ...lib.user].some(x => norm(x.file) === norm(String(file || '')));
   if (!known || !(isInside(file, SFX_DIR) || isInside(file, libDir()))) throw Object.assign(new Error('This sound is not in the library'), { code: 403 });
@@ -169,7 +177,7 @@ export async function addFromLibrary(p, file) {
   if (!same) fs.copyFileSync(file, t.abs);
   return { src: t.src, name: path.basename(file).replace(/\.[^.]+$/, ''), dur: await duration(t.abs) };
 }
-export async function upload(p, { name, data }) {
+export async function upload(p: { path: string }, { name, data }: { name?: string; data?: string }) {
   const m = /^data:audio\/[\w.+-]+;base64,([A-Za-z0-9+/=]+)$/.exec(data || '') || /^data:application\/octet-stream;base64,([A-Za-z0-9+/=]+)$/.exec(data || '');
   const ext = (String(name || '').match(AUDIO_RE) || [])[0];
   if (!m || !ext) throw Object.assign(new Error('The file must be WAV, MP3, M4A, OGG, FLAC or AAC'), { code: 400 });
@@ -183,7 +191,7 @@ export async function upload(p, { name, data }) {
 
 // a big file from the user's disk (drag from Explorer / file picker > 35 MB): raw body streamed to vhaudio/, 500 MB cap
 const UP_MAX = 500 * 1024 * 1024;
-async function uploadStream(p, req, name, size) {
+async function uploadStream(p: { path: string }, req: IncomingMessage, name: string, size: number) {
   const ext = (String(name || '').match(AUDIO_RE) || [])[0];
   if (!ext) throw Object.assign(new Error('The file must be WAV, MP3, M4A, OGG, FLAC or AAC'), { code: 400 });
   if (size > UP_MAX) throw Object.assign(new Error('The sound file is larger than 500 MB'), { code: 413 });
@@ -195,10 +203,10 @@ async function uploadStream(p, req, name, size) {
   }
   const t = target(p, base, ext.toLowerCase()),
     tmp = t.abs + '.part';
-  await new Promise((ok, no) => {
+  await new Promise<void>((ok, no) => {
     let n = 0;
     const out = fs.createWriteStream(tmp);
-    req.on('data', d => {
+    req.on('data', (d: Buffer) => {
       n += d.length;
       if (n > UP_MAX) {
         req.destroy();
@@ -220,8 +228,8 @@ async function uploadStream(p, req, name, size) {
   return { src: t.src, name: base.replace(/\.[^.]+$/, ''), dur: await duration(t.abs) };
 }
 
-export function routes(route, readBody) {
-  const need = id => {
+export function routes(route: RouteFn, readBody: ReadBody) {
+  const need = (id: string) => {
     const p = project(id);
     if (!p) throw Object.assign(new Error('Project not found'), { code: 404 });
     return p;
@@ -234,7 +242,7 @@ export function routes(route, readBody) {
     return b.file ? addFromLibrary(p, b.file) : upload(p, b);
   });
   route('POST', '/api/project/:id/audio-upload', (req, url, { id }) =>
-    uploadStream(need(id), req, url.searchParams.get('name') || '', +url.searchParams.get('size') || 0)
+    uploadStream(need(id), req, url.searchParams.get('name') || '', +(url.searchParams.get('size') as string) || 0)
   );
   // play a library sound in the browser before adding it
   route('GET', '/api/sound-library/play', (req, url, _, res) => {
@@ -244,9 +252,12 @@ export function routes(route, readBody) {
       return res.end();
     }
     const type =
-      { '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.ogg': 'audio/ogg', '.flac': 'audio/flac', '.aac': 'audio/aac' }[
-        path.extname(f).toLowerCase()
-      ] || 'application/octet-stream';
+      (
+        { '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.ogg': 'audio/ogg', '.flac': 'audio/flac', '.aac': 'audio/aac' } as Record<
+          string,
+          string
+        >
+      )[path.extname(f).toLowerCase()] || 'application/octet-stream';
     res.writeHead(200, { 'Content-Type': type, 'Content-Length': fs.statSync(f).size, 'Cache-Control': 'no-store' });
     fs.createReadStream(f)
       .on('error', () => res.destroy())

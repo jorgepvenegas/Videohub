@@ -1,4 +1,3 @@
-// @ts-nocheck
 // tweaks.json writer: key-by-key merge, field-level sound ops, cleaners, strict read, atomic write
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -91,7 +90,7 @@ test('soundOps: field-level merge, null removes a field, an entry with no level 
   // mergeTweaks: soundOps applies to the current sound and keeps every other key
   const out = mergeTweaks(OLD, { soundOps: { set: [{ shot: 'duck:abc123', t0: 5, t1: 9, music: 0.3, fade: 0.5 }] } }, C);
   assert.deepEqual(
-    out.sound.map(e => e.shot),
+    out.sound.map((e: { shot: string }) => e.shot),
     ['*', 'duck:abc123']
   );
   assert.equal(out.sound[0].music, 0.5);
@@ -143,7 +142,7 @@ test('readTweaksStrict: missing / empty file = {}, broken file throws 409; write
   fs.writeFileSync(f, '{"v":1,"shots":{');
   assert.throws(
     () => readTweaksStrict(f),
-    e => e.code === 409 && /Could not read/.test(e.message)
+    e => (e as { code?: number }).code === 409 && /Could not read/.test((e as Error).message)
   );
   writeTweaks(f, { v: 1, shots: {}, sound: [] });
   assert.deepEqual(readTweaksStrict(f), { v: 1, shots: {}, sound: [] });

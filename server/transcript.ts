@@ -1,29 +1,33 @@
-// @ts-nocheck
 // The narration's text with timings, from whatever the project already has: words.json ([[s,e,w]] or
 // [{w|word|text, s|start, e|end}]), words.js (export const WORDS = [[s,e,"w"], ...]) or an .srt.
 // Words are grouped into sentences for the timeline; a note remembers the sentence spoken at its moment.
 // .videohub/project.json may set transcript: {file, offset} (offset = seconds of film before the narration starts).
 import fs from 'node:fs';
+import type { Dirent } from 'node:fs';
 import path from 'node:path';
 import { readJson } from './util.ts';
+import type { Json } from './types.ts';
+
+type Item = [number, number, string];
+type TranscriptResult = { ok: true; source: string; offset: number; words: Item[]; phrases: Item[] } | { ok: false; reason: string };
 
 const SKIP = new Set(['node_modules', 'render', 'snaps', 'out', '.videohub', '.git', 'chunks', 'qa', 'lookdev', 'previews', 'profiles', 'tmp']);
-const cache = new Map(); // file -> {mtime, data}
+const cache = new Map<string, { mtime: number; data: TranscriptResult }>(); // file -> {mtime, data}
 
 // best candidate file: word files first (words.json, then words_tr / other languages), then phrase SRTs, then any SRT
 // the walk is synchronous and ran for every note (qa/lookdev folders hold thousands of frames): remember the answer 5 min
-const found5 = new Map();
-function findFile(dir) {
+const found5 = new Map<string, { at: number; f: string | null }>();
+function findFile(dir: string) {
   const c = found5.get(dir);
   if (c && Date.now() - c.at < 300000 && (!c.f || fs.existsSync(c.f))) return c.f;
   const f = findFileNow(dir);
   found5.set(dir, { at: Date.now(), f });
   return f;
 }
-function findFileNow(dir) {
-  const found = [];
-  (function walk(d, depth) {
-    let es = [];
+function findFileNow(dir: string) {
+  const found: { f: string; score: number }[] = [];
+  (function walk(d: string, depth: number) {
+    let es: Dirent[] = [];
     try {
       es = fs.readdirSync(d, { withFileTypes: true });
     } catch {
@@ -53,11 +57,11 @@ function findFileNow(dir) {
   return found[0]?.f || null;
 }
 
-function parse(file) {
+function parse(file: string): { items: Item[]; kind: string } {
   const txt = fs.readFileSync(file, 'utf8').replace(/^﻿/, '');
   if (/\.srt$/i.test(file)) {
-    const out = [],
-      ts = s => {
+    const out: Item[] = [],
+      ts = (s: string) => {
         const m = s.match(/(\d+):(\d+):(\d+)[,.](\d+)/);
         return m ? +m[1] * 3600 + +m[2] * 60 + +m[3] + +m[4] / 1000 : null;
       };
@@ -76,26 +80,26 @@ function parse(file) {
     return { items: out, kind: 'phrases' };
   }
   if (/\.js$/i.test(file)) {
-    const out = [];
+    const out: Item[] = [];
     const re = /\[\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(["'`])((?:\\.|(?!\3).)*)\3\s*\]/g;
-    let m;
+    let m: RegExpExecArray | null;
     while ((m = re.exec(txt))) out.push([+m[1], +m[2], m[4].replace(/\\(.)/g, '$1')]);
     return { items: out, kind: 'words' };
   }
   const j = JSON.parse(txt),
     arr = Array.isArray(j) ? j : j.words || j.segments || [];
-  const items = arr
-    .map(x =>
+  const items: Item[] = arr
+    .map((x: Json): Item =>
       Array.isArray(x) ? [+x[0], +x[1], String(x[2] ?? '')] : [+(x.s ?? x.start ?? x.t0), +(x.e ?? x.end ?? x.t1), String(x.w ?? x.word ?? x.text ?? '')]
     )
-    .filter(x => isFinite(x[0]) && isFinite(x[1]) && x[2].trim());
+    .filter((x: Item) => isFinite(x[0]) && isFinite(x[1]) && x[2].trim());
   return { items, kind: items.some(x => /\s/.test(x[2].trim())) ? 'phrases' : 'words' };
 }
 
 // words → sentences: end at . ! ? … : or a pause longer than 0.6 s, or at ~14 words
-function sentences(words) {
-  const out = [];
-  let cur = null;
+function sentences(words: Item[]) {
+  const out: Item[] = [];
+  let cur: Item | null = null;
   for (const [s, e, w] of words) {
     if (cur && s - cur[1] > 0.6) {
       out.push(cur);
@@ -115,7 +119,7 @@ function sentences(words) {
   return out;
 }
 
-export function transcript(p) {
+export function transcript(p: { path: string }): TranscriptResult {
   const meta = readJson(path.join(p.path, '.videohub', 'project.json'), {});
   const conf = meta.transcript || {};
   const file = conf.file ? path.resolve(p.path, conf.file) : findFile(p.path);
@@ -125,22 +129,22 @@ export function transcript(p) {
     key = file + '|' + offset;
   const hit = cache.get(key);
   if (hit && hit.mtime === mtime) return hit.data;
-  let data;
+  let data: TranscriptResult;
   try {
     const { items, kind } = parse(file);
-    const shift = x => [+(x[0] + offset).toFixed(3), +(x[1] + offset).toFixed(3), x[2]];
+    const shift = (x: Item): Item => [+(x[0] + offset).toFixed(3), +(x[1] + offset).toFixed(3), x[2]];
     const words = kind === 'words' ? items.map(shift) : [];
     const phrases = (kind === 'words' ? sentences(items) : items).map(shift);
     data = { ok: true, source: path.relative(p.path, file), offset, words, phrases };
   } catch (e) {
-    data = { ok: false, reason: `Could not read transcript file (${path.basename(file)}): ${e.message}` };
+    data = { ok: false, reason: `Could not read transcript file (${path.basename(file)}): ${(e as Error).message}` };
   }
   cache.set(key, { mtime, data });
   return data;
 }
 
 // the sentence(s) spoken at t (or across t..t2), for a note
-export function spokenAt(p, t, t2) {
+export function spokenAt(p: { path: string }, t: number, t2?: number | null) {
   const tr = transcript(p);
   if (!tr.ok) return null;
   const a = t,
