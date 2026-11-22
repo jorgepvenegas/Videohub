@@ -9,8 +9,8 @@
 - Approved at: 2026-11-21
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: p2-server-core
+- Implemented at: 2026-11-21
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -137,20 +137,20 @@ Commit after each step with subject `P2:` followed by the step title and push (d
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — The P2 file set is fully `.ts`. Exactly these tracked JavaScript files remain directly in `server/`: `hub.js`, `mcp.js`, `cli.js`, `tools.js`, `mcp-selftest.js`, `hub-paths.test.js`, `tools.test.js`, `duck.test.js`, `sfxlib.mjs`, `vhsound.mjs` — verify: `git ls-files 'server/*.js' 'server/*.mjs' | grep -v thumbstudio`
-- [ ] A2 — `pnpm typecheck` is strict-clean with no `@ts-nocheck` in `server/*.ts`, and every `any` is justified on its line — verify: the S4 greps and `pnpm typecheck`
-- [ ] A3 — `pnpm test` reports 299 tests, ≥ 298 pass, 0 fail, and source-reading tests use `readSource` — verify: `pnpm test` and `grep -L readSource server/{config,guard,jobs,peaks,ramhogs,scan-cache,util}.test.ts` (no output)
-- [ ] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
-- [ ] A5 — A scratch hub on 7799 starts, answers `/api/ping`, serves `/`, and the CLI reaches it — verify: S5 evidence in §9
-- [ ] A6 — Renames keep history — verify: `git log --follow --oneline server/util.ts | wc -l` shows commits from before P2
+- [x] A1 — The P2 file set is fully `.ts`. Exactly these tracked JavaScript files remain directly in `server/`: `hub.js`, `mcp.js`, `cli.js`, `tools.js`, `mcp-selftest.js`, `hub-paths.test.js`, `tools.test.js`, `duck.test.js`, `sfxlib.mjs`, `vhsound.mjs` — verify: `git ls-files 'server/*.js' 'server/*.mjs' | grep -v thumbstudio`
+- [x] A2 — `pnpm typecheck` is strict-clean with no `@ts-nocheck` in `server/*.ts`, and every `any` is justified on its line — verify: the S4 greps and `pnpm typecheck`
+- [x] A3 — `pnpm test` reports 299 tests, ≥ 298 pass, 0 fail, and source-reading tests use `readSource` — verify: `pnpm test` and `grep -L readSource server/{config,guard,jobs,peaks,ramhogs,scan-cache,util}.test.ts` (no output)
+- [x] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
+- [x] A5 — A scratch hub on 7799 starts, answers `/api/ping`, serves `/`, and the CLI reaches it — verify: S5 evidence in §9
+- [x] A6 — Renames keep history — verify: `git log --follow --oneline server/util.ts | wc -l` shows commits from before P2
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Existing helpers are reused where they fit; `server/types.ts` holds only types shared by two or more modules
-- [ ] Names and structure state intent; comments explain only non-obvious reasons (including every `any`)
-- [ ] Every new test fails if the behavior it covers breaks; no test restates the implementation (no new tests expected; converted tests keep their assertions)
-- [ ] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Existing helpers are reused where they fit; `server/types.ts` holds only types shared by two or more modules
+- [x] Names and structure state intent; comments explain only non-obvious reasons (including every `any`)
+- [x] Every new test fails if the behavior it covers breaks; no test restates the implementation (no new tests expected; converted tests keep their assertions)
+- [x] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`
 
 ## 8. Risks and unknowns
 
@@ -174,36 +174,43 @@ Append during implementation. One line per deviation: date, step, what changed, 
 - 2026-11-21 S4: removed the last `// @ts-nocheck` (`grep -rn "@ts-nocheck" server/*.ts` prints nothing); `pnpm typecheck` exit 0; `pnpm test` 299 tests, 298 pass, 1 skipped, 0 fail; `pnpm format:check` exit 0; `pnpm lint` exit 0 (40 warnings in the P2 top-level `server/*` files, unchanged from the baseline: no dead code was removed). The plan's `any` grep (`grep -nE "\bany\b" server/*.ts | grep -v "//"`) prints only the false positive in the test title at `server/platform.darwin.test.ts:274` (the word "any" in prose); the single `any` is the `Json` alias in `server/types.ts` with its same-line comment. `server/types.ts` also gained `Config`, `Root`, `Project`/`ProjectBase`/`SourceProject`, `OutputEntry`, `RenderInfo`, `Job`, `Recipe`, `Note`, `RouteFn`/`RouteHandler`/`ReadBody` (each used by two or more modules). `source-revision.ts` now takes `SourceProject` (the S3 `Project` alias was renamed), and `platform.recycleStream` became generic over its item type; both are type-only edits to S3 files that the S4 typing of `janitor.ts` needed. Runtime-equivalence check: for all 47 changed `server/*.ts` files, the type-stripped current source equals the S2 (rename-commit) source after removing comments, imports, whitespace, parentheses and trailing commas, except for the seven source-reading tests that now call `readSource`; so no runtime code changed, only type syntax and formatting. Source-reading tests `jobs`, `peaks` and `scan-cache` now use `readSource` (`peaks` and `scan-cache` already sliced by `indexOf`/regex markers, `jobs` evaluates the whole stripped file); assertions are unchanged.
 - 2026-11-21 S4 note, L2 (`encoders.ts` async executor, kept as-is): the executor of `probeWith`'s `new Promise(async resolve => ...)` can only throw from three places: `encoderCandidates(name)` (an `ENCODER_ARGS` lookup, a spread and `os.arch()`; none throws for any string `name`, and an unknown name yields `[]`), the inner `new Promise(r => ...)` callback (its `spawn` is already in try/catch, `setTimeout` and `c.on` cannot throw, and `c.kill()` is in try/catch) and the `...args` spread of a table entry (always an array). No path can throw out of the executor, so a rejection that would be lost cannot occur today; the only residual risk is a future edit. No fix made.
 - 2026-11-21 S4 discovery (note, behavior left as-is): `jobs.busyElsewhere()` reads `session?.title` from guard render records, but `guardState().renders` entries never carry a `session`, so the message always says "another session"; typed with a cast rather than changed. `guard.guardHistory()` returns a list that may contain `null` entries typed as such (`filter(Boolean)` does not narrow); `outputs.ts` casts it.
+- 2026-11-21 S5: standards, run after S4 (`da95a6d`): `pnpm install --frozen-lockfile` Already up to date; `pnpm format:check` All matched files use the correct format (157 files); `pnpm lint` exit 0, 0 errors, 146 warnings repo-wide (unchanged from P1), 40 in the top-level `server/*` files of the P2 set both before and after (L3: no warning cleanup, no dead-code removal); `pnpm typecheck` exit 0; `pnpm test` 299 tests, 298 pass, 1 skipped, 0 fail. A1: `git ls-files 'server/*.js' 'server/*.mjs' | grep -v thumbstudio` lists exactly cli.js, duck.test.js, hub-paths.test.js, hub.js, mcp-selftest.js, mcp.js, sfxlib.mjs, tools.js, tools.test.js, vhsound.mjs. A6: `git log --follow --oneline server/util.ts | wc -l` is 7, with commits from before P2. Scratch hub (`VIDEOHUB_PORT=7799`, data and base under `.test-tmp/p2-hub`, guard and jobs off, no window, a fake HOME/XDG under `.test-tmp/p2-hub/home`; the real Node binary path was used because the asdf shim fails under a fake HOME): `GET /api/ping` returned `{"ok":true,"app":"videohub","pid":32547}`; `GET /` returned the UI HTML (`<title>VideoHub</title>`); `VIDEOHUB_PORT=7799 node server/cli.js hub_workspace` printed `Workspace: /Users/jorge/code/Videohub/.test-tmp/p2-hub/base` and `VideoHub: http://127.0.0.1:7799`; `GET /api/projects` returned an empty scan. The hub was then stopped (`/api/ping` no longer answers, nothing listens on 7799). Port 7788, real films, real data and agent profiles were not touched.
 
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
 
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-21
+- Session: p2-server-core (subagent, one session)
+- Verdict: addressed
+- Steps complete: S1, S2, S3, S4, S5
+- Verification run: `pnpm install --frozen-lockfile`; `pnpm format:check` exit 0; `pnpm lint` 0 errors, 146 warnings (40 in the P2 `server/*` files before and after); `pnpm typecheck` exit 0; `pnpm test` 299 tests, 298 pass, 1 skipped, 0 fail; `grep -rn "@ts-nocheck" server/*.ts` empty; `grep -L readSource server/{config,guard,jobs,peaks,ramhogs,scan-cache,util}.test.ts` empty; S2 `git show -M --summary HEAD` shows 46 renames; scratch hub on 7799 answered `/api/ping`, `/` and `hub_workspace`, then was stopped.
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | pending | |
-| A2 | pending | |
-| A3 | pending | |
-| A4 | pending | |
-| A5 | pending | |
-| A6 | pending | |
-| D1 (master) | pending | |
-| D2 (master) | pending | |
-| D3 (master) | pending | |
-| D4 (master) | pending | |
-| D5 (master) | pending | |
+| A1 | met | The 27 modules and 19 tests are `.ts`; `git ls-files 'server/*.js' 'server/*.mjs' | grep -v thumbstudio` lists exactly the ten planned files |
+| A2 | met | `pnpm typecheck` exit 0 with `strict`; no `@ts-nocheck` under `server/*.ts`; the only `any` is the `Json` alias in `server/types.ts` with a same-line comment (the plan's grep also hits a test title containing the word "any", a false positive) |
+| A3 | met | 299 tests, 298 pass, 1 skipped, 0 fail; `config`, `guard`, `jobs`, `peaks`, `ramhogs`, `scan-cache`, `util` tests use `readSource` (grep -L prints nothing); assertions unchanged |
+| A4 | met | `pnpm lint` 0 errors (146 warnings repo-wide, 40 in the P2 files, both unchanged); `pnpm format:check` exit 0 |
+| A5 | met | Scratch hub on 7799: `/api/ping` returned `app: "videohub"`, `/` returned the UI HTML, `hub_workspace` printed the scratch workspace; hub stopped afterwards |
+| A6 | met | `git log --follow --oneline server/util.ts` shows 7 commits including pre-P2 history; the two smallest renames (`pickfolder` 67%, `ciktilar-dir` 83%) still follow |
+| D1 (master) | met | P2 share met (D stays open in master until P9): 46 tracked `server/*.js` files became `.ts` with history kept |
+| D2 (master) | met | P2 share met (D stays open in master until P9): every converted file passes `strict`; `allowJs` removal remains for P9 |
+| D3 (master) | met | P2 share met (D stays open in master until P9): converted files are lint-clean (0 errors) and oxfmt-formatted |
+| D4 (master) | met | P2 share met (D stays open in master until P9): 299 tests, 298 pass, 0 fail |
+| D5 (master) | met | P2 share met (D stays open in master until P9): the scratch hub starts and serves its API and UI with JavaScript importers pointing at the `.ts` modules; the Vite build part is P5 |
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| P2-n1 | L2 resolved by inspection: no path can throw out of `encoders.ts` `probeWith`'s async executor (details in §9), so no fix is needed; the lint warning `no-async-promise-executor` stays | note | P9 | None; P9 may decide whether to keep the rule at `error` |
+| P2-n2 | The plan's `any` verification grep matches prose (the word "any" in `server/platform.darwin.test.ts:274`), so it never prints "no output" | plan-defect | P2 | Applied here: the line is a known false positive and the only real `any` (`Json` in `server/types.ts`) carries its justification; later plans that reuse the grep should add `-v "test('"` or exclude tests |
+| P2-n3 | S2 acceptance says no rename below 90% similarity; two 7-9 line files fell below it (`pickfolder.ts` 67%, `ciktilar-dir.ts` 83%) because the added `// @ts-nocheck` line is a large share of tiny files; `git log --follow` still tracks both | note | P3, P4 | None needed; later renames of tiny files may do the same, so use a "follows history" check instead of a percentage |
+| P2-n4 | `jobs.busyElsewhere()` reads `session?.title` from guard render records, but `guardState().renders` entries have no `session`, so the busy message always says "another session"; typed with a cast, behavior unchanged | note | P3 | Candidate for a user-approved behavior fix outside the migration |
+| P2-n5 | S3/S4 file lists omitted two type-only edits to S3 files that typing `janitor.ts` needed: `source-revision.ts` takes a `SourceProject` type, `platform.recycleStream` is generic over its item type; no runtime effect (verified by a stripped-source comparison of all 47 files against the rename commit) | phase-amend | P2 | Recorded in §9; no further action |
+| P2-n6 | Test files that import the JS-era `render.js` template (`encoders.test.ts`) and `ui/values.js` (through `legacy.ts`) stay unchecked for those sides; `legacy.ts` re-exports JS types inferred by `allowJs` | note | P5, P8 | Revisit when `ui/values.js` (P5) and `render.js` (P8) convert |
 
-**Master updates written:** none yet
-**Next-phase updates written:** none yet
-**Remaining work and handoff:** none yet
+**Master updates written:** none (master is coordinator-owned)
+**Next-phase updates written:** none; P3 imports the `.ts` modules by their new specifiers and can reuse `RouteFn`, `ReadBody`, `Project` and `Job` from `server/types.ts`
+**Remaining work and handoff:** P2 is complete. `server/types.ts` is ready for P3 to extend (the hub's `route`/`readBody` already match `RouteFn`/`ReadBody`). P3 should keep marker slicing for any source-reading test it converts (`hub-paths.test`, `tools.test`) and use `readSource` from `scripts/test-source.ts`. `noUnusedLocals` stays off; the 40 P2-file warnings were left for the P9 decision on L3.
