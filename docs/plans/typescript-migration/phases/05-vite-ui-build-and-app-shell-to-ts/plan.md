@@ -140,7 +140,7 @@ Commit after each step with subject `P5:` followed by the step title, and push. 
 - Files: the 10 renames in §3 (temporary first-line `// @ts-nocheck`); `ui/index.html`; the relative importers listed in §3 (specifiers only, L14)
 - Change: Do a pure rename, plus updated specifiers and the script `src`. `server/legacy.ts` and `server/thumbstudio/schema.ts` now import `../ui/values.ts` / `../../ui/values.ts`. Rebuild.
 - Acceptance:
-  - [ ] `git log --follow` tracks all 10; `pnpm build`, `pnpm typecheck` and `pnpm test` pass
+  - [x] `git log --follow` tracks all 10; `pnpm build`, `pnpm typecheck` and `pnpm test` pass
 - Verification: `git show -M --summary HEAD | grep -c '^ rename'`; `pnpm build && pnpm typecheck && pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -202,6 +202,8 @@ Append during implementation. One line per deviation: date, step, what changed, 
 
 - 2026-11-22 S1: `pnpm install --frozen-lockfile && pnpm build && ls dist/ui dist/ui/_vh && pnpm typecheck` all exit 0; pnpm raised no build-script approval prompt; build emits index.html plus `_vh/index-*.js/.css`, `editor-*.js`, `figures-catalog-*.js`; `git check-ignore dist` prints `dist`; suite 307 pass. Root tsconfig `include` now lists `ui/values.*` and `ui/**/*.test.*` instead of all of `ui` (UI sources are checked by `ui/tsconfig.json`).
 - 2026-11-22 S2: `node --test server/hub-ui.test.ts` 3 pass; `pnpm test` 310 pass, 0 fail. Revert checks: with `server/hub.ts` restored to HEAD~ the 'serves dist/ui' and '503' tests fail; the film fall-through test is unchanged behavior, so it was checked by mutating the Referer branch to `if (false)` and it failed. Test slices the hub's real source (`const UI =` block and the GET fall-through body) into a vm with a scratch program folder under `.test-tmp/hub-ui`; no hub is started.
+- 2026-11-22 S3: `node --test scripts/install.test.ts` 30 pass; `grep -nE "^import .* from '[^.n]" scripts/install.ts` prints nothing; `pnpm test` 312 pass, 0 fail. Revert check (install.ts at HEAD, tests kept): 4 fail (the two updated command-list tests, the build-failure test, the config-copy test). `buildUi` runs after `packageInstall` in setup and update, including when packages are kept. The fixture's guard `run` now allows only `pnpm build` (it still throws on anything else), and the two exact-command tests expect install then build.
+- 2026-11-22 S4: 10 `git mv` renames (6 modules, 4 tests) each with a first-line `// @ts-nocheck`; specifiers rewritten only when relative; `pnpm build`, `pnpm typecheck`, `pnpm test` (312 pass, 0 fail) green. Deviation: `server/tools.ts:19` also imports `../ui/values.js` and is not in the §3 list; its specifier was changed to `.ts` (specifier only) because the import would break otherwise. Discovery for the coordinator: §3 file list missed `server/tools.ts`.
 
 ## 10. Closeout
 
@@ -236,4 +238,3 @@ Fill at the end of every implementation session. Do not mark the phase done unti
 **Master updates written:** none yet
 **Next-phase updates written:** none yet
 **Remaining work and handoff:** none yet
-- 2026-11-22 S3: `node --test scripts/install.test.ts` 30 pass; `grep -nE "^import .* from '[^.n]" scripts/install.ts` prints nothing; `pnpm test` 312 pass, 0 fail. Revert check (install.ts at HEAD, tests kept): 4 fail (the two updated command-list tests, the build-failure test, the config-copy test). `buildUi` runs after `packageInstall` in setup and update, including when packages are kept. The fixture's guard `run` now allows only `pnpm build` (it still throws on anything else), and the two exact-command tests expect install then build.

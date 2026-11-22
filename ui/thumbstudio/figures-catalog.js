@@ -1,5 +1,5 @@
 // Pose & Expression Visual Inspection Catalog (#/thumbstudio/_/catalog)
-import { h } from '../app.js';
+import { h } from '../app.ts';
 import { FIGURE_POSES, drawFigure } from './figures.js';
 import { POSES, EXPRESSIONS } from './catalog.js';
 

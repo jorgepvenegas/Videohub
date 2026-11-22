@@ -1,6 +1,6 @@
-import { trashName } from '../system.js';
+import { trashName } from '../system.ts';
 // VideoHub · Thumbnail Studio Home / List Page (#/thumbstudio)
-import { h, api, toast, confirmBox, pill, AGO, onHubEvent } from '../app.js';
+import { h, api, toast, confirmBox, pill, AGO, onHubEvent } from '../app.ts';
 import { openTemplatePickerModal, openTemplateSlotsModal, renderTemplateCard } from './templates.js';
 
 export async function thumbnailStudioPage(page, ...args) {

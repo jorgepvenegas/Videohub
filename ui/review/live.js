@@ -2,7 +2,7 @@
 // /live/<id>/...) draws any moment with window.renderOut(t) on fixed-size canvases. This object looks enough
 // like an HTMLVideoElement (currentTime, play/pause, events, requestVideoFrameCallback) for the review player.
 // While playing, the project's audio is the clock; frames that take too long are skipped, never slowed down.
-import { h } from '../app.js';
+import { h } from '../app.ts';
 
 export function createLiveSource(info, { onStatus } = {}) {
   const box = h('div', { class: 'livebox' });

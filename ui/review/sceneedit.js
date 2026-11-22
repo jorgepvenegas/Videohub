@@ -1,7 +1,7 @@
 // Scene editor on the live preview (pages that offer window.VH_EDIT: the 3D studio engine, engine/tweaks.js).
 // The user moves the camera, an object or a screen item right in the picture, or moves a cut; the change is saved to
 // the scene's tweaks.json at once and every later preview and render draws it. No code change, no Claude, no tokens.
-import { h, api, toast, confirmBox } from '../app.js';
+import { h, api, toast, confirmBox } from '../app.ts';
 
 const STEPS = [0.01, 0.1, 1];
 const TC = s => {

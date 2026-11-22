@@ -1,6 +1,6 @@
-import { agentName } from '../agent.js';
+import { agentName } from '../agent.ts';
 // VideoHub · Thumbnail Studio Editor Shell (#/thumbstudio/<pid>/<tid>)
-import { h, api, toast, confirmBox, pill, onHubEvent } from '../app.js';
+import { h, api, toast, confirmBox, pill, onHubEvent } from '../app.ts';
 import { History } from './history.js';
 import { drawScene, renderExportCanvases, setImageLoadHandler, isOverlayLayer } from './scene.js';
 import { generatePrompt } from './prompt.js';

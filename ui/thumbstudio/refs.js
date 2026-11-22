@@ -1,5 +1,5 @@
 // Reference Image Management Panel (#/thumbstudio/<pid>/<tid> -> References)
-import { h, api, toast, confirmBox } from '../app.js';
+import { h, api, toast, confirmBox } from '../app.ts';
 
 export function openReferencesModal(pid, tid, brief, { onUpdated }) {
   const modalBg = h('div', { class: 'modal-bg' });

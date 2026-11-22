@@ -1,7 +1,7 @@
-import { agentName } from './agent.js';
+import { agentName } from './agent.ts';
 // Review studio v2: always-visible tools, a real transport bar, timeline with strip + waveform,
 // zoom/pan, compare (side / wipe / difference), review copy for instant frame stepping.
-import { h, api, toast, TC, DUR, AGO, onHubEvent, openFolder } from './app.js';
+import { h, api, toast, TC, DUR, AGO, onHubEvent, openFolder } from './app.ts';
 import { COLORS, WIDTHS, paint, bbox, hit, pinR, PIN_HEAD } from './review/shapes.js';
 import { createTimeline } from './review/timeline.js';
 import { createNotesPanel } from './review/notes.js';

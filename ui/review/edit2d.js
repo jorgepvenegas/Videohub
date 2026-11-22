@@ -4,7 +4,7 @@
 //   items   pictures, texts, boxes, circles, arrows added over the film, each with its own time span and fades
 //   actors  the film's characters (drawn through the engine's actor()): moved, scaled or hidden, in one shot or the film
 // Everything is saved at once to the film's tweaks.json ("items2d", "actors2d"); no code change, no Claude.
-import { h, api, toast, confirmBox } from '../app.js';
+import { h, api, toast, confirmBox } from '../app.ts';
 
 const TC = s => {
   s = Math.max(0, +s || 0);

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Stored values (note statuses, note kinds, project statuses, thumbnail statuses …) and their legacy aliases.
 // VideoHub writes the English values. Files written by older (Turkish) versions use the Turkish words; they are mapped
 // to the English ones when a file is read (server/legacy.js) and the hub_* tools accept them as input aliases.

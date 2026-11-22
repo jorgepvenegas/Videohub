@@ -9,7 +9,7 @@
 // GainNode following M/S × soundEnv(level curve, the render's formula) → master → limiter; added clips are decoded
 // once and scheduled as buffer sources with their fades (soundenv.js clipPlan, the render's mixClips rules).
 // The transport's 🔊 / volume / U drive the master while it runs. "Built audio" forces the player's own sound.
-import { h, api, toast } from '../app.js';
+import { h, api, toast } from '../app.ts';
 import { createHistory } from './history.js';
 import { soundEnv, applyOps, opsToward, clipPlan } from './soundenv.js';
 

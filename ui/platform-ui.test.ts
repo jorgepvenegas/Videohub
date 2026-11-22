@@ -1,9 +1,10 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const source = fs.readFileSync(new URL('./app.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('./app.ts', import.meta.url), 'utf8');
 function element(tag, attrs = {}, ...children) {
   return {
     tag,

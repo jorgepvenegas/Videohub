@@ -1,11 +1,12 @@
-import { trashName, setSystemCapabilities, sameFolder } from './system.js';
-import { agentName, setAgentName } from './agent.js';
+// @ts-nocheck
+import { trashName, setSystemCapabilities, sameFolder } from './system.ts';
+import { agentName, setAgentName } from './agent.ts';
 // VideoHub UI: hash router + pages. No build step.
 import { reviewPage } from './review.js';
-import { outputsPanel, outputActions } from './outputs-panel.js';
-import { activeRenders, elapsedSeconds, timeText, remainingText } from './render-status.js';
+import { outputsPanel, outputActions } from './outputs-panel.ts';
+import { activeRenders, elapsedSeconds, timeText, remainingText } from './render-status.ts';
 import { thumbnailStudioPage } from './thumbstudio/page.js';
-import { NOTE_STATUS_LABEL, NOTE_KIND_LABEL, PROJECT_STATUS_LABEL, THUMB_STATUS_LABEL } from './values.js';
+import { NOTE_STATUS_LABEL, NOTE_KIND_LABEL, PROJECT_STATUS_LABEL, THUMB_STATUS_LABEL } from './values.ts';
 
 // ---------- tiny helpers
 export const $ = (s, el = document) => el.querySelector(s);

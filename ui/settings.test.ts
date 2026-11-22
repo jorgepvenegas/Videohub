@@ -1,11 +1,12 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { agentName, setAgentName } from './agent.js';
-import { sameFolder, setSystemCapabilities } from './system.js';
+import { agentName, setAgentName } from './agent.ts';
+import { sameFolder, setSystemCapabilities } from './system.ts';
 
-const source = fs.readFileSync(new URL('./app.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('./app.ts', import.meta.url), 'utf8');
 const settingsCode = source.slice(source.indexOf('async function settingsPage'), source.indexOf('// One picker serves'));
 function element(tag, attrs = {}, ...children) {
   const el = {

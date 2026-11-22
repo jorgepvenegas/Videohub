@@ -1,5 +1,5 @@
 // Side-view Depth Panel and Depth Mode Rendering
-import { h } from '../app.js';
+import { h } from '../app.ts';
 
 export function createDepthPanel(brief, { onLayerDepthChange, onSelectLayer }) {
   // Undo/redo replaces the brief object; always resolve the current editor state.

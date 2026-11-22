@@ -1,8 +1,8 @@
-import { trashName } from '../system.js';
-import { agentName } from '../agent.js';
+import { trashName } from '../system.ts';
+import { agentName } from '../agent.ts';
 // Variants UI: the variants strip under the canvas and the big variant viewer (compare two, lay the layout over it,
 // pin notes, `Send fixes to ${agentName()}`, choose, delete). Images are made by Claude (hub_thumb_variant), never by VideoHub.
-import { h, api, toast, confirmBox, AGO } from '../app.js';
+import { h, api, toast, confirmBox, AGO } from '../app.ts';
 
 const fileUrl = (pid, tid, f, v) => `/api/thumbstudio/${pid}/${tid}/file?f=${encodeURIComponent(f)}${v ? '&v=' + encodeURIComponent(v) : ''}`;
 const NOTE_TR = {

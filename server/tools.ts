@@ -16,7 +16,7 @@ import {
   projectStatus,
   isOpenNote,
   normalizeNote
-} from '../ui/values.js';
+} from '../ui/values.ts';
 
 // renders and versions made through these tools are labelled "Claude"; the tools never look at which chat called them
 const BY_AGENT = { title: (readJson(path.join(DATA_DIR, 'config.json'), {}) || {}).agentName || 'Claude' };

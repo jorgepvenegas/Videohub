@@ -5,7 +5,7 @@
 // "💾 Apply to film" writes the levels into tweaks.json "sound" (whole film or the selected I/O range; PATCH soundOps,
 // only that entry's fields) and the review page's apply queue rebuilds the film's mix (server/sound.js; the untouched
 // mix stays as *.vhorig.wav; 3D studio: the engine's build at once, since the button asked for it).
-import { h, api, toast } from '../app.js';
+import { h, api, toast } from '../app.ts';
 
 const KEY = { vo: 'vo', music: 'music', sfx: 'sfx' }; // layer id → tweaks.json sound key
 const pct = g => Math.round(g * 100) + '%';

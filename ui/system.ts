@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Server capabilities provide platform wording without importing Node code into the UI.
 let current = {};
 export function setSystemCapabilities(value) {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Presentation preference only; stored note/status values keep their compatibility names.
 let name = 'Claude';
 export const agentName = () => name;

@@ -1,6 +1,7 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activeRenders, elapsedSeconds, timeText, remainingText } from './render-status.js';
+import { activeRenders, elapsedSeconds, timeText, remainingText } from './render-status.ts';
 const now = Date.parse('2026-11-03T13:00:00Z');
 test('elapsed duration uses job start, not queue entry or movie duration', () => {
   const row = activeRenders({ jobs: [{ id: 'one', state: 'running', createdAt: '2026-11-03T12:00:00Z', startedAt: '2026-11-03T12:57:30Z', dur: 7200 }] })[0];

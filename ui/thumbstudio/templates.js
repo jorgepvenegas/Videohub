@@ -1,5 +1,5 @@
 // VideoHub · Thumbnail Studio Template Gallery, Slot Form and Save Template
-import { h, api, toast, confirmBox, pill, onHubEvent } from '../app.js';
+import { h, api, toast, confirmBox, pill, onHubEvent } from '../app.ts';
 import { drawScene } from './scene.js';
 
 // Client-side slot substitution

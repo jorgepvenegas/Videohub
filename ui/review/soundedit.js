@@ -5,7 +5,7 @@
 // Clip tab edits the selected one (level, fades, trim, length, loop, mute, copy, delete). Every change is one undo step
 // (history.js), saved to tweaks.json "audio" with PATCH (only that key), then the sound is rebuilt through the review
 // page's apply queue (stems/all: by itself a moment later; 3D studio: "💾 Apply to film").
-import { h, api, toast, confirmBox } from '../app.js';
+import { h, api, toast, confirmBox } from '../app.ts';
 import { createHistory } from './history.js';
 import { assignLane, clipLen } from './tracks.js';
 

@@ -1,6 +1,6 @@
-import { agentName } from '../agent.js';
+import { agentName } from '../agent.ts';
 // Notes panel: the draft note being written, the list of notes, edits, statuses, `send to ${agentName()}`.
-import { h, api, toast, confirmBox, pill, TC, AGO } from '../app.js';
+import { h, api, toast, confirmBox, pill, TC, AGO } from '../app.ts';
 
 // Element.append prints null/false as text; this skips them like h() does.
 const put = (el, ...kids) => {

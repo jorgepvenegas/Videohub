@@ -1,9 +1,9 @@
-import { agentName } from '../agent.js';
+import { agentName } from '../agent.ts';
 // Automatic check of a live film, frame by frame, in the preview page that is already open: no render, no extra
 // Chrome, no Claude, no tokens. Pages with window.qaFrame (3D studio engine/runtime.js) also report the camera inside
 // a mesh, characters sunk into things and 2D labels without depth; every other live page gets the picture checks
 // (black / white frames, flicker, one-frame pops, frozen picture, long holds, hard cuts). Same rules as engine/qa.mjs.
-import { h, api, toast } from '../app.js';
+import { h, api, toast } from '../app.ts';
 
 const KIND = {
   lens: ['Camera inside an object', '#ff6b6b'],

@@ -1,5 +1,6 @@
+// @ts-nocheck
 // Recent render files, shared by the home page and the full history page.
-import { h, api, toast, AGO, DUR, GB, onHubEvent } from './app.js';
+import { h, api, toast, AGO, DUR, GB, onHubEvent } from './app.ts';
 
 const MODE = {
   full: 'Full film',

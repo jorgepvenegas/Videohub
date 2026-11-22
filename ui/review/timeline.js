@@ -8,7 +8,7 @@
 // count; clicking it again steps through them), so scrubbing never lands on a note by accident.
 // Ctrl+wheel zooms at the pointer (plain wheel too, over the ruler), Shift+wheel pans, plain wheel scrolls the rows;
 // double-click shows the whole film. The view (zoom/pan/follow) lives in tlview.js; its buttons are in the transport.
-import { h } from '../app.js';
+import { h } from '../app.ts';
 import { createView } from './tlview.js';
 import { ls } from './dock.js';
 import { buildRows, tickSpec, fmtTick, clipLen, assignLane, findDragSnap, snapEdgeTime, edgeScrollStep } from './tracks.js';

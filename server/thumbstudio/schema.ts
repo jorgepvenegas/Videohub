@@ -1,6 +1,6 @@
 // Thumbnail brief validation and normalization. The catalog data lives in ui/thumbstudio/catalog.js (shared with the UI).
 import type { Json } from '../types.ts';
-import { thumbStatus, thumbNoteStatus } from '../../ui/values.js';
+import { thumbStatus, thumbNoteStatus } from '../../ui/values.ts';
 import {
   STYLE_PRESETS,
   POSES,

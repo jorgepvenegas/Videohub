@@ -1,8 +1,8 @@
-import { agentName } from '../agent.js';
+import { agentName } from '../agent.ts';
 // "Render" in the live preview: the user decides to render (their rule: no render before they say so).
 // The render goes through VideoHub's queue (one at a time, RAM protection). Full film, or, when the project can
 // re-render parts and there are notes Claude fixed, only the parts those notes touch. Progress shows on the button.
-import { h, api, toast, confirmBox, onHubEvent, folderButton } from '../app.js';
+import { h, api, toast, confirmBox, onHubEvent, folderButton } from '../app.ts';
 
 const FIXED = ['fixed', 'claude'];
 

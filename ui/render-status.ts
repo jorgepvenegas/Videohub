@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Shared by the live render page and sidebar; one queued job/native root is one render.
 export function activeRenders(data) {
   const guard = data?.guard || {};
