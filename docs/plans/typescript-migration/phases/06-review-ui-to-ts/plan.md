@@ -98,7 +98,7 @@ Commit after each step with subject `P6:` followed by the step title, and push. 
 - Files: the 36 renames in §3 (temporary first-line `// @ts-nocheck` on modules and tests); `ui/app.ts` (specifier); `server/scenes.ts`, `server/soundedit.ts`, `server/hub.ts`, `server/edit2d.ts` (comment paths only)
 - Change: Pure rename plus `./`/`../` specifier updates (L14), then rebuild. Before renaming, grep the whole repo for importers and path mentions of the renamed files (L26) and report any not listed here.
 - Acceptance:
-  - [ ] `git log --follow` tracks all 36; `pnpm build`, `pnpm typecheck` and `pnpm test` pass with the same counts as before
+  - [x] `git log --follow` tracks all 36; `pnpm build`, `pnpm typecheck` and `pnpm test` pass with the same counts as before
 - Verification: `git show -M --summary HEAD | grep -c '^ rename'` (36); `git ls-files 'ui/review.js' 'ui/review/*.js'` (empty); `pnpm build && pnpm typecheck && pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 

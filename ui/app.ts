@@ -1,7 +1,7 @@
 import { trashName, setSystemCapabilities, sameFolder } from './system.ts';
 import { agentName, setAgentName } from './agent.ts';
 // VideoHub UI: hash router + pages. No build step.
-import { reviewPage } from './review.js';
+import { reviewPage } from './review.ts';
 import { outputsPanel, outputActions } from './outputs-panel.ts';
 import { activeRenders, elapsedSeconds, timeText, remainingText } from './render-status.ts';
 import { thumbnailStudioPage } from './thumbstudio/page.js';

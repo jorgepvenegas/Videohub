@@ -1,5 +1,5 @@
 // The film's scenes/shots ({name, t0, t1} in film seconds) for the review timeline's scene lane.
-// The live preview reads them from the page (ui/review/scenes.js: VH_SCENES, SHOTS, EVENTS.shots + PIECES, __qaShotAt)
+// The live preview reads them from the page (ui/review/scenes.ts: VH_SCENES, SHOTS, EVENTS.shots + PIECES, __qaShotAt)
 // and stores them here (<project>/.videohub/scenes.json), so a rendered video of the same film shows them too.
 // Without a stored list: data/shots.json (spotlight `render.js cues`), shots.json at the top.
 import fs from 'node:fs';

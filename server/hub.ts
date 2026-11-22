@@ -309,7 +309,7 @@ route('POST', '/api/project/:id/meta', async (req, url, { id }) => {
 route('POST', '/api/project/:id/rescan', async (req, url, { id }) => lite(await rescanProject(id)));
 // a film with no video yet: the picture its live page drew (the card draws it and sends it here; X-Stale = code is newer)
 const LIVE_THUMBS = path.join(DATA_DIR, 'thumbs');
-// the last automatic scan of a live film (ui/review/autoscan.js): ranges of problems, kept with the project
+// the last automatic scan of a live film (ui/review/autoscan.ts): ranges of problems, kept with the project
 route('GET', '/api/project/:id/autoscan', (req, url, { id }) => {
   const p = project(id);
   if (!p) throw Object.assign(new Error('Project not found'), { code: 404 });

@@ -1,5 +1,5 @@
 import { norm } from './util.ts';
-// Sound editing from the review timeline (ui/review/soundedit.js): clips the user adds to a film (sound effects,
+// Sound editing from the review timeline (ui/review/soundedit.ts): clips the user adds to a film (sound effects,
 // another music bed), kept in tweaks.json "audio" { clips: [...] } and mixed by server/sound.js (VideoHub-built
 // mixes) or by the 3D studio's make.mjs (its own mixdown). Every clip's file is copied into the film's vhaudio/
 // folder first, so previews, renders and other PCs find it next to the film.

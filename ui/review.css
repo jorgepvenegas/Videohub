@@ -344,7 +344,7 @@
 .tl2-lval { width: 38px; font-variant-numeric: tabular-nums; color: var(--muted); }
 .tl2-layer.changed b { color: var(--accent); }
 
-/* Nov 6: 2D layers editor (ui/review/edit2d.js) */
+/* Nov 6: 2D layers editor (ui/review/edit2d.ts) */
 .e2d-panel { width: 380px; max-height: calc(100% - 20px); overflow: auto; }
 .e2d-props { border: 1px solid var(--border); border-radius: 8px; padding: 6px 7px; gap: 6px; background: rgba(255,255,255,.03); }
 .e2d-f { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; }
@@ -357,7 +357,7 @@
 .e2d-li b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
 .e2d-ov:focus { outline-color: #7fd0ff; }
 
-/* Nov 6: added sounds row (ui/review/soundedit.js) */
+/* Nov 6: added sounds row (ui/review/soundedit.ts) */
 .se-row { display: grid; gap: 4px; }
 .se-sel { flex-wrap: wrap; gap: 8px; }
 .se-f { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; }
