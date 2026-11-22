@@ -3,11 +3,11 @@
 - Plan ID: `typescript-migration`
 - Phase: P3
 - Plan version: 1
-- Validated against master version: 23
-- Status: in_progress
+- Validated against master version: 30
+- Status: done
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-21
-- Commit: pending
+- Commit: 292c485
 - Implementation mode: subagent
 - Implemented by: p3-server-entry
 - Implemented at: 2026-11-21
@@ -44,6 +44,8 @@ Finish the server side. This phase converts the entry and tool layer (`hub`, `mc
 | L8 | The `any` grep matched English words in test titles | The `any` check looks only at type positions: `grep -nE ':\s*any\b\|\bas any\b' server/**/*.ts`, and every hit has a same-line comment |
 | L9 | Rename similarity of tiny files falls under 90% | The rename criterion is `git log --follow` history; the 90% bar applies only to files over 15 lines |
 | L12 | `server/types.ts` exports `RouteFn`, `ReadBody`, `Project`, `Job`; `hub-paths`/`tools` tests still read JS | `hub.ts`, `tools.ts` and `mcp.ts` reuse those types and extend `server/types.ts` only for shapes shared by two or more modules; S2 and S4 convert both tests to `readSource` |
+| L13 | Type-only edits to `legacy.test.ts` and `soundedit.test.ts` outside the S1 list while files carried `@ts-nocheck` | Accepted during closeout as a type-only deviation; the `legacy.test.ts` cast is removed in P5 |
+| L15 | `tools.test` never reads source text | Recorded during closeout; no step change |
 
 ## 3. Scope
 

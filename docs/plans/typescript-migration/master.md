@@ -1,7 +1,7 @@
 # Master Plan — TypeScript migration
 
 - Plan ID: `typescript-migration`
-- Master version: 23
+- Master version: 30
 - Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
@@ -87,7 +87,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | P1 | Toolchain and format baseline | TypeScript 7, oxlint and oxfmt are pinned and wired into `pnpm typecheck`/`lint`/`format:check`; `pnpm test` also runs `.test.ts`; Node ≥ 22.18 is declared; the repo is formatted once (Vite arrives in P5) | none | done | [plan](phases/01-toolchain-and-format-baseline/plan.md) |
 | P2 | Server core modules to TS | Every top-level `server/*.js` module except the entry/tool layer (`hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib.mjs`, `vhsound.mjs`) plus their tests are strict `.ts`; one shared test helper strips types for source-reading tests | P1 | done | [plan](phases/02-server-core-modules-to-ts/plan.md) |
-| P3 | Server entry points and thumbstudio to TS | `server/hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib`, `vhsound` and `server/thumbstudio/` (except tests importing `ui/thumbstudio`, which move in P7) are `.ts`; every in-repo reference to the entry points uses `.ts` | P2 | in_progress | [plan](phases/03-server-entry-points-and-thumbstudio-to-ts/plan.md) |
+| P3 | Server entry points and thumbstudio to TS | `server/hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib`, `vhsound` and `server/thumbstudio/` (except tests importing `ui/thumbstudio`, which move in P7) are `.ts`; every in-repo reference to the entry points uses `.ts` | P2 | done | [plan](phases/03-server-entry-points-and-thumbstudio-to-ts/plan.md) |
 | P4 | Installer, scripts and upgrade path to TS | `scripts/` and the lifecycle entry points are `.ts`; shell scripts gate Node ≥ 22.18; setup registers `.ts` entries; update from a JS-era install stops the old hub and re-points MCP and login items | P3 | planned | pending |
 | P5 | Vite UI build and app shell to TS | Vite builds `ui/` into ignored output that the hub serves; setup/update run the build; top-level `ui/*.js` modules (`app`, `agent`, `values`, `system`, `outputs-panel`, `render-status`) and their tests are converted | P4 | planned | pending |
 | P6 | Review UI to TS | `ui/review/` and `ui/review.js` are `.ts` and build with Vite; review pages work in a scratch hub | P5 | planned | pending |
@@ -136,6 +136,13 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L10 | 2026-11-21 | P2 | P9 | jobs.busyElsewhere() reads session?.title from guard render records that never carry a session, so the busy message always says 'another session' (pre-existing, typed with a cast, behavior unchanged) | note | Out of scope (behavior); list in the final report as a candidate follow-up issue | open |
 | L11 | 2026-11-21 | P2 | P2 | Typing janitor.ts needed type-only edits in S3 files: source-revision.ts takes SourceProject, platform.recycleStream became generic; no runtime effect (verified by stripped-source comparison) | phase-amend | Accepted as a type-only deviation; recorded in P2 section 9 | open |
 | L12 | 2026-11-21 | P2 | P3,P5,P8 | server/types.ts exports RouteFn, ReadBody, Project, Job for reuse; hub-paths.test and tools.test still read JS source and need readSource plus marker slicing; legacy.ts re-exports types inferred from ui/values.js and encoders.test.ts reads render.js until P5/P8 | next-phase-amend | P3 plan reuses server/types.ts and converts hub-paths/tools tests with readSource; P5 and P8 plans note the unchecked inferred types | open |
+| L13 | 2026-11-21 | P3 | P3,P5 | While renamed files carried @ts-nocheck, tsc inference broke two P2 tests; worker made type-only edits outside the S1 file list (legacy.test.ts cast, kept until P5; soundedit.test.ts expect-error lines, removed in S2); no assertion changed | phase-amend | Accepted as type-only deviation; P5 removes the legacy.test.ts cast once ui/values is typed | open |
+| L14 | 2026-11-21 | P3 | P4-P9 | A bulk specifier sed rewrote a package import (MCP SDK mcp.js to mcp.ts) and no test imports mcp.ts; caught by mcp-selftest | plan-defect | Later plans: specifier rewrites match only relative specifiers (starting with ./ or ../) and run the entry self-tests | open |
+| L15 | 2026-11-21 | P3 | P3 | tools.test never reads source text; only hub-paths.test and soundenv.test needed readSource | plan-defect | None; noted in P3 closeout | open |
+| L16 | 2026-11-21 | P3 | P6 | soundEnv identity test normalizes whitespace, punctuation spacing and single-param arrow parentheses while comparing every token; mutation check proves it still catches logic changes | next-phase-amend | P6 types soundenv.ts with the same annotations as server/vhsound.ts and restores an exact text comparison | open |
+| L17 | 2026-11-21 | P3 | P9 | MCP tool arguments are typed as a record of string to Json because per-tool zod inference would require lifting schemas out of the TOOLS literal (a runtime change) | note | Candidate follow-up after the migration; not in scope | open |
+| L18 | 2026-11-21 | P3 | P5,P7 | server/thumbstudio schema.ts and store.ts rely on Json and on types inferred from ui/values.js and the ui thumbstudio catalog | note | P5 and P7 tighten these once the UI modules are typed | open |
+| L19 | 2026-11-21 | P3 | P4,P9 | CLAUDE.md:27 map line still names server/hub.js; old-install recognition and the Node 22.18 shell gate untouched as planned | note | P4 handles old installs and the gate; P9 updates the map line | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
@@ -160,6 +167,7 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 |---|---|---|---|---|---|
 | P1 | 2026-11-21 | addressed | A1, A2, A3, A4, A5, A6 | f115aeb | [report](phases/01-toolchain-and-format-baseline/plan.md) |
 | P2 | 2026-11-21 | addressed | A1, A2, A3, A4, A5, A6 | cd8073c | [report](phases/02-server-core-modules-to-ts/plan.md) |
+| P3 | 2026-11-21 | addressed | A1, A2, A3, A4, A5, A6, A7 | 292c485 | [report](phases/03-server-entry-points-and-thumbstudio-to-ts/plan.md) |
 
 ## 12. Resume brief
 
