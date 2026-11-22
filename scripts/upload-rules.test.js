@@ -9,7 +9,7 @@ import { droppedByBrowser, ALLOWED_DOT_FILES } from './upload-rules.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // .agents and .claude hold local agent skills, not part of the distribution.
-const LOCAL = new Set(['.git', '.github', '.agents', '.claude', '.test-tmp', 'node_modules', 'data']);   // .github is optional CI; browser uploads must add it separately.
+const LOCAL = new Set(['.git', '.github', '.agents', '.claude', '.test-tmp', 'node_modules', 'data']); // .github is optional CI; browser uploads must add it separately.
 
 test('the browser-upload rule', () => {
   assert.equal(droppedByBrowser('examples/hello-film/.videohub/project.json'), true);
@@ -17,15 +17,18 @@ test('the browser-upload rule', () => {
   assert.equal(droppedByBrowser('examples/hello-film/videohub-project.json'), false);
 });
 
-test('no file VideoHub needs starts with a dot (GitHub\'s browser upload would drop it)', () => {
+test("no file VideoHub needs starts with a dot (GitHub's browser upload would drop it)", () => {
   const bad = [];
   (function walk(d, rel) {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
       const r = rel ? rel + '/' + e.name : e.name;
       if (!rel && (LOCAL.has(e.name) || ALLOWED_DOT_FILES.has(e.name))) continue;
-      if (e.name === '.DS_Store') continue;   // Finder creates these; untracked, and make-upload ships tracked files only.
+      if (e.name === '.DS_Store') continue; // Finder creates these; untracked, and make-upload ships tracked files only.
       if (e.isDirectory() && (e.name === 'node_modules' || e.name === 'render')) continue;
-      if (droppedByBrowser(r)) { bad.push(r); continue; }
+      if (droppedByBrowser(r)) {
+        bad.push(r);
+        continue;
+      }
       if (e.isDirectory()) walk(path.join(d, e.name), r);
     }
   })(root, '');

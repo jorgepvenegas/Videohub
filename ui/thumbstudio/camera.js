@@ -5,7 +5,7 @@ import { CAMERA_ANGLES, CAMERA_SHOTS, LENSES } from './catalog.js';
 export function getGridParams(camera, W, H) {
   const angle = camera.angle || 'eye';
   const angleDef = CAMERA_ANGLES.find(a => a.id === angle) || CAMERA_ANGLES[0];
-  const horizon = camera.horizon != null ? camera.horizon : (angleDef.horizon != null ? angleDef.horizon : 0.5);
+  const horizon = camera.horizon != null ? camera.horizon : angleDef.horizon != null ? angleDef.horizon : 0.5;
   const vanishX = camera.vanishX != null ? camera.vanishX : 0.5;
   const tilt = camera.tilt || 0;
   const lens = camera.lens || 50;
@@ -42,10 +42,12 @@ export function drawPerspectiveGrid(ctx, camera, W, H) {
     ctx.beginPath();
     const step = W / 10;
     for (let x = 0; x <= W; x += step) {
-      ctx.moveTo(x, 0); ctx.lineTo(x, H);
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
     }
     for (let y = 0; y <= H; y += step) {
-      ctx.moveTo(0, y); ctx.lineTo(W, y);
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
     }
     ctx.stroke();
     ctx.restore();

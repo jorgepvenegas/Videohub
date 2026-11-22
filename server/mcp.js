@@ -9,7 +9,12 @@ const fail = e => ({ isError: true, content: [{ type: 'text', text: String(e?.me
 
 for (const [name, tool] of Object.entries(TOOLS)) {
   server.registerTool(name, { description: tool.description, inputSchema: tool.schema }, async args => {
-    try { return ok(await tool.run(args ?? {})); } catch (e) { console.error(e); return fail(e); }
+    try {
+      return ok(await tool.run(args ?? {}));
+    } catch (e) {
+      console.error(e);
+      return fail(e);
+    }
   });
 }
 await server.connect(new StdioServerTransport());

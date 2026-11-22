@@ -8,10 +8,20 @@ export function renderCatalogPage(page) {
   page.append(container);
 
   // Header
-  const header = h('div', { class: 'thumbstudio-header row' },
+  const header = h(
+    'div',
+    { class: 'thumbstudio-header row' },
     h('h1', {}, 'Pose and Expression Catalog (Visual Check)'),
     h('span', { class: 'spacer' }),
-    h('button', { onclick: () => { location.hash = '#/thumbstudio'; } }, '← Back to list')
+    h(
+      'button',
+      {
+        onclick: () => {
+          location.hash = '#/thumbstudio';
+        }
+      },
+      '← Back to list'
+    )
   );
   container.append(header);
 

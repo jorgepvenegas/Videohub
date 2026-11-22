@@ -1,8 +1,27 @@
 // Thumbnail brief validation and normalization. The catalog data lives in ui/thumbstudio/catalog.js (shared with the UI).
 import { thumbStatus, thumbNoteStatus } from '../../ui/values.js';
-import { STYLE_PRESETS, POSES, EXPRESSIONS, CAMERA_ANGLES, CAMERA_SHOTS, LENSES, LIGHT_KEYS, LIGHT_TIMES, TEXT_PRESETS, EFFECT_KINDS, MOODS, catalog } from '../../ui/thumbstudio/catalog.js';
+import {
+  STYLE_PRESETS,
+  POSES,
+  EXPRESSIONS,
+  CAMERA_ANGLES,
+  CAMERA_SHOTS,
+  LENSES,
+  LIGHT_KEYS,
+  LIGHT_TIMES,
+  TEXT_PRESETS,
+  EFFECT_KINDS,
+  MOODS,
+  catalog
+} from '../../ui/thumbstudio/catalog.js';
 // text preset ids of older (Turkish) versions
-const LEGACY_FONTS = { 'youtube-kal\u0131n': 'youtube-bold', 'youtube-kalin': 'youtube-bold', 'belgesel-serif': 'documentary-serif', 'minimal-temiz': 'clean-minimal', 'etiket-kutusu': 'label-box' };
+const LEGACY_FONTS = {
+  'youtube-kal\u0131n': 'youtube-bold',
+  'youtube-kalin': 'youtube-bold',
+  'belgesel-serif': 'documentary-serif',
+  'minimal-temiz': 'clean-minimal',
+  'etiket-kutusu': 'label-box'
+};
 export { STYLE_PRESETS, POSES, EXPRESSIONS, CAMERA_ANGLES, CAMERA_SHOTS, LENSES, LIGHT_KEYS, LIGHT_TIMES, TEXT_PRESETS, EFFECT_KINDS, MOODS, catalog };
 // ---------- brief validation helpers
 // a missing value takes the default d (it used to fall to the lower bound: horizon 0, x -0.5, w 0.01 …)
@@ -20,9 +39,9 @@ export function normalizeBrief(raw) {
   b.v = 1;
   b.id = typeof raw.id === 'string' && validTid(raw.id) ? raw.id : generateTid();
   b.title = typeof raw.title === 'string' ? raw.title.slice(0, 200) : '';
-  b.project = typeof raw.project === 'string' && (raw.project === null || /^[0-9a-f]{12}$/.test(raw.project)) ? raw.project : (raw.project || null);
+  b.project = typeof raw.project === 'string' && (raw.project === null || /^[0-9a-f]{12}$/.test(raw.project)) ? raw.project : raw.project || null;
   b.format = raw.format === '9:16' ? '9:16' : '16:9';
-  const status0 = thumbStatus(raw.status);   // older briefs: Turkish status words
+  const status0 = thumbStatus(raw.status); // older briefs: Turkish status words
   b.status = ['draft', 'generating', 'chosen', 'final'].includes(status0) ? status0 : 'draft';
   b.created = typeof raw.created === 'string' ? raw.created : new Date().toISOString();
   b.updated = new Date().toISOString();
@@ -79,16 +98,26 @@ export function normalizeBrief(raw) {
   b.promptOverride = typeof raw.promptOverride === 'string' ? raw.promptOverride.slice(0, 3000) : null;
 
   // refs
-  b.refs = Array.isArray(raw.refs) ? raw.refs.filter(r => r && typeof r === 'object').slice(0, 20).map(r => ({
-    id: typeof r.id === 'string' ? r.id : 'R0',
-    file: typeof r.file === 'string' ? r.file : '',
-    role: ['style', 'character', 'object', 'composition', 'background'].includes(r.role) ? r.role : 'style',
-    note: typeof r.note === 'string' ? r.note.slice(0, 300) : '',
-    layer: typeof r.layer === 'string' ? r.layer : null,
-  })) : [];
+  b.refs = Array.isArray(raw.refs)
+    ? raw.refs
+        .filter(r => r && typeof r === 'object')
+        .slice(0, 20)
+        .map(r => ({
+          id: typeof r.id === 'string' ? r.id : 'R0',
+          file: typeof r.file === 'string' ? r.file : '',
+          role: ['style', 'character', 'object', 'composition', 'background'].includes(r.role) ? r.role : 'style',
+          note: typeof r.note === 'string' ? r.note.slice(0, 300) : '',
+          layer: typeof r.layer === 'string' ? r.layer : null
+        }))
+    : [];
 
   // layers (limit 60)
-  b.layers = Array.isArray(raw.layers) ? raw.layers.filter(l => l && typeof l === 'object').slice(0, 60).map(normalizeLayer) : [];
+  b.layers = Array.isArray(raw.layers)
+    ? raw.layers
+        .filter(l => l && typeof l === 'object')
+        .slice(0, 60)
+        .map(normalizeLayer)
+    : [];
 
   // safe guides
   b.safe = {};
@@ -98,26 +127,56 @@ export function normalizeBrief(raw) {
   b.safe.shortsUi = !!sf.shortsUi;
 
   // variants
-  b.variants = Array.isArray(raw.variants) ? raw.variants.filter(v => v && typeof v === 'object' && typeof v.id === 'string' && typeof v.file === 'string').slice(0, 200).map(v => ({ ...v, notes: Array.isArray(v.notes) ? v.notes.filter(n => n && typeof n === 'object').slice(0, 100).map(n => (n.status === undefined ? n : { ...n, status: thumbNoteStatus(n.status) })) : [] })) : [];
+  b.variants = Array.isArray(raw.variants)
+    ? raw.variants
+        .filter(v => v && typeof v === 'object' && typeof v.id === 'string' && typeof v.file === 'string')
+        .slice(0, 200)
+        .map(v => ({
+          ...v,
+          notes: Array.isArray(v.notes)
+            ? v.notes
+                .filter(n => n && typeof n === 'object')
+                .slice(0, 100)
+                .map(n => (n.status === undefined ? n : { ...n, status: thumbNoteStatus(n.status) }))
+            : []
+        }))
+    : [];
   b.chosen = typeof raw.chosen === 'string' ? raw.chosen : null;
   b.final = raw.final && typeof raw.final === 'object' ? raw.final : null;
   b.exported = typeof raw.exported === 'string' ? raw.exported : null;
   // final composition settings (crop of the chosen variant + simple adjustments)
   const fe = raw.finalEdit && typeof raw.finalEdit === 'object' ? raw.finalEdit : {};
-  b.finalEdit = { x: clamp(fe.x ?? 0.5, 0, 1), y: clamp(fe.y ?? 0.5, 0, 1), zoom: clamp(fe.zoom ?? 1, 1, 3), brightness: clamp(fe.brightness ?? 1, 0.5, 1.5),
-    contrast: clamp(fe.contrast ?? 1, 0.5, 1.6), saturation: clamp(fe.saturation ?? 1, 0, 2), vignette: clamp(fe.vignette ?? 0, 0, 1), shade: clamp(fe.shade ?? 0, 0, 1) };
+  b.finalEdit = {
+    x: clamp(fe.x ?? 0.5, 0, 1),
+    y: clamp(fe.y ?? 0.5, 0, 1),
+    zoom: clamp(fe.zoom ?? 1, 1, 3),
+    brightness: clamp(fe.brightness ?? 1, 0.5, 1.5),
+    contrast: clamp(fe.contrast ?? 1, 0.5, 1.6),
+    saturation: clamp(fe.saturation ?? 1, 0, 2),
+    vignette: clamp(fe.vignette ?? 0, 0, 1),
+    shade: clamp(fe.shade ?? 0, 0, 1)
+  };
 
   return b;
 }
 
-const TYPE_COLOR = { background: '#1d2432', subject: '#6aa0ff', object: '#f08a3c', text: '#e6c14d', effect: '#ff3b3b', zone: '#a68cff', sketch: '#ff4444', trace: '#888888' };
+const TYPE_COLOR = {
+  background: '#1d2432',
+  subject: '#6aa0ff',
+  object: '#f08a3c',
+  text: '#e6c14d',
+  effect: '#ff3b3b',
+  zone: '#a68cff',
+  sketch: '#ff4444',
+  trace: '#888888'
+};
 function normalizeLayer(raw) {
   const l = {};
   const types = ['subject', 'object', 'background', 'text', 'effect', 'sketch', 'zone', 'trace'];
   l.id = typeof raw.id === 'string' ? raw.id : 'L0';
   l.type = types.includes(raw.type) ? raw.type : 'object';
   l.name = typeof raw.name === 'string' ? raw.name.slice(0, 100) : '';
-  const full = raw.type === 'background' || raw.type === 'trace';   // these fill the frame unless told otherwise
+  const full = raw.type === 'background' || raw.type === 'trace'; // these fill the frame unless told otherwise
   l.x = clamp(raw.x, -0.5, 1.5, full ? 0 : 0.25);
   l.y = clamp(raw.y, -0.5, 1.5, full ? 0 : 0.25);
   l.w = clamp(raw.w, 0.01, 3, full ? 1 : 0.5);
@@ -129,7 +188,7 @@ function normalizeLayer(raw) {
   l.focus = ['auto', 'sharp', 'blur'].includes(raw.focus) ? raw.focus : 'auto';
   l.desc = typeof raw.desc === 'string' ? raw.desc.slice(0, 500) : '';
   // block colour in the editor (never sent to the image model); a default per type so blocks stand apart
-  l.color = typeof raw.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw.color) ? raw.color : (TYPE_COLOR[l.type] || '#6aa0ff');
+  l.color = typeof raw.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw.color) ? raw.color : TYPE_COLOR[l.type] || '#6aa0ff';
   l.hidden = !!raw.hidden;
   l.locked = !!raw.locked;
   l.refs = Array.isArray(raw.refs) ? raw.refs.filter(r => typeof r === 'string').slice(0, 5) : [];
@@ -153,7 +212,7 @@ function normalizeLayer(raw) {
   }
   if (l.type === 'text') {
     l.content = typeof raw.content === 'string' ? raw.content.slice(0, 500) : '';
-    l.font = typeof raw.font === 'string' ? (LEGACY_FONTS[raw.font] || raw.font) : 'youtube-bold';
+    l.font = typeof raw.font === 'string' ? LEGACY_FONTS[raw.font] || raw.font : 'youtube-bold';
     l.size = clamp(raw.size, 0.01, 0.5, 0.12);
     l.fill = typeof raw.fill === 'string' ? raw.fill : '#ffffff';
     l.stroke = typeof raw.stroke === 'string' ? raw.stroke : '#000000';

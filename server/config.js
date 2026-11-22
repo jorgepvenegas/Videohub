@@ -18,7 +18,7 @@ const SKIP = new Set(['node_modules', '.git', '.claude', 'VideoHub', '$RECYCLE.B
 // the workspace: the base folder for everything VideoHub creates by default. VIDEOHUB_BASE_DIR (tests and test hubs
 // point it at a scratch folder) → config.baseDir (chosen in setup) → Documents\VideoHub. Installs from before baseDir
 // existed have no key and keep Documents\VideoHub; their explicit folders are kept anyway (see config()).
-const okBase = b => typeof b === 'string' && path.isAbsolute(b) ? b : null;
+const okBase = b => (typeof b === 'string' && path.isAbsolute(b) ? b : null);
 export const DEFAULT_BASE = () => path.join(DOCUMENTS, 'VideoHub');
 export const baseDir = () => process.env.VIDEOHUB_BASE_DIR || okBase(cfg ? cfg.baseDir : savedBase) || DEFAULT_BASE();
 export const defaultFilmsDir = () => path.join(baseDir(), 'films');
@@ -27,27 +27,49 @@ export const defaultFilmsDir = () => path.join(baseDir(), 'films');
 export const DEFAULT_SKIP_FOLDERS = ['tools', 'fonts', 'test', 'render', 'videos', 'thumbnails', 'assets'];
 
 function hasRenderCode(dir) {
-  try { return fs.readdirSync(dir).some(f => /^(render\.(m?js|py)|anim_render\.\w+|manifest\.json|index\.html|.*\.snipp)$/i.test(f)); } catch { return false; }
+  try {
+    return fs.readdirSync(dir).some(f => /^(render\.(m?js|py)|anim_render\.\w+|manifest\.json|index\.html|.*\.snipp)$/i.test(f));
+  } catch {
+    return false;
+  }
 }
-function countMp4(dir) { try { return fs.readdirSync(dir).filter(f => /\.mp4$/i.test(f)).length; } catch { return 0; } }
+function countMp4(dir) {
+  try {
+    return fs.readdirSync(dir).filter(f => /\.mp4$/i.test(f)).length;
+  } catch {
+    return 0;
+  }
+}
 
 // Desktop / Documents folders that look like video work: suggested in Settings, switched off until the user turns
 // them on. The default films folder (Documents\VideoHub\films) is a root from the start and is on.
 export function discoverRoots() {
   const roots = [];
-  const add = (p, type, enabled) => { if (fs.existsSync(p) && !roots.some(r => norm(r.path) === norm(p))) roots.push({ path: p, type, enabled }); };
+  const add = (p, type, enabled) => {
+    if (fs.existsSync(p) && !roots.some(r => norm(r.path) === norm(p))) roots.push({ path: p, type, enabled });
+  };
   const lower = norm;
   for (const top of [DESKTOP, DOCUMENTS]) {
-    let entries = []; try { entries = fs.readdirSync(top, { withFileTypes: true }); } catch { }
+    let entries = [];
+    try {
+      entries = fs.readdirSync(top, { withFileTypes: true });
+    } catch {}
     for (const e of entries) {
       if (!e.isDirectory() || SKIP.has(e.name) || e.name.startsWith('.')) continue;
-      const p = path.join(top, e.name), lp = lower(p);
+      const p = path.join(top, e.name),
+        lp = lower(p);
       if (lp === lower(baseDir())) continue;
       // skip folders that are a root, sit inside one, or contain one
       if (roots.some(r => lower(r.path) === lp || lp.startsWith(lower(r.path) + path.sep) || lower(r.path).startsWith(lp + path.sep))) continue;
-      if (fs.existsSync(path.join(p, 'server', 'hub.js'))) continue;   // a VideoHub install
-      if (hasRenderCode(p)) { add(p, 'project', false); continue; }
-      let subs = []; try { subs = fs.readdirSync(p, { withFileTypes: true }).filter(s => s.isDirectory() && !SKIP.has(s.name)); } catch { }
+      if (fs.existsSync(path.join(p, 'server', 'hub.js'))) continue; // a VideoHub install
+      if (hasRenderCode(p)) {
+        add(p, 'project', false);
+        continue;
+      }
+      let subs = [];
+      try {
+        subs = fs.readdirSync(p, { withFileTypes: true }).filter(s => s.isDirectory() && !SKIP.has(s.name));
+      } catch {}
       if (subs.filter(s => hasRenderCode(path.join(p, s.name))).length >= 2) add(p, 'container', false);
       else if (countMp4(p) >= 3) add(p, 'media', false);
     }
@@ -59,7 +81,7 @@ export function defaultThumbstudioDirs(base = baseDir()) {
   return {
     globalDir: path.join(base, 'thumbnails'),
     templatesDir: path.join(base, 'thumbnail-templates'),
-    styleRefsDir: path.join(base, 'thumbnail-styles'),
+    styleRefsDir: path.join(base, 'thumbnail-styles')
   };
 }
 
@@ -81,15 +103,18 @@ export const DEFAULTS = (base = baseDir()) => ({
   bloatWarnRatio: 3,
   thumbstudio: defaultThumbstudioDirs(base),
   // render.encoder: auto | nvenc | amf | qsv | x264, passed to render scripts as VIDEOHUB_ENCODER (server/encoders.js)
-  render: { encoder: 'auto' },
+  render: { encoder: 'auto' }
 });
 function firstRoots() {
   const films = defaultFilmsDir();
-  try { fs.mkdirSync(films, { recursive: true }); } catch { }
+  try {
+    fs.mkdirSync(films, { recursive: true });
+  } catch {}
   return [{ path: films, type: 'container', enabled: true }, ...discoverRoots()];
 }
 
-let cfg = null, savedBase = null;
+let cfg = null,
+  savedBase = null;
 export function config() {
   if (cfg) return cfg;
   const saved = readJson(FILE, null);
@@ -97,9 +122,15 @@ export function config() {
   // an existing config keeps every value it has; keys it lacks get the defaults. Roots are never discovered again
   // for an existing config, so an older install keeps exactly its folders.
   cfg = { ...DEFAULTS(), roots: [], ...(saved || {}) };
-  if (!saved) { cfg.roots = firstRoots(); if (!process.env.VIDEOHUB_BASE_DIR) cfg.baseDir = baseDir(); }
+  if (!saved) {
+    cfg.roots = firstRoots();
+    if (!process.env.VIDEOHUB_BASE_DIR) cfg.baseDir = baseDir();
+  }
   // older installs without an outputs setting used a Desktop folder "VideoHub <Turkish for outputs>": keep using it
-  if (saved && !saved.outputsDir) { const legacy = path.join(DESKTOP, 'VideoHub çıktılar'); if (fs.existsSync(legacy)) cfg.outputsDir = legacy; }
+  if (saved && !saved.outputsDir) {
+    const legacy = path.join(DESKTOP, 'VideoHub çıktılar');
+    if (fs.existsSync(legacy)) cfg.outputsDir = legacy;
+  }
   normalise(cfg, DEFAULTS().port);
   if (!saved) writeJson(FILE, cfg);
   return cfg;
@@ -107,18 +138,31 @@ export function config() {
 // the shapes every route relies on (a "roots" that is not a list used to break every request until config.json was fixed by hand)
 function normalise(c, port) {
   c.agentName = typeof c.agentName === 'string' && c.agentName.trim() ? c.agentName.trim().slice(0, 40) : 'Claude';
-  c.roots = (Array.isArray(c.roots) ? c.roots : []).filter(r => r && typeof r.path === 'string' && r.path)
+  c.roots = (Array.isArray(c.roots) ? c.roots : [])
+    .filter(r => r && typeof r.path === 'string' && r.path)
     .map(r => ({ ...r, type: ['container', 'project', 'media'].includes(r.type) ? r.type : 'container', enabled: r.enabled !== false }));
-  c.thumbstudio = { ...defaultThumbstudioDirs(), ...(c.thumbstudio && typeof c.thumbstudio === 'object' && !Array.isArray(c.thumbstudio) ? c.thumbstudio : {}) };
+  c.thumbstudio = {
+    ...defaultThumbstudioDirs(),
+    ...(c.thumbstudio && typeof c.thumbstudio === 'object' && !Array.isArray(c.thumbstudio) ? c.thumbstudio : {})
+  };
   c.port = /^\d{1,5}$/.test(String(c.port)) && +c.port > 0 && +c.port < 65536 ? +c.port : port;
   const r = c.render && typeof c.render === 'object' && !Array.isArray(c.render) ? c.render : {};
   c.render = { ...r, encoder: ENCODERS.includes(r.encoder) ? r.encoder : 'auto' };
   return c;
 }
 export function saveConfig(patch) {
-  const prev = config(); if (!patch || typeof patch !== 'object' || Array.isArray(patch)) patch = {};
-  if ('roots' in patch && !Array.isArray(patch.roots)) { const { roots, ...rest } = patch; patch = rest; }   // not a list: keep the folders there are
-  if ('baseDir' in patch) { const { baseDir: b, ...rest } = patch; patch = rest; }   // the workspace is chosen in setup only (it never moves folders)
+  const prev = config();
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) patch = {};
+  if ('roots' in patch && !Array.isArray(patch.roots)) {
+    const { roots, ...rest } = patch;
+    patch = rest;
+  } // not a list: keep the folders there are
+  if ('baseDir' in patch) {
+    const { baseDir: b, ...rest } = patch;
+    patch = rest;
+  } // the workspace is chosen in setup only (it never moves folders)
   if (patch.render && typeof patch.render === 'object') patch = { ...patch, render: { ...prev.render, ...patch.render } };
-  cfg = normalise({ ...prev, ...patch }, prev.port); writeJson(FILE, cfg); return cfg;
+  cfg = normalise({ ...prev, ...patch }, prev.port);
+  writeJson(FILE, cfg);
+  return cfg;
 }

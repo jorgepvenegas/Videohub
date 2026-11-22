@@ -7,13 +7,19 @@ import path from 'node:path';
 import { project } from './scan.js';
 import { readJson, writeJson } from './util.js';
 
-const file = (p) => path.join(p.path, '.videohub', 'scenes.json');
+const file = p => path.join(p.path, '.videohub', 'scenes.json');
 
 export function clean(list) {
   if (!Array.isArray(list)) return [];
-  const out = list.filter((s) => s && Number.isFinite(+s.t0) && Number.isFinite(+s.t1) && +s.t1 > +s.t0)
+  const out = list
+    .filter(s => s && Number.isFinite(+s.t0) && Number.isFinite(+s.t1) && +s.t1 > +s.t0)
     .slice(0, 2000)
-    .map((s) => ({ name: String(s.name ?? s.id ?? s.label ?? '').slice(0, 60) || 'scene', t0: +(+s.t0).toFixed(3), t1: +(+s.t1).toFixed(3), ...(s.set ? { set: String(s.set).slice(0, 40) } : {}) }))
+    .map(s => ({
+      name: String(s.name ?? s.id ?? s.label ?? '').slice(0, 60) || 'scene',
+      t0: +(+s.t0).toFixed(3),
+      t1: +(+s.t1).toFixed(3),
+      ...(s.set ? { set: String(s.set).slice(0, 40) } : {})
+    }))
     .sort((a, b) => a.t0 - b.t0);
   return out;
 }
@@ -30,11 +36,17 @@ export function scenesOf(p) {
 }
 
 export function routes(route, readBody) {
-  const need = (id) => { const p = project(id); if (!p) throw Object.assign(new Error('Project not found'), { code: 404 }); return p; };
+  const need = id => {
+    const p = project(id);
+    if (!p) throw Object.assign(new Error('Project not found'), { code: 404 });
+    return p;
+  };
   route('GET', '/api/project/:id/scenes', (req, url, { id }) => scenesOf(need(id)));
   // the live page found its scenes: keep them (only when they changed, so nothing writes on every open)
   route('PUT', '/api/project/:id/scenes', async (req, url, { id }) => {
-    const p = need(id), b = await readBody(req), scenes = clean(b.scenes);
+    const p = need(id),
+      b = await readBody(req),
+      scenes = clean(b.scenes);
     if (!scenes.length) return { ok: false, scenes: [] };
     const old = readJson(file(p), null);
     if (old && JSON.stringify(old.scenes) === JSON.stringify(scenes)) return { ok: true, scenes, unchanged: true };

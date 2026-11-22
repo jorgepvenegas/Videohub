@@ -49,9 +49,11 @@ export function applyClientTemplateSlots(template, slotValues = {}) {
   const layerIds = new Map();
   const layers = rawLayers.map(l => ({
     ...l,
-    id: `l_${Date.now()}_${seq++}`,
+    id: `l_${Date.now()}_${seq++}`
   }));
-  rawLayers.forEach((layer, i) => { if (layer.id) layerIds.set(layer.id, layers[i].id); });
+  rawLayers.forEach((layer, i) => {
+    if (layer.id) layerIds.set(layer.id, layers[i].id);
+  });
   if (camera.focusLayer) camera.focusLayer = layerIds.get(camera.focusLayer) || null;
 
   return {
@@ -60,7 +62,7 @@ export function applyClientTemplateSlots(template, slotValues = {}) {
     light,
     style,
     text,
-    layers,
+    layers
   };
 }
 
@@ -68,10 +70,16 @@ export function applyClientTemplateSlots(template, slotValues = {}) {
 export function renderTemplateCard(tpl, { onApply }) {
   if (tpl.error) {
     // Red error card for corrupted or invalid template JSON
-    return h('div', { class: 'template-card error-card' },
-      h('div', { class: 'error-header' },
+    return h(
+      'div',
+      { class: 'template-card error-card' },
+      h(
+        'div',
+        { class: 'error-header' },
         h('span', { class: 'error-icon' }, '⚠'),
-        h('div', { style: { flex: 1, minWidth: 0 } },
+        h(
+          'div',
+          { style: { flex: 1, minWidth: 0 } },
           h('div', { class: 'error-title' }, tpl.name || tpl.file || 'Corrupted Template'),
           h('div', { class: 'error-file' }, tpl.file || tpl.id)
         ),
@@ -88,42 +96,67 @@ export function renderTemplateCard(tpl, { onApply }) {
   const canvas = h('canvas', {
     class: 'template-canvas',
     width,
-    height,
+    height
   });
 
   // Render preview immediately
   const ctx = canvas.getContext('2d');
   try {
-    drawScene(ctx, { ...tpl, ...applyClientTemplateSlots(tpl) }, 'layout', { isExport: false, showGrid: false, showThirds: false, showLight: false, showHandles: false, showBadge: false });
+    drawScene(ctx, { ...tpl, ...applyClientTemplateSlots(tpl) }, 'layout', {
+      isExport: false,
+      showGrid: false,
+      showThirds: false,
+      showLight: false,
+      showHandles: false,
+      showBadge: false
+    });
   } catch (err) {
     console.error('Template drawScene error:', err);
   }
 
   const tags = Array.isArray(tpl.tags) ? tpl.tags : [];
 
-  const card = h('div', {
-    class: 'template-card',
-    onclick: () => { if (onApply) onApply(tpl); }
-  },
+  const card = h(
+    'div',
+    {
+      class: 'template-card',
+      onclick: () => {
+        if (onApply) onApply(tpl);
+      }
+    },
     h('div', { class: 'template-preview-wrapper' + (is916 ? ' ratio-916' : '') }, canvas),
-    h('div', { class: 'template-info' },
-      h('div', { class: 'row', style: { justifyContent: 'space-between', alignItems: 'flex-start' } },
+    h(
+      'div',
+      { class: 'template-info' },
+      h(
+        'div',
+        { class: 'row', style: { justifyContent: 'space-between', alignItems: 'flex-start' } },
         h('div', { class: 'template-title' }, tpl.name),
         pill('fam', tpl.format || '16:9')
       ),
       tpl.desc ? h('div', { class: 'template-desc' }, tpl.desc) : '',
-      tags.length ? h('div', { class: 'template-tags' },
-        tags.map(t => h('span', { class: 'template-tag' }, '#' + t))
-      ) : '',
-      h('div', { class: 'template-actions' },
-        h('button', {
-          class: 'primary small',
-          style: { width: '100%' },
-          onclick: e => {
-            e.stopPropagation();
-            if (onApply) onApply(tpl);
-          }
-        }, 'Apply Template')
+      tags.length
+        ? h(
+            'div',
+            { class: 'template-tags' },
+            tags.map(t => h('span', { class: 'template-tag' }, '#' + t))
+          )
+        : '',
+      h(
+        'div',
+        { class: 'template-actions' },
+        h(
+          'button',
+          {
+            class: 'primary small',
+            style: { width: '100%' },
+            onclick: e => {
+              e.stopPropagation();
+              if (onApply) onApply(tpl);
+            }
+          },
+          'Apply Template'
+        )
       )
     )
   );
@@ -157,7 +190,7 @@ export function openTemplateSlotsModal(template, { onConfirm }) {
       borderRadius: '8px',
       border: '1px solid var(--border)',
       background: '#12141a',
-      objectFit: 'contain',
+      objectFit: 'contain'
     }
   });
 
@@ -183,14 +216,18 @@ export function openTemplateSlotsModal(template, { onConfirm }) {
     });
 
     inputsContainer.append(
-      h('label', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
+      h(
+        'label',
+        { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
         h('div', { style: { fontWeight: 600, fontSize: '13px' } }, def.label || key),
         input
       )
     );
   }
 
-  const modalBody = h('div', { class: 'template-slots-body', style: { display: 'flex', flexDirection: 'column', gap: '16px', margin: '10px 0' } },
+  const modalBody = h(
+    'div',
+    { class: 'template-slots-body', style: { display: 'flex', flexDirection: 'column', gap: '16px', margin: '10px 0' } },
     h('div', { style: { textAlign: 'center' } }, previewCanvas),
     inputsContainer
   );
@@ -215,7 +252,9 @@ export function openTemplatePickerModal({ currentBrief, onApplyTemplate, collect
   const modal = h('div', { class: 'modal modal-wide' });
   modalBg.append(modal);
 
-  const header = h('div', { class: 'row', style: { justifyContent: 'space-between', alignItems: 'center' } },
+  const header = h(
+    'div',
+    { class: 'row', style: { justifyContent: 'space-between', alignItems: 'center' } },
     h('h1', { style: { margin: 0, fontSize: '18px' } }, '📐 Template Gallery'),
     h('button', { class: 'ghost', onclick: () => close() }, '✕ Close')
   );
@@ -232,30 +271,33 @@ export function openTemplatePickerModal({ currentBrief, onApplyTemplate, collect
     }
   });
 
-  const formatSelect = h('select', {
-    onchange: e => {
-      filterFormat = e.target.value;
-      renderGrid();
-    }
-  },
+  const formatSelect = h(
+    'select',
+    {
+      onchange: e => {
+        filterFormat = e.target.value;
+        renderGrid();
+      }
+    },
     h('option', { value: '' }, 'All Formats'),
     h('option', { value: '16:9' }, 'YouTube 16:9'),
     h('option', { value: '9:16' }, 'Shorts 9:16')
   );
 
-  const collectionSelect = h('select', {
-    'aria-label': 'Template collection',
-    onchange: e => { filterCollection = e.target.value; renderGrid(); }
-  },
+  const collectionSelect = h(
+    'select',
+    {
+      'aria-label': 'Template collection',
+      onchange: e => {
+        filterCollection = e.target.value;
+        renderGrid();
+      }
+    },
     h('option', { value: '', selected: !filterCollection }, 'All templates'),
     h('option', { value: 'reference-picks', selected: filterCollection === 'reference-picks' }, 'New · 15 reference templates')
   );
 
-  const filterRow = h('div', { class: 'row', style: { gap: '10px', margin: '12px 0 6px' } },
-    searchInput,
-    collectionSelect,
-    formatSelect
-  );
+  const filterRow = h('div', { class: 'row', style: { gap: '10px', margin: '12px 0 6px' } }, searchInput, collectionSelect, formatSelect);
   modal.append(filterRow);
 
   const grid = h('div', { class: 'template-gallery-grid' });
@@ -327,7 +369,10 @@ export function openTemplatePickerModal({ currentBrief, onApplyTemplate, collect
     }
   });
 
-  function close() { unsub(); modalBg.remove(); }
+  function close() {
+    unsub();
+    modalBg.remove();
+  }
   document.body.append(modalBg);
   loadTemplates();
 }
@@ -339,13 +384,19 @@ export function openSaveTemplateModal(currentBrief) {
 
   const defaultName = currentBrief.title || 'New Template';
 
-  const modalBody = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px', margin: '12px 0' } },
-    h('label', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
+  const modalBody = h(
+    'div',
+    { style: { display: 'flex', flexDirection: 'column', gap: '14px', margin: '12px 0' } },
+    h(
+      'label',
+      { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
       h('div', { style: { fontWeight: 600 } }, 'Template Name:'),
-      nameInput = h('input', { type: 'text', value: defaultName, style: { width: '100%' } })
+      (nameInput = h('input', { type: 'text', value: defaultName, style: { width: '100%' } }))
     ),
-    h('label', { class: 'row', style: { gap: '8px', cursor: 'pointer' } },
-      overwriteCheck = h('input', { type: 'checkbox' }),
+    h(
+      'label',
+      { class: 'row', style: { gap: '8px', cursor: 'pointer' } },
+      (overwriteCheck = h('input', { type: 'checkbox' })),
       h('span', {}, 'Overwrite any template with the same name')
     )
   );
@@ -366,7 +417,7 @@ export function openSaveTemplateModal(currentBrief) {
         body: JSON.stringify({
           name,
           brief: currentBrief,
-          overwrite: overwriteCheck.checked,
+          overwrite: overwriteCheck.checked
         })
       });
       toast(`"${name}" saved as a template.`);

@@ -15,7 +15,9 @@ export class History {
 
   notify() {
     for (const fn of this.listeners) {
-      try { fn(this.canUndo(), this.canRedo()); } catch { }
+      try {
+        fn(this.canUndo(), this.canRedo());
+      } catch {}
     }
   }
 
@@ -41,7 +43,11 @@ export class History {
   undo() {
     if (!this.canUndo()) return;
     const cmd = this.undoStack.pop();
-    try { cmd.undo(); } catch (e) { console.error('Undo error:', e); }
+    try {
+      cmd.undo();
+    } catch (e) {
+      console.error('Undo error:', e);
+    }
     this.redoStack.push(cmd);
     this.notify();
   }
@@ -49,7 +55,11 @@ export class History {
   redo() {
     if (!this.canRedo()) return;
     const cmd = this.redoStack.pop();
-    try { cmd.redo(); } catch (e) { console.error('Redo error:', e); }
+    try {
+      cmd.redo();
+    } catch (e) {
+      console.error('Redo error:', e);
+    }
     this.undoStack.push(cmd);
     this.notify();
   }

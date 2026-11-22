@@ -14,8 +14,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.resolve(process.argv[2] || path.join(root, '..', 'VideoHub-upload'));
 const PER_PART = 90;
 
-if (path.relative(root, out) === '' || !path.relative(root, out).startsWith('..')) { console.error('Pick a folder outside the repo.'); process.exit(1); }
-if (execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim()) console.warn('Note: uncommitted changes are NOT in the upload (it is built from the last commit).');
+if (path.relative(root, out) === '' || !path.relative(root, out).startsWith('..')) {
+  console.error('Pick a folder outside the repo.');
+  process.exit(1);
+}
+if (execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim())
+  console.warn('Note: uncommitted changes are NOT in the upload (it is built from the last commit).');
 
 const stage = out + '.tmp';
 fs.rmSync(stage, { recursive: true, force: true });
@@ -29,13 +33,22 @@ const files = [];
 (function walk(d, rel) {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {
     const r = rel ? rel + '/' + e.name : e.name;
-    if (e.isDirectory()) walk(path.join(d, e.name), r); else files.push(r);
+    if (e.isDirectory()) walk(path.join(d, e.name), r);
+    else files.push(r);
   }
 })(stage, '');
 const bad = files.filter(droppedByBrowser);
-if (bad.length) { fs.rmSync(stage, { recursive: true, force: true }); console.error('The browser upload would drop these (rename them):\n  ' + bad.join('\n  ')); process.exit(1); }
+if (bad.length) {
+  fs.rmSync(stage, { recursive: true, force: true });
+  console.error('The browser upload would drop these (rename them):\n  ' + bad.join('\n  '));
+  process.exit(1);
+}
 const big = files.filter(f => fs.statSync(path.join(stage, f)).size > 25 * 1024 * 1024);
-if (big.length) { fs.rmSync(stage, { recursive: true, force: true }); console.error('Over 25 MB, the browser upload refuses them:\n  ' + big.join('\n  ')); process.exit(1); }
+if (big.length) {
+  fs.rmSync(stage, { recursive: true, force: true });
+  console.error('Over 25 MB, the browser upload refuses them:\n  ' + big.join('\n  '));
+  process.exit(1);
+}
 
 // parts: whole top-level entries first (a folder over the limit is split by its own sub-entries)
 const groups = new Map();
@@ -47,9 +60,11 @@ for (const f of files.sort()) {
   groups.get(key).push(f);
 }
 const parts = [];
-for (const g of [...groups.values()].sort((a, b) => b.length - a.length)) {   // biggest first, into the first part it fits
+for (const g of [...groups.values()].sort((a, b) => b.length - a.length)) {
+  // biggest first, into the first part it fits
   const fit = parts.find(p => p.length + g.length <= PER_PART);
-  if (fit) fit.push(...g); else parts.push([...g]);
+  if (fit) fit.push(...g);
+  else parts.push([...g]);
 }
 
 fs.rmSync(out, { recursive: true, force: true });

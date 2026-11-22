@@ -52,7 +52,7 @@ test('generatePrompt: references ordering ensures layout.png is first', () => {
     refs: [
       { file: 'refs/style.png', role: 'style' },
       { file: 'refs/hero.png', role: 'character' },
-      { file: 'refs/item.png', role: 'object' },
+      { file: 'refs/item.png', role: 'object' }
     ]
   };
 
@@ -108,8 +108,8 @@ test('generatePrompt: effect kinds, negative field, zones and reference sentence
     layers: [
       { id: 'L1', type: 'subject', desc: 'elderly explorer', x: 0.6, y: 0.1, w: 0.3, h: 0.85, depth: 10, importance: 3, facing: 'away' },
       { id: 'L2', type: 'effect', kind: 'light-rays', x: 0.1, y: 0.0, w: 0.3, h: 0.4, depth: 80 },
-      { id: 'L3', type: 'zone', purpose: 'empty', x: 0.0, y: 0.7, w: 0.3, h: 0.3, depth: 0 },
-    ],
+      { id: 'L3', type: 'zone', purpose: 'empty', x: 0.0, y: 0.7, w: 0.3, h: 0.3, depth: 0 }
+    ]
   };
   const { prompt } = generatePrompt(brief);
   assert.ok(prompt.includes('Light rays beaming'), 'effect kind must be read from kind');
@@ -122,7 +122,17 @@ test('generatePrompt: effect kinds, negative field, zones and reference sentence
 
 test('generatePrompt: hard length cap keeps the protected sentences', () => {
   const layers = [];
-  for (let i = 0; i < 40; i++) layers.push({ id: 'L' + i, type: 'object', desc: 'a very detailed long object description number ' + i, x: (i % 5) / 5, y: 0.3, w: 0.15, h: 0.2, depth: i * 2 });
+  for (let i = 0; i < 40; i++)
+    layers.push({
+      id: 'L' + i,
+      type: 'object',
+      desc: 'a very detailed long object description number ' + i,
+      x: (i % 5) / 5,
+      y: 0.3,
+      w: 0.15,
+      h: 0.2,
+      depth: i * 2
+    });
   layers.push({ id: 'T', type: 'text', content: 'TITLE', x: 0.05, y: 0.05, w: 0.4, h: 0.2, depth: 0 });
   const { prompt } = generatePrompt({ layers, negative: 'bulanık', text: { policy: 'overlay', reserve: true } });
   assert.ok(prompt.length <= 1200, String(prompt.length));
@@ -132,8 +142,14 @@ test('generatePrompt: hard length cap keeps the protected sentences', () => {
 });
 
 test('generatePrompt: summary is English and lists layers front to back', () => {
-  const { summaryTr } = generatePrompt({ title: 'Scale', goal: { topic: 'Pyramid', hook: 'huge' }, layers: [
-    { type: 'background', desc: 'desert', depth: 100 }, { type: 'subject', name: 'Person', desc: 'tiny person', x: 0.45, y: 0.6, w: 0.05, h: 0.2, depth: 20 }] });
+  const { summaryTr } = generatePrompt({
+    title: 'Scale',
+    goal: { topic: 'Pyramid', hook: 'huge' },
+    layers: [
+      { type: 'background', desc: 'desert', depth: 100 },
+      { type: 'subject', name: 'Person', desc: 'tiny person', x: 0.45, y: 0.6, w: 0.05, h: 0.2, depth: 20 }
+    ]
+  });
   assert.ok(summaryTr.indexOf('tiny person') < summaryTr.indexOf('desert'));
   assert.ok(summaryTr.includes('**Main idea:** huge'));
 });

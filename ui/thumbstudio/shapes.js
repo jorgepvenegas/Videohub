@@ -134,14 +134,8 @@ function drawArrow(ctx, x, y, w, h, color, lw) {
 
   ctx.beginPath();
   ctx.moveTo(endX, endY);
-  ctx.lineTo(
-    endX - headLen * Math.cos(headAngle - Math.PI / 6),
-    endY - headLen * Math.sin(headAngle - Math.PI / 6)
-  );
-  ctx.lineTo(
-    endX - headLen * Math.cos(headAngle + Math.PI / 6),
-    endY - headLen * Math.sin(headAngle + Math.PI / 6)
-  );
+  ctx.lineTo(endX - headLen * Math.cos(headAngle - Math.PI / 6), endY - headLen * Math.sin(headAngle - Math.PI / 6));
+  ctx.lineTo(endX - headLen * Math.cos(headAngle + Math.PI / 6), endY - headLen * Math.sin(headAngle + Math.PI / 6));
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -151,7 +145,11 @@ function drawArrow(ctx, x, y, w, h, color, lw) {
 function hexToRgba(hex, alpha) {
   if (!hex || !hex.startsWith('#')) return `rgba(255, 34, 34, ${alpha})`;
   let c = hex.slice(1);
-  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  if (c.length === 3)
+    c = c
+      .split('')
+      .map(x => x + x)
+      .join('');
   const num = parseInt(c, 16);
   const r = (num >> 16) & 255;
   const g = (num >> 8) & 255;

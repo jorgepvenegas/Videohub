@@ -12,23 +12,32 @@ let watcher = null;
 export function slugify(str) {
   if (!str) return 'sablon';
   const trMap = {
-    'ç': 'c', 'Ç': 'c',
-    'ğ': 'g', 'Ğ': 'g',
-    'ı': 'i', 'I': 'i', 'İ': 'i',
-    'ö': 'o', 'Ö': 'o',
-    'ş': 's', 'Ş': 's',
-    'ü': 'u', 'Ü': 'u',
+    ç: 'c',
+    Ç: 'c',
+    ğ: 'g',
+    Ğ: 'g',
+    ı: 'i',
+    I: 'i',
+    İ: 'i',
+    ö: 'o',
+    Ö: 'o',
+    ş: 's',
+    Ş: 's',
+    ü: 'u',
+    Ü: 'u'
   };
   let s = String(str);
   for (const [k, v] of Object.entries(trMap)) {
     s = s.replaceAll(k, v);
   }
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9\-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 50) || 'sablon';
+  return (
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9\-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 50) || 'sablon'
+  );
 }
 
 // Validate template structure according to SCHEMA.md
@@ -131,7 +140,7 @@ export function applyTemplateSlots(template, slotValues = {}) {
     light,
     style,
     text,
-    layers,
+    layers
   };
 }
 
@@ -167,7 +176,7 @@ export function loadBuiltinTemplates() {
           name: raw?.name || f,
           builtin: true,
           file: f,
-          error: v.error,
+          error: v.error
         });
       }
     } catch (err) {
@@ -176,7 +185,7 @@ export function loadBuiltinTemplates() {
         name: f,
         builtin: true,
         file: f,
-        error: `Could not read JSON: ${err.message}`,
+        error: `Could not read JSON: ${err.message}`
       });
     }
   }
@@ -205,7 +214,7 @@ export function loadUserTemplates() {
           name: raw?.name || f,
           builtin: false,
           file: f,
-          error: v.error,
+          error: v.error
         });
       }
     } catch (err) {
@@ -214,7 +223,7 @@ export function loadUserTemplates() {
         name: f,
         builtin: false,
         file: f,
-        error: `Could not read JSON: ${err.message}`,
+        error: `Could not read JSON: ${err.message}`
       });
     }
   }
@@ -277,7 +286,7 @@ export async function saveUserTemplate({ name, brief, overwrite = false, id: cus
     light: brief.light || {},
     style: brief.style || {},
     text: brief.text || {},
-    layers: cleanLayers,
+    layers: cleanLayers
   };
 
   const v = validateTemplate(tpl);
@@ -298,12 +307,14 @@ export function watchTemplates(emitFn) {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-  } catch { }
+  } catch {}
 
   if (!fs.existsSync(dir)) return;
 
   if (watcher) {
-    try { watcher.close(); } catch { }
+    try {
+      watcher.close();
+    } catch {}
   }
 
   try {
@@ -315,5 +326,5 @@ export function watchTemplates(emitFn) {
         }
       }, 400);
     });
-  } catch { }
+  } catch {}
 }

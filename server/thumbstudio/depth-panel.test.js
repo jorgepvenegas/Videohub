@@ -5,31 +5,63 @@ import vm from 'node:vm';
 
 // The app helper starts the browser's router/SSE connection. Run the actual panel
 // in a small DOM sandbox so these tests can exercise pointer and resize behavior.
-const source = fs.readFileSync(new URL('../../ui/thumbstudio/depth.js', import.meta.url), 'utf8')
+const source = fs
+  .readFileSync(new URL('../../ui/thumbstudio/depth.js', import.meta.url), 'utf8')
   .replace(/^import .+;\r?$/gm, '')
   .replace('export function createDepthPanel', 'function createDepthPanel');
 
 function harness(initial, { getter = true } = {}) {
-  const listeners = new Map(), captures = new Set(), rects = [], timers = new Map();
-  const state = { brief: initial }, changes = [], selected = [];
-  const ctx = new Proxy({}, { get: (target, key) => target[key] || (() => {}), set: (target, key, value) => { target[key] = value; return true; } });
+  const listeners = new Map(),
+    captures = new Set(),
+    rects = [],
+    timers = new Map();
+  const state = { brief: initial },
+    changes = [],
+    selected = [];
+  const ctx = new Proxy(
+    {},
+    {
+      get: (target, key) => target[key] || (() => {}),
+      set: (target, key, value) => {
+        target[key] = value;
+        return true;
+      }
+    }
+  );
   ctx.fillRect = (...args) => rects.push(args);
   const canvas = {
-    style: {}, clientWidth: 456,
+    style: {},
+    clientWidth: 456,
     getContext: () => ctx,
     getBoundingClientRect: () => ({ left: 10, width: 456 }),
     addEventListener: (name, fn) => listeners.set(name, fn),
-    removeEventListener: (name, fn) => { if (listeners.get(name) === fn) listeners.delete(name); },
+    removeEventListener: (name, fn) => {
+      if (listeners.get(name) === fn) listeners.delete(name);
+    },
     setPointerCapture: id => captures.add(id),
     hasPointerCapture: id => captures.has(id),
-    releasePointerCapture: id => captures.delete(id),
+    releasePointerCapture: id => captures.delete(id)
   };
   let observer;
   const sandbox = {
-    h: () => ({ append() {} }), document: { createElement: () => canvas },
-    ResizeObserver: class { constructor(fn) { observer = this; this.fn = fn; } observe() {} disconnect() { this.disconnected = true; } },
-    setTimeout: fn => { const id = timers.size + 1; timers.set(id, fn); return id; },
-    clearTimeout: id => timers.delete(id),
+    h: () => ({ append() {} }),
+    document: { createElement: () => canvas },
+    ResizeObserver: class {
+      constructor(fn) {
+        observer = this;
+        this.fn = fn;
+      }
+      observe() {}
+      disconnect() {
+        this.disconnected = true;
+      }
+    },
+    setTimeout: fn => {
+      const id = timers.size + 1;
+      timers.set(id, fn);
+      return id;
+    },
+    clearTimeout: id => timers.delete(id)
   };
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox);
@@ -38,11 +70,16 @@ function harness(initial, { getter = true } = {}) {
     onLayerDepthChange: (id, depth) => {
       changes.push([id, depth]);
       state.brief.layers.find(layer => layer.id === id).depth = depth;
-    },
+    }
   });
-  const pointer = (type, depth, extra = {}) => listeners.get(type)?.({
-    clientX: 10 + 40 + depth * 4, pointerId: 1, button: 0, preventDefault() {}, ...extra,
-  });
+  const pointer = (type, depth, extra = {}) =>
+    listeners.get(type)?.({
+      clientX: 10 + 40 + depth * 4,
+      pointerId: 1,
+      button: 0,
+      preventDefault() {},
+      ...extra
+    });
   return { state, panel, canvas, pointer, selected, changes, rects, listeners, captures, timers, observer };
 }
 
@@ -82,12 +119,14 @@ test('object briefs remain supported and equal-depth moves do not create edits',
 });
 
 test('depth gestures respect locked and hidden layers and stop when locking during a drag', () => {
-  const h = harness({ layers: [
-    layer('locked', 20, { locked: true }),
-    layer('hidden', 40, { hidden: true }),
-    layer('background', 60, { type: 'background' }),
-    layer('editable', 80),
-  ] });
+  const h = harness({
+    layers: [
+      layer('locked', 20, { locked: true }),
+      layer('hidden', 40, { hidden: true }),
+      layer('background', 60, { type: 'background' }),
+      layer('editable', 80)
+    ]
+  });
   for (const depth of [20, 40, 60]) {
     h.pointer('pointerdown', depth);
     h.pointer('pointermove', 50);
@@ -117,7 +156,9 @@ test('lost capture and destruction release gestures, timers and observers', () =
   assert.equal(h.captures.size, 0);
   assert.equal(h.timers.size, 0);
   assert.equal(h.observer.disconnected, true);
-  delayedDraw(); h.observer.fn(); h.panel.update();
+  delayedDraw();
+  h.observer.fn();
+  h.panel.update();
   staleMove({ pointerId: 1, clientX: 250 });
   assert.deepEqual(h.changes, []);
   assert.equal(h.rects.length, 0);

@@ -34,16 +34,16 @@ test('normalizeBrief clamps values and strips invalid types', () => {
       tilt: 150, // clamp to 30
       height: -5, // clamp to 0
       dof: 2.5, // clamp to 1
-      lens: 999, // unknown lens, default 50
+      lens: 999 // unknown lens, default 50
     },
     light: {
       azimuth: 500, // clamp to 360
       elevation: -20, // clamp to 0
-      contrast: 5, // clamp to 1
+      contrast: 5 // clamp to 1
     },
     style: {
       saturation: 10, // clamp to 1
-      detail: -2, // clamp to 0
+      detail: -2 // clamp to 0
     },
     layers: [
       {
@@ -55,14 +55,14 @@ test('normalizeBrief clamps values and strips invalid types', () => {
         h: 0, // clamp to 0.01
         rot: 720, // clamp to 360
         depth: 250, // clamp to 100
-        importance: 10, // clamp to 3
+        importance: 10 // clamp to 3
       },
       {
         id: 'L2',
         type: 'text',
         size: 0.8, // clamp to 0.5
         strokeW: 1.0, // clamp to 0.2
-        lineHeight: 5, // clamp to 2.0
+        lineHeight: 5 // clamp to 2.0
       }
     ]
   };

@@ -19,14 +19,24 @@ const MIME = {
   '.jpeg': 'image/jpeg',
   '.md': 'text/markdown; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
+  '.json': 'application/json; charset=utf-8'
 };
 
-const ALLOWED_FILE_RE = /^(layout\.png|sketch\.png|depth\.png|final\.jpg|brief\.md|prompt\.txt|refs\/[\w.\-]{1,80}|variants\/[\w.\-]{1,80}|notes\/[\w.\-]{1,80})$/;
+const ALLOWED_FILE_RE =
+  /^(layout\.png|sketch\.png|depth\.png|final\.jpg|brief\.md|prompt\.txt|refs\/[\w.\-]{1,80}|variants\/[\w.\-]{1,80}|notes\/[\w.\-]{1,80})$/;
 
 const listeners = new Set();
-export const onStore = fn => { listeners.add(fn); return () => listeners.delete(fn); };
-function emit(type, data) { for (const fn of listeners) { try { fn({ type, ...data }); } catch { } } }
+export const onStore = fn => {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+};
+function emit(type, data) {
+  for (const fn of listeners) {
+    try {
+      fn({ type, ...data });
+    } catch {}
+  }
+}
 
 // Resolve folder for a thumbnail: pid === '_' means globalDir
 export function resolveThumbDir(pid, tid) {
@@ -101,7 +111,7 @@ export async function createThumbnail(opts = {}) {
     camera: appliedCamera,
     light: appliedLight,
     style: appliedStyle,
-    text: appliedText,
+    text: appliedText
   };
 
   const brief = normalizeBrief(rawBrief);
@@ -159,7 +169,7 @@ export async function duplicateThumbnail(pid, tid) {
     for (const f of refs) {
       await fsp.copyFile(path.join(oldDir, 'refs', f), path.join(newDir, 'refs', f));
     }
-  } catch { }
+  } catch {}
 
   const newBrief = normalizeBrief({
     ...original,
@@ -169,7 +179,7 @@ export async function duplicateThumbnail(pid, tid) {
     status: 'draft',
     variants: [],
     chosen: null,
-    final: null,
+    final: null
   });
 
   writeJson(path.join(newDir, 'brief.json'), newBrief);
@@ -201,7 +211,11 @@ export function listThumbnails(filterPid) {
   const addFromDir = (dir, pid, projectTitle, projectPath) => {
     if (!fs.existsSync(dir)) return;
     let entries;
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
     for (const e of entries) {
       if (!e.isDirectory() || !validTid(e.name)) continue;
       const tid = e.name;
@@ -227,10 +241,14 @@ export function listThumbnails(filterPid) {
           projectTitle: projectTitle || 'Global',
           projectName: projectTitle || 'General',
           dir: tdir,
-          cover: b.final ? 'final.jpg' : (b.chosen && (b.variants || []).find(v => v.id === b.chosen)?.file) || (b.variants || []).slice(-1)[0]?.file || (fs.existsSync(path.join(tdir, 'layout.png')) ? 'layout.png' : null),
-          projectPath: projectPath || null,
+          cover: b.final
+            ? 'final.jpg'
+            : (b.chosen && (b.variants || []).find(v => v.id === b.chosen)?.file) ||
+              (b.variants || []).slice(-1)[0]?.file ||
+              (fs.existsSync(path.join(tdir, 'layout.png')) ? 'layout.png' : null),
+          projectPath: projectPath || null
         });
-      } catch { }
+      } catch {}
     }
   };
 
@@ -296,7 +314,7 @@ export async function saveReference(pid, tid, { name, data, role = 'style', note
 
   const ext = m[1] === 'jpeg' ? '.jpg' : '.' + m[1];
   let baseName = (name ? path.basename(name, path.extname(name)) : 'ref').replace(/[^\w\-]/g, '_').slice(0, 50) || 'ref';
-  
+
   const { dir } = resolveThumbDir(pid, tid);
   const refsDir = path.join(dir, 'refs');
   await fsp.mkdir(refsDir, { recursive: true });
@@ -332,7 +350,7 @@ export async function saveReference(pid, tid, { name, data, role = 'style', note
     file: 'refs/' + fileName,
     role: ['style', 'character', 'object', 'composition', 'background'].includes(role) ? role : 'style',
     note: String(note || '').slice(0, 300),
-    layer: layer || null,
+    layer: layer || null
   };
 
   refs.push(newRef);
@@ -354,7 +372,11 @@ export async function copyReferenceFrom(pid, tid, { sourcePath, role = 'style', 
   await fsp.mkdir(refsDir, { recursive: true });
 
   const ext = path.extname(sourcePath).toLowerCase();
-  const baseName = path.basename(sourcePath, ext).replace(/[^\w\-]/g, '_').slice(0, 50) || 'ref';
+  const baseName =
+    path
+      .basename(sourcePath, ext)
+      .replace(/[^\w\-]/g, '_')
+      .slice(0, 50) || 'ref';
 
   let fileName = baseName + ext;
   let counter = 2;
@@ -379,7 +401,7 @@ export async function copyReferenceFrom(pid, tid, { sourcePath, role = 'style', 
     file: 'refs/' + fileName,
     role: ['style', 'character', 'object', 'composition', 'background'].includes(role) ? role : 'style',
     note: String(note || '').slice(0, 300),
-    layer: layer || null,
+    layer: layer || null
   };
 
   refs.push(newRef);
@@ -390,7 +412,8 @@ export async function copyReferenceFrom(pid, tid, { sourcePath, role = 'style', 
 
 // folders a reference may be copied from: the watched roots, the thumbnail folders and the style library
 function allowedSource(p) {
-  const c = config(), ts = c.thumbstudio || {};
+  const c = config(),
+    ts = c.thumbstudio || {};
   return [...(c.roots || []).map(r => r.path), ts.globalDir, ts.templatesDir, ts.styleRefsDir, outputsDir()].filter(Boolean).some(r => isInside(p, r));
 }
 
@@ -402,7 +425,7 @@ export function getImageDimensions(filePath) {
     fs.readSync(fd, buf, 0, 32, 0);
     fs.closeSync(fd);
     // PNG signature 89 50 4E 47
-    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) {
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
       const w = buf.readUInt32BE(16);
       const h = buf.readUInt32BE(20);
       return { w, h };
@@ -410,13 +433,17 @@ export function getImageDimensions(filePath) {
     if (buf[0] === 0xff && buf[1] === 0xd8) {
       const all = fs.readFileSync(filePath);
       for (let i = 2; i < all.length - 9;) {
-        if (all[i] !== 0xff) { i++; continue; }
-        const m = all[i + 1], len = all.readUInt16BE(i + 2);
+        if (all[i] !== 0xff) {
+          i++;
+          continue;
+        }
+        const m = all[i + 1],
+          len = all.readUInt16BE(i + 2);
         if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { w: all.readUInt16BE(i + 7), h: all.readUInt16BE(i + 5) };
         i += 2 + len;
       }
     }
-  } catch { }
+  } catch {}
   return { w: 0, h: 0 };
 }
 
@@ -438,11 +465,7 @@ export async function exportThumbnail(pid, tid, { layout, sketch, depth }) {
     await fsp.writeFile(path.join(dir, fileName), buf);
   };
 
-  await Promise.all([
-    saveImage(layout, 'layout.png'),
-    saveImage(sketch, 'sketch.png'),
-    saveImage(depth, 'depth.png'),
-  ]);
+  await Promise.all([saveImage(layout, 'layout.png'), saveImage(sketch, 'sketch.png'), saveImage(depth, 'depth.png')]);
 
   // Generate prompt & summary
   const { prompt, summaryTr, refsOrdered } = generatePrompt(brief);
@@ -469,7 +492,7 @@ ${prompt}
 
   // Update brief with exported timestamp
   const updatedBrief = saveThumbnail(pid, tid, {
-    exported: new Date().toISOString(),
+    exported: new Date().toISOString()
   });
 
   emit('exported', { pid, tid, prompt, summaryTr, refsOrdered });
@@ -510,13 +533,25 @@ export function getClaudeMessage(pid, tid) {
 }
 
 // Add a variant (copied to variants/v<round>_<seq>.png)
-export async function addVariant(pid, tid, { file, prompt = '', parent = null, fixes = [], by = 'claude', round: wantRound = null, refs = null, mode = null, inPlace = false }) {
+export async function addVariant(
+  pid,
+  tid,
+  { file, prompt = '', parent = null, fixes = [], by = 'claude', round: wantRound = null, refs = null, mode = null, inPlace = false }
+) {
   if (!file || !fs.existsSync(file)) {
     throw Object.assign(new Error('Variant image file not found: ' + file), { code: 404 });
   }
-  const ext = (path.extname(file).toLowerCase().match(/^\.(png|jpe?g|webp)$/) || [])[0];
+  const ext = (
+    path
+      .extname(file)
+      .toLowerCase()
+      .match(/^\.(png|jpe?g|webp)$/) || []
+  )[0];
   if (!ext) throw Object.assign(new Error('Variant must be PNG, JPEG or WEBP: ' + file), { code: 400 });
-  const hash = crypto.createHash('md5').update(await fsp.readFile(file)).digest('hex');
+  const hash = crypto
+    .createHash('md5')
+    .update(await fsp.readFile(file))
+    .digest('hex');
 
   const { dir } = resolveThumbDir(pid, tid);
   const variantsDir = path.join(dir, 'variants');
@@ -533,11 +568,17 @@ export async function addVariant(pid, tid, { file, prompt = '', parent = null, f
   let vid, targetFileName, targetPath;
   if (inPlace) {
     // the file is already variants/v<round>_<k>.png
-    targetFileName = path.basename(file); vid = path.basename(file, path.extname(file)); targetPath = file;
+    targetFileName = path.basename(file);
+    vid = path.basename(file, path.extname(file));
+    targetPath = file;
   } else {
     const inRound = existing.filter(v => (v.round || 1) === round);
     let seq = inRound.length + 1;
-    do { vid = `v${round}_${seq++}`; targetFileName = vid + (ext === '.jpeg' ? '.jpg' : ext); targetPath = path.join(variantsDir, targetFileName); } while (fs.existsSync(targetPath) || existing.some(v => v.id === vid));
+    do {
+      vid = `v${round}_${seq++}`;
+      targetFileName = vid + (ext === '.jpeg' ? '.jpg' : ext);
+      targetPath = path.join(variantsDir, targetFileName);
+    } while (fs.existsSync(targetPath) || existing.some(v => v.id === vid));
     await fsp.copyFile(file, targetPath);
   }
 
@@ -564,20 +605,22 @@ export async function addVariant(pid, tid, { file, prompt = '', parent = null, f
     parent: parent || null,
     mode: mode || (parent ? 'edit' : 'new'),
     by,
-    prompt: String(prompt || '').trim().slice(0, 4000),
+    prompt: String(prompt || '')
+      .trim()
+      .slice(0, 4000),
     refs: Array.isArray(refs) ? refs : ['layout.png'],
     hash,
     w: dims.w,
     h: dims.h,
     at: new Date().toISOString(),
-    notes: [],
+    notes: []
   };
 
   existing.push(newVariant);
 
   const updatedBrief = saveThumbnail(pid, tid, {
     variants: existing,
-    status: brief.status === 'draft' ? 'generating' : brief.status,
+    status: brief.status === 'draft' ? 'generating' : brief.status
   });
 
   emit('variant', { pid, tid, variant: newVariant });
@@ -596,11 +639,15 @@ const findVariant = (brief, vid) => {
 // the prompt for fixing a variant from its notes
 export function editPrompt(notes, hasMarks) {
   const list = notes.map((n, i) => `(${i + 1}) at the ${spatialEn(n.x, n.y)}: ${n.text}`).join(' ');
-  return `The exact same image as the first reference, identical composition, style, characters and lighting. Only change: ${list}.` +
-    (hasMarks ? ' The second reference shows red numbered marks where to change; do not draw the marks.' : '') + ' No text, no letters, no watermark.';
+  return (
+    `The exact same image as the first reference, identical composition, style, characters and lighting. Only change: ${list}.` +
+    (hasMarks ? ' The second reference shows red numbered marks where to change; do not draw the marks.' : '') +
+    ' No text, no letters, no watermark.'
+  );
 }
 function spatialEn(x, y) {
-  const hp = x < 0.38 ? 'left' : x > 0.62 ? 'right' : 'center', vp = y < 0.38 ? 'top' : y > 0.62 ? 'bottom' : 'middle';
+  const hp = x < 0.38 ? 'left' : x > 0.62 ? 'right' : 'center',
+    vp = y < 0.38 ? 'top' : y > 0.62 ? 'bottom' : 'middle';
   return hp === 'center' && vp === 'middle' ? 'center' : `${vp} ${hp}`;
 }
 
@@ -608,7 +655,9 @@ function spatialEn(x, y) {
 export function addVariantNote(pid, tid, vid, { x, y, text } = {}) {
   const brief = getThumbnail(pid, tid);
   const v = findVariant(brief, vid);
-  const t = String(text || '').trim().slice(0, 500);
+  const t = String(text || '')
+    .trim()
+    .slice(0, 500);
   if (!t) throw Object.assign(new Error('Note is empty'), { code: 400 });
   v.notes = Array.isArray(v.notes) ? v.notes : [];
   const id = v.notes.reduce((m, n) => Math.max(m, n.id || 0), 0) + 1;
@@ -648,7 +697,10 @@ export async function saveMarked(pid, tid, vid, data) {
 export function chooseVariant(pid, tid, vid) {
   const brief = getThumbnail(pid, tid);
   if (vid) findVariant(brief, vid);
-  return saveThumbnail(pid, tid, { chosen: vid || null, status: brief.status === 'final' ? 'final' : vid ? 'chosen' : (brief.variants.length ? 'generating' : 'draft') });
+  return saveThumbnail(pid, tid, {
+    chosen: vid || null,
+    status: brief.status === 'final' ? 'final' : vid ? 'chosen' : brief.variants.length ? 'generating' : 'draft'
+  });
 }
 
 export async function deleteVariant(pid, tid, vid) {
@@ -678,19 +730,27 @@ export async function saveFinal(pid, tid, { data, copyToOutputs = true } = {}) {
   const file = path.join(dir, 'final.jpg');
   await fsp.writeFile(file, buf);
   const dims = getImageDimensions(file);
-  let copy = null, copyError = null;
+  let copy = null,
+    copyError = null;
   if (copyToOutputs) {
     try {
       const out = path.join(outputsDir(), 'thumbnails');
       await fsp.mkdir(out, { recursive: true });
-      const d = new Date(), z = n => String(n).padStart(2, '0');
-      const safe = String(brief.title || tid).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').trim().slice(0, 100);
+      const d = new Date(),
+        z = n => String(n).padStart(2, '0');
+      const safe = String(brief.title || tid)
+        .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
+        .trim()
+        .slice(0, 100);
       copy = path.join(out, `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${safe} (${tid}).jpg`);
       // this thumbnail's earlier copy under another day's name is replaced, not piled up
       const old = brief.final?.copy;
-      if (old && old !== copy && isInside(old, out) && fs.existsSync(old)) await recyclePaths([{ path: old }]).catch(() => { });
+      if (old && old !== copy && isInside(old, out) && fs.existsSync(old)) await recyclePaths([{ path: old }]).catch(() => {});
       await fsp.copyFile(file, copy);
-    } catch (e) { copyError = e.message; copy = null; }
+    } catch (e) {
+      copyError = e.message;
+      copy = null;
+    }
   }
   const final = { file: 'final.jpg', at: new Date().toISOString(), bytes: buf.length, w: dims.w, h: dims.h, from: brief.chosen, copy, copyError };
   const b = saveThumbnail(pid, tid, { final, status: 'final' });
@@ -703,7 +763,7 @@ export async function openThumbFolder(pid, tid, file) {
   const clean = file ? String(file).replace(/\\/g, '/') : null;
   const f = clean && ALLOWED_FILE_RE.test(clean) ? path.join(dir, clean) : null;
   const { openFile } = await import('../open-file.js');
-  return openFile(f && fs.existsSync(f) ? f : dir, 'folder');   // a file is shown selected in its folder
+  return openFile(f && fs.existsSync(f) ? f : dir, 'folder'); // a file is shown selected in its folder
 }
 
 // Register all thumbstudio HTTP routes
@@ -773,7 +833,9 @@ export function routes(route, readBody) {
   route('POST', '/api/thumbstudio/:pid/:tid/final', async (req, url, { pid, tid }) => saveFinal(pid, tid, await readBody(req)));
   route('POST', '/api/thumbstudio/:pid/:tid/open-folder', async (req, url, { pid, tid }) => openThumbFolder(pid, tid, (await readBody(req)).file));
   route('POST', '/api/thumbstudio/:pid/:tid/variant/:vid/note', async (req, url, { pid, tid, vid }) => addVariantNote(pid, tid, vid, await readBody(req)));
-  route('POST', '/api/thumbstudio/:pid/:tid/variant/:vid/note/:nid', async (req, url, { pid, tid, vid, nid }) => updateVariantNote(pid, tid, vid, nid, await readBody(req)));
+  route('POST', '/api/thumbstudio/:pid/:tid/variant/:vid/note/:nid', async (req, url, { pid, tid, vid, nid }) =>
+    updateVariantNote(pid, tid, vid, nid, await readBody(req))
+  );
   route('POST', '/api/thumbstudio/:pid/:tid/variant/:vid/marked', async (req, url, { pid, tid, vid }) => saveMarked(pid, tid, vid, (await readBody(req)).data));
   route('POST', '/api/thumbstudio/:pid/:tid/variant/:vid/delete', async (req, url, { pid, tid, vid }) => deleteVariant(pid, tid, vid));
 
@@ -808,4 +870,3 @@ export function routes(route, readBody) {
   // Start watching user templates directory
   watchTemplates(emit);
 }
-

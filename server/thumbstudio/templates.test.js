@@ -14,7 +14,7 @@ import {
   saveUserTemplate,
   slugify,
   builtinDir,
-  userDir,
+  userDir
 } from './templates.js';
 import { config } from '../config.js';
 import { normalizeBrief } from './schema.js';
@@ -27,7 +27,9 @@ config().thumbstudio.templatesDir = testTempDir;
 
 test.after(() => {
   config().thumbstudio.templatesDir = prevTemplatesDir;
-  try { fs.rmSync(testTempDir, { recursive: true, force: true }); } catch { }
+  try {
+    fs.rmSync(testTempDir, { recursive: true, force: true });
+  } catch {}
 });
 
 test('slugify: converts Turkish characters and punctuation cleanly', () => {
@@ -73,8 +75,8 @@ test('reference selection: 15 usable templates keep layout, text and focus throu
       if (layer.type === 'text') {
         assert.equal(layer.fill, raw.fill, template.id);
         assert.equal(layer.strokeW, raw.strokeW, template.id);
-        assert.ok(layer.x >= .035 && layer.y >= .035, `${template.id}: title needs a safe outer margin`);
-        assert.ok(layer.x + layer.w <= .965 + 1e-9 && layer.y + layer.h <= .94 + 1e-9, `${template.id}: text should fit the safe frame`);
+        assert.ok(layer.x >= 0.035 && layer.y >= 0.035, `${template.id}: title needs a safe outer margin`);
+        assert.ok(layer.x + layer.w <= 0.965 + 1e-9 && layer.y + layer.h <= 0.94 + 1e-9, `${template.id}: text should fit the safe frame`);
       }
       if (layer.type === 'effect') assert.equal(layer.kind, raw.kind, template.id);
     }
@@ -104,7 +106,10 @@ test('reference selection: every editable slot can be overridden and is used', (
 test('applyTemplateSlots: camera focus follows new layer IDs and clears stale focus', () => {
   const template = {
     camera: { focusLayer: 'portrait-source' },
-    layers: [{ id: 'background-source', type: 'background' }, { id: 'portrait-source', type: 'subject' }],
+    layers: [
+      { id: 'background-source', type: 'background' },
+      { id: 'portrait-source', type: 'subject' }
+    ]
   };
   const applied = applyTemplateSlots(template);
   assert.equal(applied.camera.focusLayer, applied.layers[1].id);
@@ -114,8 +119,11 @@ test('applyTemplateSlots: camera focus follows new layer IDs and clears stale fo
 
 test('saveUserTemplate: a focused layer remains focused when the saved template is applied', async () => {
   const brief = {
-    camera: { focusLayer: 'editor-person', dof: .8 },
-    layers: [{ id: 'editor-bg', type: 'background' }, { id: 'editor-person', type: 'subject' }],
+    camera: { focusLayer: 'editor-person', dof: 0.8 },
+    layers: [
+      { id: 'editor-bg', type: 'background' },
+      { id: 'editor-person', type: 'subject' }
+    ]
   };
   const { path: file, template } = await saveUserTemplate({ name: 'Focus test', brief });
   try {
@@ -150,13 +158,13 @@ test('applyTemplateSlots: replaces slots with defaults and overrides', () => {
     format: '16:9',
     slots: {
       TITLE: { label: 'Title', default: 'DEFAULT TITLE' },
-      SUB: { label: 'Subtitle', default: 'Default subtitle' },
+      SUB: { label: 'Subtitle', default: 'Default subtitle' }
     },
     camera: { shot: 'close' },
     layers: [
       { type: 'text', content: '{{TITLE}}' },
-      { type: 'text', content: '{{SUB}}' },
-    ],
+      { type: 'text', content: '{{SUB}}' }
+    ]
   };
 
   // Test with defaults
@@ -188,7 +196,7 @@ test('saveUserTemplate and loadUserTemplates: handles custom templates and inval
   const brief = {
     format: '16:9',
     camera: { shot: 'wide' },
-    layers: [{ type: 'background', kind: 'solid', color: '#111111' }],
+    layers: [{ type: 'background', kind: 'solid', color: '#111111' }]
   };
 
   const res = await saveUserTemplate({ name: testName, brief, overwrite: true, id: testId });
@@ -214,6 +222,10 @@ test('saveUserTemplate and loadUserTemplates: handles custom templates and inval
   assert.ok(badTemplate.error, 'Corrupt template must have an error property');
 
   // Clean up test files
-  try { fs.unlinkSync(testFile); } catch { }
-  try { fs.unlinkSync(badFile); } catch { }
+  try {
+    fs.unlinkSync(testFile);
+  } catch {}
+  try {
+    fs.unlinkSync(badFile);
+  } catch {}
 });

@@ -22,7 +22,9 @@ config().thumbstudio.globalDir = testTempDir;
 
 test.after(() => {
   config().thumbstudio.globalDir = prevGlobal;
-  try { fs.rmSync(testTempDir, { recursive: true, force: true }); } catch { }
+  try {
+    fs.rmSync(testTempDir, { recursive: true, force: true });
+  } catch {}
 });
 
 test('resolveThumbDir rejects traversal and invalid ids', () => {
@@ -38,7 +40,7 @@ test('resolveThumbDir rejects traversal and invalid ids', () => {
 
 test('create, get, save, duplicate and delete global thumbnail', async () => {
   const tid = '20261104-a1b2';
-  
+
   // 1. Create
   const created = await createThumbnail({
     tid,
@@ -92,7 +94,10 @@ test('create, get, save, duplicate and delete global thumbnail', async () => {
 test('refused Trash operation preserves the thumbnail and reports the error', async () => {
   const tid = '20261104-safe';
   await createThumbnail({ tid, project: '_', title: 'Keep this thumbnail' });
-  await assert.rejects(deleteThumbnail('_', tid, { recycle: async items => items.map(i => ({ path: i.path, ok: false, error: 'Trash unavailable' })) }), /Trash unavailable/);
+  await assert.rejects(
+    deleteThumbnail('_', tid, { recycle: async items => items.map(i => ({ path: i.path, ok: false, error: 'Trash unavailable' })) }),
+    /Trash unavailable/
+  );
   assert.equal(getThumbnail('_', tid).title, 'Keep this thumbnail');
   assert.ok(fs.existsSync(path.join(testTempDir, tid, 'brief.json')));
 });
@@ -103,8 +108,14 @@ test('serveThumbnailFile blocks path traversal and forbidden files', () => {
     headers: {},
     ended: false,
     body: '',
-    writeHead(code, headers) { this.code = code; this.headers = headers; },
-    end(str) { this.ended = true; this.body = str; }
+    writeHead(code, headers) {
+      this.code = code;
+      this.headers = headers;
+    },
+    end(str) {
+      this.ended = true;
+      this.body = str;
+    }
   };
 
   // Forbidden file
@@ -126,8 +137,8 @@ test('createThumbnail with template applies slots and camera properties', async 
     template: 'reaction-face-title',
     slots: {
       TITLE: 'INCREDIBLE MOMENTS',
-      SUBJECT: 'flying saucer',
-    },
+      SUBJECT: 'flying saucer'
+    }
   });
 
   assert.equal(created.tid, tid);

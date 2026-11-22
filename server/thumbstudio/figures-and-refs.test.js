@@ -15,14 +15,13 @@ config().thumbstudio.globalDir = testTempDir;
 
 test.after(() => {
   config().thumbstudio.globalDir = prevGlobal;
-  try { fs.rmSync(testTempDir, { recursive: true, force: true }); } catch { }
+  try {
+    fs.rmSync(testTempDir, { recursive: true, force: true });
+  } catch {}
 });
 
 test('All catalog poses are defined in FIGURE_POSES with all required joints', () => {
-  const requiredJoints = [
-    'head', 'neck', 'shL', 'elL', 'wrL', 'shR', 'elR', 'wrR',
-    'pelvis', 'hipL', 'knL', 'anL', 'hipR', 'knR', 'anR'
-  ];
+  const requiredJoints = ['head', 'neck', 'shL', 'elL', 'wrL', 'shR', 'elR', 'wrR', 'pelvis', 'hipL', 'knL', 'anL', 'hipR', 'knR', 'anR'];
 
   for (const p of POSES) {
     const pose = FIGURE_POSES[p.id];

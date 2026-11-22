@@ -21,8 +21,12 @@ test('History supports 25+ steps of undo and redo', () => {
     const next = i;
     state = next;
     history.push({
-      undo: () => { state = prev; },
-      redo: () => { state = next; }
+      undo: () => {
+        state = prev;
+      },
+      redo: () => {
+        state = next;
+      }
     });
   }
 
@@ -82,9 +86,12 @@ test('Snapping to thirds and center', () => {
   const W = 1280;
   const H = 720;
   // Close to vertical third 1/3 (~0.333)
-  const snap1 = snapLayerBounds(0.330, 0.1, 0.2, 0.2, [], W, H, 10);
+  const snap1 = snapLayerBounds(0.33, 0.1, 0.2, 0.2, [], W, H, 10);
   assert.equal(snap1.snappedX, 1 / 3);
-  assert.equal(snap1.guides.some(g => g.type === 'v' && Math.abs(g.pos - 1/3) < 0.001), true);
+  assert.equal(
+    snap1.guides.some(g => g.type === 'v' && Math.abs(g.pos - 1 / 3) < 0.001),
+    true
+  );
 
   // Close to center (0.5)
   const snap2 = snapLayerBounds(0.402, 0.1, 0.2, 0.2, [], W, H, 10); // Center is 0.402 + 0.1 = 0.502

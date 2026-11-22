@@ -7,10 +7,31 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = ['server', 'server/thumbstudio', 'ui', 'ui/review', 'scripts'];
-const files = dirs.flatMap(d => fs.readdirSync(path.join(root, d)).filter(f => /\.test\.[jt]s$/.test(f)).map(f => path.join(d, f)));
+const files = dirs.flatMap(d =>
+  fs
+    .readdirSync(path.join(root, d))
+    .filter(f => /\.test\.[jt]s$/.test(f))
+    .map(f => path.join(d, f))
+);
 const base = path.join(root, '.test-tmp', 'base');
 fs.mkdirSync(base, { recursive: true });
-const fakeHome = path.join(root, '.test-tmp', 'home'), temp = path.join(root, '.test-tmp', 'temp');
+const fakeHome = path.join(root, '.test-tmp', 'home'),
+  temp = path.join(root, '.test-tmp', 'temp');
 for (const d of [fakeHome, temp]) fs.mkdirSync(d, { recursive: true });
-const r = spawnSync(process.execPath, ['--test', ...files], { cwd: root, stdio: 'inherit', env: { ...process.env, HOME: fakeHome, XDG_CONFIG_HOME: path.join(fakeHome, '.config'), XDG_DATA_HOME: path.join(fakeHome, '.local', 'share'), TMP: temp, TEMP: temp, TMPDIR: temp, VIDEOHUB_NO_WINDOW: '1', VIDEOHUB_BASE_DIR: base, VIDEOHUB_DATA_DIR: path.join(root, '.test-tmp', 'data') } });
+const r = spawnSync(process.execPath, ['--test', ...files], {
+  cwd: root,
+  stdio: 'inherit',
+  env: {
+    ...process.env,
+    HOME: fakeHome,
+    XDG_CONFIG_HOME: path.join(fakeHome, '.config'),
+    XDG_DATA_HOME: path.join(fakeHome, '.local', 'share'),
+    TMP: temp,
+    TEMP: temp,
+    TMPDIR: temp,
+    VIDEOHUB_NO_WINDOW: '1',
+    VIDEOHUB_BASE_DIR: base,
+    VIDEOHUB_DATA_DIR: path.join(root, '.test-tmp', 'data')
+  }
+});
 process.exit(r.status ?? 1);

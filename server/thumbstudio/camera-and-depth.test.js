@@ -26,9 +26,7 @@ test('getGridParams respects angle and lens', () => {
 test('checkFramingConsistency flags mismatch between shot and crop', () => {
   const briefMismatch = {
     camera: { shot: 'wide' },
-    layers: [
-      { id: 'L1', type: 'subject', name: 'Explorer', crop: 'head' }
-    ]
+    layers: [{ id: 'L1', type: 'subject', name: 'Explorer', crop: 'head' }]
   };
   const warnings = checkFramingConsistency(briefMismatch);
   assert.equal(warnings.length, 1);
@@ -36,9 +34,7 @@ test('checkFramingConsistency flags mismatch between shot and crop', () => {
 
   const briefMatch = {
     camera: { shot: 'wide' },
-    layers: [
-      { id: 'L1', type: 'subject', name: 'Explorer', crop: 'full' }
-    ]
+    layers: [{ id: 'L1', type: 'subject', name: 'Explorer', crop: 'full' }]
   };
   assert.equal(checkFramingConsistency(briefMatch).length, 0);
 });

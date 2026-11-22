@@ -6,7 +6,9 @@ export function createDepthPanel(brief, { onLayerDepthChange, onSelectLayer }) {
   const getBrief = typeof brief === 'function' ? brief : () => brief;
   const panel = h('div', { class: 'depth-panel' });
 
-  const header = h('div', { class: 'depth-header row' },
+  const header = h(
+    'div',
+    { class: 'depth-header row' },
     h('span', { style: { fontWeight: 600, fontSize: '11px', color: 'var(--dim)' } }, 'SIDE VIEW (DEPTH PLAN)'),
     h('span', { class: 'spacer' }),
     h('span', { class: 'dim', style: { fontSize: '11px' } }, '📷 Near (0) ────── Middle (50) ────── Far (100)')

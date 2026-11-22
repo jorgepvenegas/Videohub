@@ -181,7 +181,7 @@ function drawBackground(ctx, layer, x, y, w, h, isExport) {
   }
   ctx.fillRect(x, y, w, h);
 
-  if (isExport) return;   // no words in pictures that go to the image model
+  if (isExport) return; // no words in pictures that go to the image model
   // Subtle label in editor
   ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
   ctx.font = '13px sans-serif';
@@ -301,7 +301,7 @@ function drawTextBlock(ctx, layer, x, y, w, h, isExport, clean = false) {
   // never wider than its box: shrink the font until the widest line fits (9:16 frames are narrow for their height)
   const widest0 = Math.max(...lines.map(l => ctx.measureText(l).width), 1);
   if (widest0 > w * 0.98 && w > 10) {
-    fontSize = Math.max(10, Math.floor(fontSize * (w * 0.98) / widest0));
+    fontSize = Math.max(10, Math.floor((fontSize * (w * 0.98)) / widest0));
     ctx.font = `${fontFamily === 'Segoe UI' ? 900 : 'bold'} ${fontSize}px "${fontFamily}", "Arial Black", "Segoe UI", sans-serif`;
   }
   const lineHeight = fontSize * (layer.lineHeight || 1.15);
@@ -350,11 +350,12 @@ function drawTextBlock(ctx, layer, x, y, w, h, isExport, clean = false) {
     } else {
       const words = line.split(/(\s+)/);
       const total = ctx.measureText(line).width;
-      let cx = (ctx.textAlign === 'left' ? lineX : ctx.textAlign === 'right' ? lineX - total : lineX - total / 2);
-      const align = ctx.textAlign; ctx.textAlign = 'left';
+      let cx = ctx.textAlign === 'left' ? lineX : ctx.textAlign === 'right' ? lineX - total : lineX - total / 2;
+      const align = ctx.textAlign;
+      ctx.textAlign = 'left';
       for (const wd of words) {
         const on = hl.includes(wd.toLocaleLowerCase().replace(/[.,!?;:…"'“”]/g, ''));
-        ctx.fillStyle = on ? (layer.highlight || '#ffd400') : (layer.fill || '#ffffff');
+        ctx.fillStyle = on ? layer.highlight || '#ffd400' : layer.fill || '#ffffff';
         ctx.fillText(wd, cx, lineY);
         cx += ctx.measureText(wd).width;
       }
@@ -425,11 +426,15 @@ function drawThirdsGuides(ctx, W, H) {
 
   // Vertical lines
   ctx.beginPath();
-  ctx.moveTo(W / 3, 0); ctx.lineTo(W / 3, H);
-  ctx.moveTo((2 * W) / 3, 0); ctx.lineTo((2 * W) / 3, H);
+  ctx.moveTo(W / 3, 0);
+  ctx.lineTo(W / 3, H);
+  ctx.moveTo((2 * W) / 3, 0);
+  ctx.lineTo((2 * W) / 3, H);
   // Horizontal lines
-  ctx.moveTo(0, H / 3); ctx.lineTo(W, H / 3);
-  ctx.moveTo(0, (2 * H) / 3); ctx.lineTo(W, (2 * H) / 3);
+  ctx.moveTo(0, H / 3);
+  ctx.lineTo(W, H / 3);
+  ctx.moveTo(0, (2 * H) / 3);
+  ctx.lineTo(W, (2 * H) / 3);
   ctx.stroke();
   ctx.restore();
 }
@@ -462,9 +467,14 @@ function drawShortsGuide(ctx, W, H) {
   ctx.fillStyle = 'rgba(232, 84, 84, 0.16)';
   ctx.strokeStyle = 'rgba(232, 84, 84, 0.55)';
   ctx.setLineDash([6, 4]);
-  const r = [W * 0.84, H * 0.42, W * 0.16, H * 0.46], b = [0, H * 0.8, W * 0.84, H * 0.2];
-  for (const [x, y, w, h] of [r, b]) { ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); }
-  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = `${Math.round(H * 0.013)}px "Segoe UI", sans-serif`;
+  const r = [W * 0.84, H * 0.42, W * 0.16, H * 0.46],
+    b = [0, H * 0.8, W * 0.84, H * 0.2];
+  for (const [x, y, w, h] of [r, b]) {
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeRect(x, y, w, h);
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = `${Math.round(H * 0.013)}px "Segoe UI", sans-serif`;
   ctx.fillText('Shorts interface', b[0] + 12, b[1] + 22);
   ctx.restore();
 }
@@ -525,9 +535,14 @@ function drawSelectionHandles(ctx, layer, W, H) {
   // 8 Resize handles
   const hs = HANDLE_SIZE;
   const handleCoords = [
-    [x, y], [cx, y], [x + w, y],
-    [x + w, cy], [x + w, y + h], [cx, y + h],
-    [x, y + h], [x, cy]
+    [x, y],
+    [cx, y],
+    [x + w, y],
+    [x + w, cy],
+    [x + w, y + h],
+    [cx, y + h],
+    [x, y + h],
+    [x, cy]
   ];
 
   ctx.fillStyle = '#ffffff';
@@ -545,7 +560,11 @@ function drawSelectionHandles(ctx, layer, W, H) {
 function hexToRgba(hex, alpha) {
   if (!hex || !hex.startsWith('#')) return `rgba(240, 138, 60, ${alpha})`;
   let c = hex.slice(1);
-  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  if (c.length === 3)
+    c = c
+      .split('')
+      .map(x => x + x)
+      .join('');
   const num = parseInt(c, 16);
   const r = (num >> 16) & 255;
   const g = (num >> 8) & 255;
@@ -561,53 +580,76 @@ function truncate(str, max) {
 // ---------- shared image loading (trace layers, final image): the editor redraws when one arrives
 let fileUrl = f => f;
 let onImageLoad = null;
-export function setImageLoadHandler(fn) { onImageLoad = fn; }
+export function setImageLoadHandler(fn) {
+  onImageLoad = fn;
+}
 const imageCache = new Map();
 export function loadImage(src) {
   let img = imageCache.get(src);
-  if (!img) { img = new Image(); img.onload = () => onImageLoad?.(); img.src = src; imageCache.set(src, img); }
+  if (!img) {
+    img = new Image();
+    img.onload = () => onImageLoad?.();
+    img.src = src;
+    imageCache.set(src, img);
+  }
   return img.complete && img.naturalWidth ? img : null;
 }
 
 // ---------- final: the chosen variant cover-cropped + adjustments + text and marks drawn by code
 export const FINAL_DEFAULTS = { x: 0.5, y: 0.5, zoom: 1, brightness: 1, contrast: 1, saturation: 1, vignette: 0, shade: 0 };
 export function drawFinal(ctx, brief, opts = {}) {
-  const W = ctx.canvas.width, H = ctx.canvas.height;
+  const W = ctx.canvas.width,
+    H = ctx.canvas.height;
   const fe = { ...FINAL_DEFAULTS, ...(brief.finalEdit || {}) };
   ctx.save();
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#0b0c10'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#0b0c10';
+  ctx.fillRect(0, 0, W, H);
   const v = (brief.variants || []).find(x => x.id === (opts.variantId || brief.chosen));
   const img = opts.image || (v ? loadImage(fileUrl(v.file)) : null);
   if (img) {
     // cover crop: zoom >= 1, x/y = which part of the image stays in view
     const s = Math.max(W / img.naturalWidth, H / img.naturalHeight) * Math.max(1, fe.zoom);
-    const dw = img.naturalWidth * s, dh = img.naturalHeight * s;
-    const dx = (W - dw) * fe.x, dy = (H - dh) * fe.y;
+    const dw = img.naturalWidth * s,
+      dh = img.naturalHeight * s;
+    const dx = (W - dw) * fe.x,
+      dy = (H - dh) * fe.y;
     ctx.filter = `brightness(${fe.brightness}) contrast(${fe.contrast}) saturate(${fe.saturation})`;
     ctx.drawImage(img, dx, dy, dw, dh);
     ctx.filter = 'none';
   } else if (!opts.isExport) {
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '22px "Segoe UI", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = '22px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.fillText(v ? 'Loading image…' : 'Choose a variant for the final image from the strip below', W / 2, H / 2);
   }
   if (fe.vignette > 0) {
     const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.hypot(W, H) / 2);
-    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${0.85 * fe.vignette})`);
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, `rgba(0,0,0,${0.85 * fe.vignette})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
   }
   const layers = (brief.layers || []).filter(l => !l.hidden && isOverlayLayer(l));
   // readability: a soft dark gradient behind each text block
-  if (fe.shade > 0) for (const l of layers.filter(l => l.type === 'text')) {
-    const b = getLayerBox(l, W, H);
-    const g = ctx.createRadialGradient(b.cx, b.cy, 0, b.cx, b.cy, Math.max(b.w, b.h) * 0.75);
-    g.addColorStop(0, `rgba(0,0,0,${0.75 * fe.shade})`); g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g; ctx.fillRect(b.x - b.w * 0.3, b.y - b.h * 0.5, b.w * 1.6, b.h * 2);
-  }
+  if (fe.shade > 0)
+    for (const l of layers.filter(l => l.type === 'text')) {
+      const b = getLayerBox(l, W, H);
+      const g = ctx.createRadialGradient(b.cx, b.cy, 0, b.cx, b.cy, Math.max(b.w, b.h) * 0.75);
+      g.addColorStop(0, `rgba(0,0,0,${0.75 * fe.shade})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(b.x - b.w * 0.3, b.y - b.h * 0.5, b.w * 1.6, b.h * 2);
+    }
   for (const l of layers) {
     ctx.save();
     const { x, y, w, h, cx, cy } = getLayerBox(l, W, H);
-    if (l.rot) { ctx.translate(cx, cy); ctx.rotate((l.rot * Math.PI) / 180); ctx.translate(-cx, -cy); }
+    if (l.rot) {
+      ctx.translate(cx, cy);
+      ctx.rotate((l.rot * Math.PI) / 180);
+      ctx.translate(-cx, -cy);
+    }
     if (l.type === 'text') drawTextBlock(ctx, l, x, y, w, h, !!opts.isExport, true);
     else drawEffect(ctx, l, x, y, w, h, { isExport: true });
     ctx.restore();
@@ -681,7 +723,7 @@ function drawSketchOverlays(ctx, brief, W, H) {
   const hudLines = [
     `Camera: ${brief.camera?.shot || 'medium'} · ${brief.camera?.angle || 'eye level'} · ${brief.camera?.lens || 50}mm`,
     `Light: ${brief.light?.key || 'warm'} / ${brief.light?.time || 'day'}${brief.light?.rim ? ' (rim)' : ''}`,
-    `Style: ${brief.style?.preset || 'cinematic-photo'}`,
+    `Style: ${brief.style?.preset || 'cinematic-photo'}`
   ];
   if (legend.length) {
     hudLines.push('---');
@@ -752,7 +794,7 @@ export async function renderExportCanvases(brief, { fileUrl: fu } = {}) {
   return {
     layout: layoutCanvas.toDataURL('image/png'),
     sketch: sketchCanvas.toDataURL('image/png'),
-    depth: depthCanvas.toDataURL('image/png'),
+    depth: depthCanvas.toDataURL('image/png')
   };
 }
 

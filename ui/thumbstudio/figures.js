@@ -5,143 +5,287 @@
 // Pelvis, Hips (L, R), Knees (L, R), Ankles (L, R)
 
 export const FIGURE_POSES = {
-  'ayakta': {
-    head: [0.5, 0.12], neck: [0.5, 0.20],
-    shL: [0.38, 0.23], elL: [0.35, 0.38], wrL: [0.34, 0.52],
-    shR: [0.62, 0.23], elR: [0.65, 0.38], wrR: [0.66, 0.52],
+  ayakta: {
+    head: [0.5, 0.12],
+    neck: [0.5, 0.2],
+    shL: [0.38, 0.23],
+    elL: [0.35, 0.38],
+    wrL: [0.34, 0.52],
+    shR: [0.62, 0.23],
+    elR: [0.65, 0.38],
+    wrR: [0.66, 0.52],
     pelvis: [0.5, 0.52],
-    hipL: [0.43, 0.53], knL: [0.42, 0.73], anL: [0.42, 0.94],
-    hipR: [0.57, 0.53], knR: [0.58, 0.73], anR: [0.58, 0.94]
+    hipL: [0.43, 0.53],
+    knL: [0.42, 0.73],
+    anL: [0.42, 0.94],
+    hipR: [0.57, 0.53],
+    knR: [0.58, 0.73],
+    anR: [0.58, 0.94]
   },
   'isaret-ediyor-sag': {
-    head: [0.46, 0.12], neck: [0.47, 0.20],
-    shL: [0.36, 0.23], elL: [0.34, 0.38], wrL: [0.33, 0.52],
-    shR: [0.58, 0.23], elR: [0.72, 0.22], wrR: [0.92, 0.20], // Arm pointing right
+    head: [0.46, 0.12],
+    neck: [0.47, 0.2],
+    shL: [0.36, 0.23],
+    elL: [0.34, 0.38],
+    wrL: [0.33, 0.52],
+    shR: [0.58, 0.23],
+    elR: [0.72, 0.22],
+    wrR: [0.92, 0.2], // Arm pointing right
     pelvis: [0.48, 0.52],
-    hipL: [0.42, 0.53], knL: [0.40, 0.73], anL: [0.40, 0.94],
-    hipR: [0.54, 0.53], knR: [0.56, 0.73], anR: [0.58, 0.94]
+    hipL: [0.42, 0.53],
+    knL: [0.4, 0.73],
+    anL: [0.4, 0.94],
+    hipR: [0.54, 0.53],
+    knR: [0.56, 0.73],
+    anR: [0.58, 0.94]
   },
   'isaret-ediyor-sol': {
-    head: [0.54, 0.12], neck: [0.53, 0.20],
-    shL: [0.42, 0.23], elL: [0.28, 0.22], wrL: [0.08, 0.20], // Arm pointing left
-    shR: [0.64, 0.23], elR: [0.66, 0.38], wrR: [0.67, 0.52],
+    head: [0.54, 0.12],
+    neck: [0.53, 0.2],
+    shL: [0.42, 0.23],
+    elL: [0.28, 0.22],
+    wrL: [0.08, 0.2], // Arm pointing left
+    shR: [0.64, 0.23],
+    elR: [0.66, 0.38],
+    wrR: [0.67, 0.52],
     pelvis: [0.52, 0.52],
-    hipL: [0.46, 0.53], knL: [0.44, 0.73], anL: [0.42, 0.94],
-    hipR: [0.58, 0.53], knR: [0.60, 0.73], anR: [0.60, 0.94]
+    hipL: [0.46, 0.53],
+    knL: [0.44, 0.73],
+    anL: [0.42, 0.94],
+    hipR: [0.58, 0.53],
+    knR: [0.6, 0.73],
+    anR: [0.6, 0.94]
   },
   'saskin-eller-yuzde': {
-    head: [0.5, 0.14], neck: [0.5, 0.22],
-    shL: [0.38, 0.25], elL: [0.32, 0.32], wrL: [0.42, 0.15], // Hand on left cheek
-    shR: [0.62, 0.25], elR: [0.68, 0.32], wrR: [0.58, 0.15], // Hand on right cheek
+    head: [0.5, 0.14],
+    neck: [0.5, 0.22],
+    shL: [0.38, 0.25],
+    elL: [0.32, 0.32],
+    wrL: [0.42, 0.15], // Hand on left cheek
+    shR: [0.62, 0.25],
+    elR: [0.68, 0.32],
+    wrR: [0.58, 0.15], // Hand on right cheek
     pelvis: [0.5, 0.54],
-    hipL: [0.43, 0.55], knL: [0.42, 0.74], anL: [0.42, 0.94],
-    hipR: [0.57, 0.55], knR: [0.58, 0.74], anR: [0.58, 0.94]
+    hipL: [0.43, 0.55],
+    knL: [0.42, 0.74],
+    anL: [0.42, 0.94],
+    hipR: [0.57, 0.55],
+    knR: [0.58, 0.74],
+    anR: [0.58, 0.94]
   },
   'dusunuyor-cene': {
-    head: [0.5, 0.13], neck: [0.5, 0.21],
-    shL: [0.38, 0.24], elL: [0.42, 0.38], wrL: [0.52, 0.38], // Left hand supporting
-    shR: [0.62, 0.24], elR: [0.58, 0.32], wrR: [0.52, 0.18], // Right hand on chin
+    head: [0.5, 0.13],
+    neck: [0.5, 0.21],
+    shL: [0.38, 0.24],
+    elL: [0.42, 0.38],
+    wrL: [0.52, 0.38], // Left hand supporting
+    shR: [0.62, 0.24],
+    elR: [0.58, 0.32],
+    wrR: [0.52, 0.18], // Right hand on chin
     pelvis: [0.5, 0.53],
-    hipL: [0.43, 0.54], knL: [0.42, 0.73], anL: [0.42, 0.94],
-    hipR: [0.57, 0.54], knR: [0.58, 0.73], anR: [0.58, 0.94]
+    hipL: [0.43, 0.54],
+    knL: [0.42, 0.73],
+    anL: [0.42, 0.94],
+    hipR: [0.57, 0.54],
+    knR: [0.58, 0.73],
+    anR: [0.58, 0.94]
   },
   'kollar-kavusuk': {
-    head: [0.5, 0.12], neck: [0.5, 0.20],
-    shL: [0.36, 0.23], elL: [0.34, 0.35], wrL: [0.56, 0.35], // Crossed arms
-    shR: [0.64, 0.23], elR: [0.66, 0.35], wrR: [0.44, 0.35],
+    head: [0.5, 0.12],
+    neck: [0.5, 0.2],
+    shL: [0.36, 0.23],
+    elL: [0.34, 0.35],
+    wrL: [0.56, 0.35], // Crossed arms
+    shR: [0.64, 0.23],
+    elR: [0.66, 0.35],
+    wrR: [0.44, 0.35],
     pelvis: [0.5, 0.52],
-    hipL: [0.43, 0.53], knL: [0.42, 0.73], anL: [0.42, 0.94],
-    hipR: [0.57, 0.53], knR: [0.58, 0.73], anR: [0.58, 0.94]
+    hipL: [0.43, 0.53],
+    knL: [0.42, 0.73],
+    anL: [0.42, 0.94],
+    hipR: [0.57, 0.53],
+    knR: [0.58, 0.73],
+    anR: [0.58, 0.94]
   },
-  'kosuyor': {
-    head: [0.56, 0.13], neck: [0.53, 0.21],
-    shL: [0.43, 0.24], elL: [0.32, 0.30], wrL: [0.25, 0.22],
-    shR: [0.61, 0.24], elR: [0.70, 0.32], wrR: [0.78, 0.40],
-    pelvis: [0.48, 0.50],
-    hipL: [0.44, 0.52], knL: [0.30, 0.65], anL: [0.22, 0.82], // Left leg back
-    hipR: [0.54, 0.52], knR: [0.66, 0.66], anR: [0.64, 0.90]  // Right leg forward bent
+  kosuyor: {
+    head: [0.56, 0.13],
+    neck: [0.53, 0.21],
+    shL: [0.43, 0.24],
+    elL: [0.32, 0.3],
+    wrL: [0.25, 0.22],
+    shR: [0.61, 0.24],
+    elR: [0.7, 0.32],
+    wrR: [0.78, 0.4],
+    pelvis: [0.48, 0.5],
+    hipL: [0.44, 0.52],
+    knL: [0.3, 0.65],
+    anL: [0.22, 0.82], // Left leg back
+    hipR: [0.54, 0.52],
+    knR: [0.66, 0.66],
+    anR: [0.64, 0.9] // Right leg forward bent
   },
-  'oturuyor': {
-    head: [0.48, 0.18], neck: [0.48, 0.27],
-    shL: [0.38, 0.30], elL: [0.36, 0.44], wrL: [0.42, 0.56],
-    shR: [0.58, 0.30], elR: [0.60, 0.44], wrR: [0.54, 0.56],
+  oturuyor: {
+    head: [0.48, 0.18],
+    neck: [0.48, 0.27],
+    shL: [0.38, 0.3],
+    elL: [0.36, 0.44],
+    wrL: [0.42, 0.56],
+    shR: [0.58, 0.3],
+    elR: [0.6, 0.44],
+    wrR: [0.54, 0.56],
     pelvis: [0.48, 0.58],
-    hipL: [0.42, 0.58], knL: [0.64, 0.60], anL: [0.64, 0.88], // Thigh horizontal, calf down
-    hipR: [0.54, 0.58], knR: [0.72, 0.60], anR: [0.72, 0.88]
+    hipL: [0.42, 0.58],
+    knL: [0.64, 0.6],
+    anL: [0.64, 0.88], // Thigh horizontal, calf down
+    hipR: [0.54, 0.58],
+    knR: [0.72, 0.6],
+    anR: [0.72, 0.88]
   },
-  'comelmus': {
-    head: [0.5, 0.32], neck: [0.5, 0.40],
-    shL: [0.38, 0.43], elL: [0.34, 0.55], wrL: [0.42, 0.68],
-    shR: [0.62, 0.43], elR: [0.66, 0.55], wrR: [0.58, 0.68],
+  comelmus: {
+    head: [0.5, 0.32],
+    neck: [0.5, 0.4],
+    shL: [0.38, 0.43],
+    elL: [0.34, 0.55],
+    wrL: [0.42, 0.68],
+    shR: [0.62, 0.43],
+    elR: [0.66, 0.55],
+    wrR: [0.58, 0.68],
     pelvis: [0.5, 0.65],
-    hipL: [0.42, 0.65], knL: [0.32, 0.70], anL: [0.40, 0.92], // Deep crouch
-    hipR: [0.58, 0.65], knR: [0.68, 0.70], anR: [0.60, 0.92]
+    hipL: [0.42, 0.65],
+    knL: [0.32, 0.7],
+    anL: [0.4, 0.92], // Deep crouch
+    hipR: [0.58, 0.65],
+    knR: [0.68, 0.7],
+    anR: [0.6, 0.92]
   },
   'sirti-donuk': {
-    head: [0.5, 0.12], neck: [0.5, 0.19],
-    shL: [0.35, 0.22], elL: [0.33, 0.38], wrL: [0.34, 0.52], // Wider back shoulders
-    shR: [0.65, 0.22], elR: [0.67, 0.38], wrR: [0.66, 0.52],
+    head: [0.5, 0.12],
+    neck: [0.5, 0.19],
+    shL: [0.35, 0.22],
+    elL: [0.33, 0.38],
+    wrL: [0.34, 0.52], // Wider back shoulders
+    shR: [0.65, 0.22],
+    elR: [0.67, 0.38],
+    wrR: [0.66, 0.52],
     pelvis: [0.5, 0.52],
-    hipL: [0.42, 0.53], knL: [0.42, 0.73], anL: [0.42, 0.94],
-    hipR: [0.58, 0.53], knR: [0.58, 0.73], anR: [0.58, 0.94]
+    hipL: [0.42, 0.53],
+    knL: [0.42, 0.73],
+    anL: [0.42, 0.94],
+    hipR: [0.58, 0.53],
+    knR: [0.58, 0.73],
+    anR: [0.58, 0.94]
   },
   'kollar-havada': {
-    head: [0.5, 0.18], neck: [0.5, 0.25],
-    shL: [0.40, 0.28], elL: [0.30, 0.18], wrL: [0.22, 0.06], // Arms up in victory V
-    shR: [0.60, 0.28], elR: [0.70, 0.18], wrR: [0.78, 0.06],
+    head: [0.5, 0.18],
+    neck: [0.5, 0.25],
+    shL: [0.4, 0.28],
+    elL: [0.3, 0.18],
+    wrL: [0.22, 0.06], // Arms up in victory V
+    shR: [0.6, 0.28],
+    elR: [0.7, 0.18],
+    wrR: [0.78, 0.06],
     pelvis: [0.5, 0.54],
-    hipL: [0.44, 0.55], knL: [0.40, 0.73], anL: [0.38, 0.94],
-    hipR: [0.56, 0.55], knR: [0.60, 0.73], anR: [0.62, 0.94]
+    hipL: [0.44, 0.55],
+    knL: [0.4, 0.73],
+    anL: [0.38, 0.94],
+    hipR: [0.56, 0.55],
+    knR: [0.6, 0.73],
+    anR: [0.62, 0.94]
   },
   'korkmus-geri-cekilen': {
-    head: [0.42, 0.15], neck: [0.44, 0.23], // Body leaning backwards left
-    shL: [0.34, 0.25], elL: [0.36, 0.18], wrL: [0.44, 0.14], // Defensive hands up
-    shR: [0.54, 0.26], elR: [0.62, 0.20], wrR: [0.68, 0.16],
+    head: [0.42, 0.15],
+    neck: [0.44, 0.23], // Body leaning backwards left
+    shL: [0.34, 0.25],
+    elL: [0.36, 0.18],
+    wrL: [0.44, 0.14], // Defensive hands up
+    shR: [0.54, 0.26],
+    elR: [0.62, 0.2],
+    wrR: [0.68, 0.16],
     pelvis: [0.46, 0.54],
-    hipL: [0.40, 0.55], knL: [0.34, 0.74], anL: [0.32, 0.94],
-    hipR: [0.52, 0.55], knR: [0.54, 0.74], anR: [0.56, 0.94]
+    hipL: [0.4, 0.55],
+    knL: [0.34, 0.74],
+    anL: [0.32, 0.94],
+    hipR: [0.52, 0.55],
+    knR: [0.54, 0.74],
+    anR: [0.56, 0.94]
   },
   'bir-sey-tutuyor': {
-    head: [0.5, 0.12], neck: [0.5, 0.20],
-    shL: [0.38, 0.23], elL: [0.38, 0.38], wrL: [0.46, 0.44], // Both hands holding in front
-    shR: [0.62, 0.23], elR: [0.62, 0.38], wrR: [0.54, 0.44],
+    head: [0.5, 0.12],
+    neck: [0.5, 0.2],
+    shL: [0.38, 0.23],
+    elL: [0.38, 0.38],
+    wrL: [0.46, 0.44], // Both hands holding in front
+    shR: [0.62, 0.23],
+    elR: [0.62, 0.38],
+    wrR: [0.54, 0.44],
     pelvis: [0.5, 0.52],
-    hipL: [0.43, 0.53], knL: [0.42, 0.73], anL: [0.42, 0.94],
-    hipR: [0.57, 0.53], knR: [0.58, 0.73], anR: [0.58, 0.94]
+    hipL: [0.43, 0.53],
+    knL: [0.42, 0.73],
+    anL: [0.42, 0.94],
+    hipR: [0.57, 0.53],
+    knR: [0.58, 0.73],
+    anR: [0.58, 0.94]
   },
   'fener-tutuyor': {
-    head: [0.48, 0.12], neck: [0.49, 0.20],
-    shL: [0.38, 0.23], elL: [0.36, 0.38], wrL: [0.36, 0.52],
-    shR: [0.60, 0.23], elR: [0.72, 0.28], wrR: [0.82, 0.32], // Holding lantern forward
+    head: [0.48, 0.12],
+    neck: [0.49, 0.2],
+    shL: [0.38, 0.23],
+    elL: [0.36, 0.38],
+    wrL: [0.36, 0.52],
+    shR: [0.6, 0.23],
+    elR: [0.72, 0.28],
+    wrR: [0.82, 0.32], // Holding lantern forward
     pelvis: [0.49, 0.52],
-    hipL: [0.43, 0.53], knL: [0.42, 0.73], anL: [0.42, 0.94],
-    hipR: [0.56, 0.53], knR: [0.58, 0.73], anR: [0.58, 0.94]
+    hipL: [0.43, 0.53],
+    knL: [0.42, 0.73],
+    anL: [0.42, 0.94],
+    hipR: [0.56, 0.53],
+    knR: [0.58, 0.73],
+    anR: [0.58, 0.94]
   },
   'dizustu-bakiyor': {
-    head: [0.54, 0.25], neck: [0.52, 0.32], // Kneeling, looking down
-    shL: [0.42, 0.34], elL: [0.38, 0.46], wrL: [0.42, 0.58],
-    shR: [0.60, 0.34], elR: [0.58, 0.46], wrR: [0.56, 0.58],
+    head: [0.54, 0.25],
+    neck: [0.52, 0.32], // Kneeling, looking down
+    shL: [0.42, 0.34],
+    elL: [0.38, 0.46],
+    wrL: [0.42, 0.58],
+    shR: [0.6, 0.34],
+    elR: [0.58, 0.46],
+    wrR: [0.56, 0.58],
     pelvis: [0.48, 0.58],
-    hipL: [0.44, 0.60], knL: [0.44, 0.82], anL: [0.34, 0.88], // On knees
-    hipR: [0.52, 0.60], knR: [0.54, 0.82], anR: [0.44, 0.88]
+    hipL: [0.44, 0.6],
+    knL: [0.44, 0.82],
+    anL: [0.34, 0.88], // On knees
+    hipR: [0.52, 0.6],
+    knR: [0.54, 0.82],
+    anR: [0.44, 0.88]
   },
-  'yuruyor': {
-    head: [0.5, 0.12], neck: [0.5, 0.20],
-    shL: [0.38, 0.23], elL: [0.32, 0.36], wrL: [0.28, 0.46],
-    shR: [0.62, 0.23], elR: [0.68, 0.36], wrR: [0.72, 0.46],
+  yuruyor: {
+    head: [0.5, 0.12],
+    neck: [0.5, 0.2],
+    shL: [0.38, 0.23],
+    elL: [0.32, 0.36],
+    wrL: [0.28, 0.46],
+    shR: [0.62, 0.23],
+    elR: [0.68, 0.36],
+    wrR: [0.72, 0.46],
     pelvis: [0.5, 0.52],
-    hipL: [0.44, 0.53], knL: [0.36, 0.72], anL: [0.30, 0.94], // Stride legs
-    hipR: [0.56, 0.53], knR: [0.64, 0.72], anR: [0.70, 0.94]
+    hipL: [0.44, 0.53],
+    knL: [0.36, 0.72],
+    anL: [0.3, 0.94], // Stride legs
+    hipR: [0.56, 0.53],
+    knR: [0.64, 0.72],
+    anR: [0.7, 0.94]
   }
 };
 
 // Crop ratios: what fraction of height is kept from top
 export const CROP_CONFIG = {
-  'head':  { startY: 0.0, endY: 0.30, scale: 3.3 },
-  'chest': { startY: 0.0, endY: 0.48, scale: 2.1 },
-  'waist': { startY: 0.0, endY: 0.65, scale: 1.5 },
-  'knee':  { startY: 0.0, endY: 0.85, scale: 1.18 },
-  'full':  { startY: 0.0, endY: 1.00, scale: 1.0 }
+  head: { startY: 0.0, endY: 0.3, scale: 3.3 },
+  chest: { startY: 0.0, endY: 0.48, scale: 2.1 },
+  waist: { startY: 0.0, endY: 0.65, scale: 1.5 },
+  knee: { startY: 0.0, endY: 0.85, scale: 1.18 },
+  full: { startY: 0.0, endY: 1.0, scale: 1.0 }
 };
 
 export function drawFigure(ctx, layer, x, y, w, h, opts = {}) {
@@ -303,8 +447,8 @@ function drawExpression(ctx, expr, cx, cy, r) {
       drawCircle(ctx, cx + eyeOffset, eyeY, r * 0.18);
       ctx.beginPath();
       ctx.moveTo(cx - r * 0.25, mouthY);
-      ctx.lineTo(cx - r * 0.10, mouthY + 4);
-      ctx.lineTo(cx + r * 0.10, mouthY - 4);
+      ctx.lineTo(cx - r * 0.1, mouthY + 4);
+      ctx.lineTo(cx + r * 0.1, mouthY - 4);
       ctx.lineTo(cx + r * 0.25, mouthY);
       ctx.stroke();
       break;
@@ -364,7 +508,8 @@ function drawExpression(ctx, expr, cx, cy, r) {
       drawLine(ctx, { x: cx - r * 0.22, y: mouthY }, { x: cx + r * 0.22, y: mouthY });
       break;
     }
-    default: { // neutral
+    default: {
+      // neutral
       drawCircle(ctx, cx - eyeOffset, eyeY, r * 0.12);
       drawCircle(ctx, cx + eyeOffset, eyeY, r * 0.12);
       drawLine(ctx, { x: cx - r * 0.18, y: mouthY }, { x: cx + r * 0.18, y: mouthY });

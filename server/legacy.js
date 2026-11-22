@@ -4,6 +4,12 @@
 import { readJson } from './util.js';
 import { normalizeNotes, normalizeMeta } from '../ui/values.js';
 
-export const readNotes = (file) => { const a = readJson(file, []); return Array.isArray(a) ? normalizeNotes(a) : []; };
-export const readMeta = (file, fallback = {}) => { const m = readJson(file, null); return m && typeof m === 'object' ? normalizeMeta(m) : fallback; };
+export const readNotes = file => {
+  const a = readJson(file, []);
+  return Array.isArray(a) ? normalizeNotes(a) : [];
+};
+export const readMeta = (file, fallback = {}) => {
+  const m = readJson(file, null);
+  return m && typeof m === 'object' ? normalizeMeta(m) : fallback;
+};
 export * from '../ui/values.js';

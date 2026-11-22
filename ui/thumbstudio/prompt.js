@@ -6,44 +6,61 @@ export const PROMPT_MAX = 1200;
 
 // Turkish words for unwanted elements -> English (anything else is passed through as typed)
 const NEGATIVE_DICT = {
-  'bulanık': 'blurry, out of focus',
+  bulanık: 'blurry, out of focus',
   'bulanık yüz': 'blurry face',
   'düşük kalite': 'low quality, artifacts',
-  'yazı': 'text, letters',
-  'metin': 'text, letters',
-  'filigran': 'watermark',
-  'logo': 'logos',
+  yazı: 'text, letters',
+  metin: 'text, letters',
+  filigran: 'watermark',
+  logo: 'logos',
   'çarpık el': 'deformed hands',
   'fazla parmak': 'extra fingers',
-  'çirkin': 'ugly',
-  'karanlık': 'too dark, underexposed',
-  'patlak': 'blown out highlights',
-  'kalabalık': 'cluttered, crowded',
+  çirkin: 'ugly',
+  karanlık: 'too dark, underexposed',
+  patlak: 'blown out highlights',
+  kalabalık: 'cluttered, crowded',
   'kalabalık arka plan': 'cluttered background',
-  'karikatür': 'cartoonish look',
+  karikatür: 'cartoonish look',
   'gerçekçi olmayan': 'unrealistic',
-  'insan': 'people',
-  'yüz': 'faces',
-  'kan': 'blood, gore',
+  insan: 'people',
+  yüz: 'faces',
+  kan: 'blood, gore'
 };
 
 const LIGHT_EN = { warm: 'warm', cool: 'cool', neutral: 'neutral', neon: 'neon-colored', fire: 'firelight', moon: 'moonlight' };
-const TIME_EN = { day: 'daylight', 'golden-hour': 'golden hour', 'blue-hour': 'blue hour', night: 'night', studio: 'studio lighting', overcast: 'soft overcast light' };
+const TIME_EN = {
+  day: 'daylight',
+  'golden-hour': 'golden hour',
+  'blue-hour': 'blue hour',
+  night: 'night',
+  studio: 'studio lighting',
+  overcast: 'soft overcast light'
+};
 const ROLE_EN = {
   character: 'is the character reference: keep the same face, hair and clothes',
   object: 'is the object reference: keep its exact shape and material',
   style: 'is the style reference: match its rendering style, colors and lighting',
   background: 'is the background/location reference',
-  composition: 'is an extra composition reference',
+  composition: 'is an extra composition reference'
 };
 const ROLE_TR = { character: 'character', object: 'object', style: 'style', background: 'background', composition: 'composition' };
 const FACING_EN = { left: ', facing left', right: ', facing right', away: ', seen from behind, facing away from the camera' };
-const CROP_EN = { head: ', head and shoulders only', chest: ', framed from the chest up', waist: ', framed from the waist up', knee: ', framed from the knees up' };
+const CROP_EN = {
+  head: ', head and shoulders only',
+  chest: ', framed from the chest up',
+  waist: ', framed from the waist up',
+  knee: ', framed from the knees up'
+};
 
 // box (0..1) -> "left third, top" / size words
 export function describeSpatial(layer) {
-  const x = num(layer.x, 0.1), y = num(layer.y, 0.1), w = num(layer.w, 0.8), h = num(layer.h, 0.8);
-  const cx = x + w / 2, cy = y + h / 2, area = Math.max(0, Math.min(1, w) * Math.min(1, h));
+  const x = num(layer.x, 0.1),
+    y = num(layer.y, 0.1),
+    w = num(layer.w, 0.8),
+    h = num(layer.h, 0.8);
+  const cx = x + w / 2,
+    cy = y + h / 2,
+    area = Math.max(0, Math.min(1, w) * Math.min(1, h));
   const hPos = cx < 0.38 ? 'left third' : cx > 0.62 ? 'right third' : 'center';
   const vPos = cy < 0.38 ? 'top' : cy > 0.62 ? 'bottom' : 'middle';
   const locStr = hPos === 'center' && vPos === 'middle' ? 'center of the frame' : `${hPos}, ${vPos}`;
@@ -76,7 +93,10 @@ export function orderRefs(brief = {}) {
 export function negativeTerms(brief = {}) {
   const raw = [brief.negative, brief.goal?.avoid].filter(Boolean).join(',');
   const out = [];
-  for (const item of raw.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)) {
+  for (const item of raw
+    .split(/[,;\n]/)
+    .map(s => s.trim())
+    .filter(Boolean)) {
     const en = NEGATIVE_DICT[item.toLocaleLowerCase('tr')] || item;
     if (!out.includes(en)) out.push(en);
   }
@@ -92,13 +112,17 @@ export function generatePrompt(brief = {}, opts = {}) {
     return { prompt: String(brief.promptOverride).trim(), summaryTr, refsOrdered, isOverride: true };
   }
 
-  const camera = brief.camera || {}, light = brief.light || {}, style = brief.style || {};
+  const camera = brief.camera || {},
+    light = brief.light || {},
+    style = brief.style || {};
   const layers = (brief.layers || []).filter(l => l && !l.hidden && l.type !== 'trace');
   const policy = brief.text?.policy === 'ai' ? 'ai' : 'overlay';
   const parts = [];
 
   // 1. how to read the references
-  parts.push('The first reference image is a rough blocking sketch: follow its composition, camera angle, positions, sizes and depth layering exactly; ignore its flat gray shapes, simple colors and lack of detail.');
+  parts.push(
+    'The first reference image is a rough blocking sketch: follow its composition, camera angle, positions, sizes and depth layering exactly; ignore its flat gray shapes, simple colors and lack of detail.'
+  );
   sorted.forEach((r, i) => {
     const target = r.layer ? layers.find(l => l.id === r.layer) : null;
     parts.push(`Reference ${i + 2} ${ROLE_EN[r.role] || ROLE_EN.style}${target ? ` (for the ${target.desc || target.name || 'element'})` : ''}.`);
@@ -112,12 +136,19 @@ export function generatePrompt(brief = {}, opts = {}) {
   if (shot) cam.push(shot.promptEn);
   if (angle) cam.push(angle.promptEn.replace('{tilt}', String(Math.abs(Math.round(camera.tilt || 15)))));
   const lens = num(camera.lens, 50);
-  cam.push(lens <= 24 ? `${lens}mm ultra-wide lens, exaggerated perspective` : lens >= 85 ? `${lens}mm telephoto lens, compressed background` : `${lens}mm lens, natural perspective`);
+  cam.push(
+    lens <= 24
+      ? `${lens}mm ultra-wide lens, exaggerated perspective`
+      : lens >= 85
+        ? `${lens}mm telephoto lens, compressed background`
+        : `${lens}mm lens, natural perspective`
+  );
   parts.push(`${styleObj.prompt}${style.custom ? ', ' + style.custom.trim() : ''}. ${cap(cam.join(', '))}.`);
   if (style.mood) parts.push(`Mood: ${style.mood}.`);
 
   // 3. subjects and objects, most important first, nearer first
-  const content = layers.filter(l => l.type === 'subject' || l.type === 'object' || l.type === 'sketch' && l.desc)
+  const content = layers
+    .filter(l => l.type === 'subject' || l.type === 'object' || (l.type === 'sketch' && l.desc))
     .sort((a, b) => (b.importance ?? 1) - (a.importance ?? 1) || (a.depth ?? 50) - (b.depth ?? 50));
   for (const l of content) {
     const { locStr, sizeStr, cropped } = describeSpatial(l);
@@ -194,7 +225,11 @@ function fit(parts) {
   const protectedRe = /^(The first reference|No text|Keep the|Avoid:|Bold title)/;
   while (join(out).length > PROMPT_MAX) {
     let i = -1;
-    for (let k = out.length - 1; k > 0; k--) if (!protectedRe.test(out[k]) && !/main focus/.test(out[k])) { i = k; break; }
+    for (let k = out.length - 1; k > 0; k--)
+      if (!protectedRe.test(out[k]) && !/main focus/.test(out[k])) {
+        i = k;
+        break;
+      }
     if (i < 0) break;
     out.splice(i, 1);
   }
@@ -205,14 +240,16 @@ function fit(parts) {
 
 function relations(content) {
   const out = [];
-  for (let i = 0; i < content.length; i++) for (let j = i + 1; j < content.length; j++) {
-    const a = content[i], b = content[j];
-    const overlapX = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
-    if (overlapX <= 0 || Math.abs((a.depth ?? 50) - (b.depth ?? 50)) < 15) continue;
-    const [near, far] = (a.depth ?? 50) < (b.depth ?? 50) ? [a, b] : [b, a];
-    out.push(`the ${short(near)} stands in front of the ${short(far)}`);
-    if (out.length >= 2) break;
-  }
+  for (let i = 0; i < content.length; i++)
+    for (let j = i + 1; j < content.length; j++) {
+      const a = content[i],
+        b = content[j];
+      const overlapX = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+      if (overlapX <= 0 || Math.abs((a.depth ?? 50) - (b.depth ?? 50)) < 15) continue;
+      const [near, far] = (a.depth ?? 50) < (b.depth ?? 50) ? [a, b] : [b, a];
+      out.push(`the ${short(near)} stands in front of the ${short(far)}`);
+      if (out.length >= 2) break;
+    }
   return out.length ? cap(out.join('; ')) + '.' : '';
 }
 const short = l => (l.desc || l.name || 'element').split(/[,.]/)[0].trim().slice(0, 40);
@@ -230,9 +267,12 @@ function lightSide(az) {
 }
 
 function summary(brief, sortedRefs) {
-  const cam = brief.camera || {}, light = brief.light || {}, style = brief.style || {};
+  const cam = brief.camera || {},
+    light = brief.light || {},
+    style = brief.style || {};
   const styleObj = STYLE_PRESETS.find(s => s.id === style.preset) || STYLE_PRESETS[0];
-  const shot = CAMERA_SHOTS.find(s => s.id === cam.shot), angle = CAMERA_ANGLES.find(a => a.id === cam.angle);
+  const shot = CAMERA_SHOTS.find(s => s.id === cam.shot),
+    angle = CAMERA_ANGLES.find(a => a.id === cam.angle);
   const L = [];
   L.push(`### Thumbnail: ${brief.title || 'Untitled'} (${brief.format || '16:9'})`);
   const g = brief.goal || {};
@@ -240,8 +280,11 @@ function summary(brief, sortedRefs) {
   if (g.feeling) L.push(`- **Feeling:** ${g.feeling}`);
   if (g.hook) L.push(`- **Main idea:** ${g.hook}`);
   L.push(`- **Style:** ${styleObj.name}${style.custom ? ' + ' + style.custom : ''}`);
-  L.push(`- **Camera:** ${shot?.name || 'Medium shot'}, ${angle?.name || 'Eye level'}, ${cam.lens || 50} mm, depth of field ${Math.round(num(cam.dof, 0.5) * 100)}%`);
-  const key = LIGHT_KEYS.find(k => k.id === light.key)?.name, time = LIGHT_TIMES.find(t => t.id === light.time)?.name;
+  L.push(
+    `- **Camera:** ${shot?.name || 'Medium shot'}, ${angle?.name || 'Eye level'}, ${cam.lens || 50} mm, depth of field ${Math.round(num(cam.dof, 0.5) * 100)}%`
+  );
+  const key = LIGHT_KEYS.find(k => k.id === light.key)?.name,
+    time = LIGHT_TIMES.find(t => t.id === light.time)?.name;
   L.push(`- **Light:** ${[key, time].filter(Boolean).join(' / ') || 'neutral'}${light.rim ? ', rim light' : ''}, direction: ${lightSideTr(light.azimuth)}`);
   L.push(`- **Text:** ${brief.text?.policy === 'ai' ? 'drawn by AI' : 'excluded from the generated image, overlaid later'}`);
   const neg = [brief.negative, brief.goal?.avoid].filter(Boolean).join(', ');
@@ -259,7 +302,16 @@ function summary(brief, sortedRefs) {
   return L.join('\n');
 }
 function lightSideTr(az) {
-  const m = { right: 'from the right', 'lower right': 'from the lower right', front: 'from the front', 'lower left': 'from the lower left', left: 'from the left', 'upper left': 'from the upper left', top: 'from above', 'upper right': 'from the upper right' };
+  const m = {
+    right: 'from the right',
+    'lower right': 'from the lower right',
+    front: 'from the front',
+    'lower left': 'from the lower left',
+    left: 'from the left',
+    'upper left': 'from the upper left',
+    top: 'from above',
+    'upper right': 'from the upper right'
+  };
   return m[lightSide(num(az, 220))];
 }
 

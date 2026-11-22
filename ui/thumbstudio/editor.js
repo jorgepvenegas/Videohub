@@ -34,10 +34,22 @@ export async function renderEditor(page, pid, tid) {
   try {
     brief = await api(`/api/thumbstudio/${pid}/${tid}`);
   } catch (err) {
-    page.append(h('div', { class: 'thumbstudio-page' },
-      h('div', { class: 'empty' }, 'Could not load thumbnail: ' + err.message),
-      h('button', { onclick: () => { location.hash = '#/thumbstudio'; } }, '← Back to list')
-    ));
+    page.append(
+      h(
+        'div',
+        { class: 'thumbstudio-page' },
+        h('div', { class: 'empty' }, 'Could not load thumbnail: ' + err.message),
+        h(
+          'button',
+          {
+            onclick: () => {
+              location.hash = '#/thumbstudio';
+            }
+          },
+          '← Back to list'
+        )
+      )
+    );
     return;
   }
 
@@ -50,11 +62,11 @@ export async function renderEditor(page, pid, tid) {
     brief,
     selectedLayerId: brief.layers?.[0]?.id || null,
     viewMode: 'layout', // layout | depth | preview | final
-    tool: 'select',     // select | object | zone
+    tool: 'select', // select | object | zone
     zoom: 1.0,
     pan: { x: 0, y: 0 },
     activeGuides: [],
-    saveStatus: 'saved', // saved | saving | error
+    saveStatus: 'saved' // saved | saving | error
   };
 
   const history = new History();
@@ -79,7 +91,9 @@ export async function renderEditor(page, pid, tid) {
     redoBtn.disabled = !canRedo;
   });
 
-  const modeSel = h('div', { class: 'viewmode-group row' },
+  const modeSel = h(
+    'div',
+    { class: 'viewmode-group row' },
     modeBtn('layout', 'Layout (1)'),
     modeBtn('depth', 'Depth (2)'),
     modeBtn('preview', 'Camera (3)'),
@@ -87,11 +101,15 @@ export async function renderEditor(page, pid, tid) {
   );
 
   function modeBtn(mode, label) {
-    return h('button', {
-      class: 'mode-btn' + (state.viewMode === mode ? ' on' : ''),
-      'data-mode': mode,
-      onclick: () => setViewMode(mode)
-    }, label);
+    return h(
+      'button',
+      {
+        class: 'mode-btn' + (state.viewMode === mode ? ' on' : ''),
+        'data-mode': mode,
+        onclick: () => setViewMode(mode)
+      },
+      label
+    );
   }
 
   function setViewMode(mode) {
@@ -112,35 +130,63 @@ export async function renderEditor(page, pid, tid) {
     toast(`Template "${tpl.name}" applied.`);
   }
 
-  const header = h('header', { class: 'editor-header' },
-    h('div', { class: 'row', style: { gap: '10px' } },
-      h('button', { class: 'ghost', onclick: () => { location.hash = '#/thumbstudio'; } }, '← Thumbnails'),
+  const header = h(
+    'header',
+    { class: 'editor-header' },
+    h(
+      'div',
+      { class: 'row', style: { gap: '10px' } },
+      h(
+        'button',
+        {
+          class: 'ghost',
+          onclick: () => {
+            location.hash = '#/thumbstudio';
+          }
+        },
+        '← Thumbnails'
+      ),
       titleText,
       pill('fam', brief.format),
       saveIndicator
     ),
-    h('div', { class: 'row', style: { gap: '8px' } },
-      undoBtn, redoBtn,
-      h('span', { class: 'sep' }),
-      modeSel
-    ),
-    h('div', { class: 'row', style: { gap: '8px' } },
-      h('button', {
-        class: 'ghost',
-        title: 'Choose and apply a template from the gallery',
-        onclick: () => openTemplatePickerModal({
-          currentBrief: state.brief,
-          onApplyTemplate: (tpl, slots) => applyTemplateToBrief(tpl, slots)
-        })
-      }, '📐 Template'),
-      h('button', {
-        class: 'ghost',
-        title: 'Save the current composition as a custom template',
-        onclick: () => openSaveTemplateModal(state.brief)
-      }, '💾 Save template'),
+    h('div', { class: 'row', style: { gap: '8px' } }, undoBtn, redoBtn, h('span', { class: 'sep' }), modeSel),
+    h(
+      'div',
+      { class: 'row', style: { gap: '8px' } },
+      h(
+        'button',
+        {
+          class: 'ghost',
+          title: 'Choose and apply a template from the gallery',
+          onclick: () =>
+            openTemplatePickerModal({
+              currentBrief: state.brief,
+              onApplyTemplate: (tpl, slots) => applyTemplateToBrief(tpl, slots)
+            })
+        },
+        '📐 Template'
+      ),
+      h(
+        'button',
+        {
+          class: 'ghost',
+          title: 'Save the current composition as a custom template',
+          onclick: () => openSaveTemplateModal(state.brief)
+        },
+        '💾 Save template'
+      ),
       h('button', { class: 'ghost', onclick: () => openReferencesModal(pid, tid, state.brief, { onUpdated: () => onStateChanged() }) }, 'References'),
-      h('button', { class: 'ghost', title: 'Writes layout.png, sketch.png, depth.png, prompt.txt and brief.md (Ctrl+S)', onclick: () => doExport(true) }, '⤓ Export'),
-      h('button', { class: 'primary', title: `Exports and copies a message to paste into a ${agentName()} chat`, onclick: () => sendToClaude() }, `💬 Send to ${agentName()}`)
+      h(
+        'button',
+        { class: 'ghost', title: 'Writes layout.png, sketch.png, depth.png, prompt.txt and brief.md (Ctrl+S)', onclick: () => doExport(true) },
+        '⤓ Export'
+      ),
+      h(
+        'button',
+        { class: 'primary', title: `Exports and copies a message to paste into a ${agentName()} chat`, onclick: () => sendToClaude() },
+        `💬 Send to ${agentName()}`
+      )
     )
   );
   root.append(header);
@@ -165,38 +211,42 @@ export async function renderEditor(page, pid, tid) {
   toolBtn('background', '🌄 Background', 'Add a background');
 
   function toolBtn(toolId, label, tooltip) {
-    const btn = h('button', {
-      class: 'tool-btn' + (state.tool === toolId ? ' on' : ''),
-      title: tooltip,
-      onclick: () => {
-        if (toolId === 'subject') {
-          addLayer(createSubjectLayer(state.brief.layers));
-        } else if (toolId === 'object') {
-          addLayer(createObjectLayer(state.brief.layers));
-        } else if (toolId === 'text') {
-          addLayer(createTextLayer(state.brief.layers));
-        } else if (toolId === 'effect') {
-          addLayer(createEffectLayer(state.brief.layers));
-        } else if (toolId === 'zone') {
-          addLayer(createZoneLayer(state.brief.layers));
-        } else if (toolId === 'trace') {
-          promptTraceUnderlay();
-        } else if (toolId === 'background') {
-          const hasBg = state.brief.layers.some(l => l.type === 'background');
-          if (hasBg) toast('A background already exists');
-          else addLayer(createBackgroundLayer(state.brief.layers), true);
-        } else if (toolId === 'pen') {
-          state.tool = 'pen';
-          toolbar.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('on'));
-          btn.classList.add('on');
-          toast('Freehand mode: draw on the canvas');
-        } else {
-          state.tool = 'select';
-          toolbar.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('on'));
-          btn.classList.add('on');
+    const btn = h(
+      'button',
+      {
+        class: 'tool-btn' + (state.tool === toolId ? ' on' : ''),
+        title: tooltip,
+        onclick: () => {
+          if (toolId === 'subject') {
+            addLayer(createSubjectLayer(state.brief.layers));
+          } else if (toolId === 'object') {
+            addLayer(createObjectLayer(state.brief.layers));
+          } else if (toolId === 'text') {
+            addLayer(createTextLayer(state.brief.layers));
+          } else if (toolId === 'effect') {
+            addLayer(createEffectLayer(state.brief.layers));
+          } else if (toolId === 'zone') {
+            addLayer(createZoneLayer(state.brief.layers));
+          } else if (toolId === 'trace') {
+            promptTraceUnderlay();
+          } else if (toolId === 'background') {
+            const hasBg = state.brief.layers.some(l => l.type === 'background');
+            if (hasBg) toast('A background already exists');
+            else addLayer(createBackgroundLayer(state.brief.layers), true);
+          } else if (toolId === 'pen') {
+            state.tool = 'pen';
+            toolbar.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('on'));
+            btn.classList.add('on');
+            toast('Freehand mode: draw on the canvas');
+          } else {
+            state.tool = 'select';
+            toolbar.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('on'));
+            btn.classList.add('on');
+          }
         }
-      }
-    }, label);
+      },
+      label
+    );
     toolbar.append(btn);
   }
 
@@ -213,7 +263,9 @@ export async function renderEditor(page, pid, tid) {
           const r = await api(`/api/thumbstudio/${pid}/${tid}/ref`, { method: 'POST', body: { name: file.name, data: reader.result, trace: true } });
           addLayer(createTraceLayer(state.brief.layers, { file: r.file, name: 'Trace underlay: ' + file.name }), true);
           toast('Trace underlay added (not sent to AI)');
-        } catch (e) { toast('Could not load trace underlay: ' + e.message, true); }
+        } catch (e) {
+          toast('Could not load trace underlay: ' + e.message, true);
+        }
       };
       reader.readAsDataURL(file);
     };
@@ -253,7 +305,8 @@ export async function renderEditor(page, pid, tid) {
   // Fit the canvas to the actual free space, including wrapped headers and variant strips.
   function sizeCanvas() {
     const is916 = state.brief.format === '9:16';
-    const width = is916 ? 1080 : 1280, height = is916 ? 1920 : 720;
+    const width = is916 ? 1080 : 1280,
+      height = is916 ? 1920 : 720;
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
     const style = getComputedStyle(canvasViewport);
@@ -274,16 +327,62 @@ export async function renderEditor(page, pid, tid) {
   const promptEdit = h('textarea', { rows: 9, class: 'ts-prompt-edit', hidden: true });
   const promptEditBtn = h('button', { class: 'ghost' }, 'Edit manually');
   const promptAutoBtn = h('button', { class: 'ghost', hidden: true }, 'Use automatic prompt');
-  const promptBox = h('details', { class: 'ts-prompt-box' },
+  const promptBox = h(
+    'details',
+    { class: 'ts-prompt-box' },
     h('summary', {}, 'Prompt preview ', promptLen),
-    promptText, promptEdit,
-    h('div', { class: 'row', style: { gap: '6px' } }, promptEditBtn, promptAutoBtn, h('span', { class: 'spacer' }),
-      h('button', { class: 'ghost', title: 'Copy prompt to clipboard', onclick: async () => { try { await navigator.clipboard.writeText(generatePrompt(state.brief).prompt); toast('Prompt copied'); } catch { toast('Could not copy', true); } } }, '⧉')));
-  try { promptBox.open = localStorage.getItem('ts-prompt-open') === '1'; } catch { }
-  promptBox.addEventListener('toggle', () => { try { localStorage.setItem('ts-prompt-open', promptBox.open ? '1' : '0'); } catch { } updatePromptPreview(); });
-  promptEditBtn.onclick = () => { promptEdit.value = generatePrompt(state.brief).prompt; promptEdit.hidden = false; promptText.hidden = true; promptEdit.focus(); };
-  promptEdit.addEventListener('input', () => { state.brief.promptOverride = promptEdit.value.trim() || null; promptAutoBtn.hidden = !state.brief.promptOverride; promptLen.textContent = `(${promptEdit.value.length} characters · manual)`; triggerAutosave(); });
-  promptAutoBtn.onclick = () => { updateBrief({ promptOverride: null }); promptEdit.hidden = true; promptText.hidden = false; };
+    promptText,
+    promptEdit,
+    h(
+      'div',
+      { class: 'row', style: { gap: '6px' } },
+      promptEditBtn,
+      promptAutoBtn,
+      h('span', { class: 'spacer' }),
+      h(
+        'button',
+        {
+          class: 'ghost',
+          title: 'Copy prompt to clipboard',
+          onclick: async () => {
+            try {
+              await navigator.clipboard.writeText(generatePrompt(state.brief).prompt);
+              toast('Prompt copied');
+            } catch {
+              toast('Could not copy', true);
+            }
+          }
+        },
+        '⧉'
+      )
+    )
+  );
+  try {
+    promptBox.open = localStorage.getItem('ts-prompt-open') === '1';
+  } catch {}
+  promptBox.addEventListener('toggle', () => {
+    try {
+      localStorage.setItem('ts-prompt-open', promptBox.open ? '1' : '0');
+    } catch {}
+    updatePromptPreview();
+  });
+  promptEditBtn.onclick = () => {
+    promptEdit.value = generatePrompt(state.brief).prompt;
+    promptEdit.hidden = false;
+    promptText.hidden = true;
+    promptEdit.focus();
+  };
+  promptEdit.addEventListener('input', () => {
+    state.brief.promptOverride = promptEdit.value.trim() || null;
+    promptAutoBtn.hidden = !state.brief.promptOverride;
+    promptLen.textContent = `(${promptEdit.value.length} characters · manual)`;
+    triggerAutosave();
+  });
+  promptAutoBtn.onclick = () => {
+    updateBrief({ promptOverride: null });
+    promptEdit.hidden = true;
+    promptText.hidden = false;
+  };
   inspectorPanel.append(inspectorBody, promptBox);
   workspace.append(inspectorPanel);
 
@@ -292,32 +391,45 @@ export async function renderEditor(page, pid, tid) {
     promptLen.textContent = `(${r.prompt.length} characters${r.isOverride ? ' · manually edited' : ''})`;
     promptAutoBtn.hidden = !r.isOverride;
     if (!promptBox.open) return;
-    if (document.activeElement !== promptEdit) { promptText.textContent = r.prompt; promptText.hidden = !promptEdit.hidden ? true : false; }
+    if (document.activeElement !== promptEdit) {
+      promptText.textContent = r.prompt;
+      promptText.hidden = !promptEdit.hidden ? true : false;
+    }
   }
 
   // variants strip under the canvas (filled from the server: Claude adds to it)
   const strip = createVariantStrip({
-    pid, tid,
+    pid,
+    tid,
     getBrief: () => state.brief,
-    onOpen: vid => openViewer(vid),
+    onOpen: vid => openViewer(vid)
   });
   centerCol.append(strip.el);
   let viewer = null;
   function openViewer(vid) {
     viewer = openVariantViewer({
-      pid, tid, vid,
+      pid,
+      tid,
+      vid,
       getBrief: () => state.brief,
       onChanged: refreshServerState,
-      onChoose: async v => { const b = await api(`/api/thumbstudio/${pid}/${tid}/choose`, { method: 'POST', body: { vid: v } }); mergeServer(b); toast(v + ' chosen'); },
+      onChoose: async v => {
+        const b = await api(`/api/thumbstudio/${pid}/${tid}/choose`, { method: 'POST', body: { vid: v } });
+        mergeServer(b);
+        toast(v + ' chosen');
+      },
       onFinal: () => setViewMode('final'),
       onFix: async (v, notes) => {
         try {
           const marked = await markedImage(tsFileUrl(pid, tid, v.file, v.hash || v.at), notes);
           await api(`/api/thumbstudio/${pid}/${tid}/variant/${v.id}/marked`, { method: 'POST', body: { data: marked } });
-          await sendToClaude();   // exports, then copies the message: Claude fixes this variant from its notes
+          await sendToClaude(); // exports, then copies the message: Claude fixes this variant from its notes
           return true;
-        } catch (e) { toast('Could not prepare the fix: ' + e.message, true); return false; }
-      },
+        } catch (e) {
+          toast('Could not prepare the fix: ' + e.message, true);
+          return false;
+        }
+      }
     });
   }
 
@@ -328,19 +440,28 @@ export async function renderEditor(page, pid, tid) {
     Object.assign(state.brief, serverFields);
     strip.draw();
     viewer?.redraw?.();
-    if (state.viewMode === 'final') { redrawCanvas(); updateInspector(true); }
+    if (state.viewMode === 'final') {
+      redrawCanvas();
+      updateInspector(true);
+    }
   }
   async function refreshServerState() {
-    try { mergeServer(await api(`/api/thumbstudio/${pid}/${tid}`)); } catch { }
+    try {
+      mergeServer(await api(`/api/thumbstudio/${pid}/${tid}`));
+    } catch {}
   }
   const unsubHub = onHubEvent('thumbstudio', ev => {
     if (!ev || ev.tid !== tid) return;
     if (['variant', 'variant-removed', 'note', 'final', 'exported'].includes(ev.type) || (ev.type === 'saved' && ev.brief)) {
-      if (ev.type === 'saved' && ev.brief) mergeServer(ev.brief); else refreshServerState();
+      if (ev.type === 'saved' && ev.brief) mergeServer(ev.brief);
+      else refreshServerState();
     }
   });
   // pictures (variants, trace layers) arrive after the first draw
-  setImageLoadHandler(() => { redrawCanvas(); if (state.viewMode === 'final') finalPanel?.refresh(); });
+  setImageLoadHandler(() => {
+    redrawCanvas();
+    if (state.viewMode === 'final') finalPanel?.refresh();
+  });
 
   // ---------- export (layout/sketch/depth PNGs + prompt.txt + brief.md)
   const fileUrlOf = f => tsFileUrl(pid, tid, f);
@@ -357,15 +478,22 @@ export async function renderEditor(page, pid, tid) {
       if (r.brief) state.brief.exported = r.brief.exported;
       if (say) toast('Exported: layout.png, sketch.png, depth.png, prompt.txt, brief.md');
       return r;
-    } catch (e) { toast('Could not export: ' + e.message, true); throw e; }
+    } catch (e) {
+      toast('Could not export: ' + e.message, true);
+      throw e;
+    }
   }
   async function sendToClaude() {
     try {
       await doExport(false);
       const { message } = await api(`/api/thumbstudio/${pid}/${tid}/claude-message`, { method: 'POST' });
-      try { await navigator.clipboard.writeText(message); toast(`Message copied: paste it into a ${agentName()} chat`); }
-      catch { await confirmBox(`Send to ${agentName()}`, h('textarea', { rows: 8, style: { width: '100%' }, readonly: true }, message), 'OK'); }
-    } catch { }
+      try {
+        await navigator.clipboard.writeText(message);
+        toast(`Message copied: paste it into a ${agentName()} chat`);
+      } catch {
+        await confirmBox(`Send to ${agentName()}`, h('textarea', { rows: 8, style: { width: '100%' }, readonly: true }, message), 'OK');
+      }
+    } catch {}
   }
 
   // ---------- Redraw / Render loop
@@ -382,23 +510,35 @@ export async function renderEditor(page, pid, tid) {
     });
   }
 
-  let finalPanel = null, inspectorKey = '';
+  let finalPanel = null,
+    inspectorKey = '';
   function updateInspector(force) {
     const scrollTop = inspectorPanel.scrollTop;
     const scrollLeft = inspectorPanel.scrollLeft;
     const active = document.activeElement;
-    promptBox.hidden = state.viewMode === 'final';   // the final has its own panel; the prompt does not change there
+    promptBox.hidden = state.viewMode === 'final'; // the final has its own panel; the prompt does not change there
     updatePromptPreview();
     // Continuous editing keeps its DOM node; selects and checkboxes must refresh dependent fields.
     const typing = inspectorBody.contains(active) && active.matches('textarea, input:not([type=checkbox]):not([type=radio]):not([type=button])');
     const key = state.viewMode === 'final' ? 'final' : 'edit:' + state.selectedLayerId;
     if (typing && !force && key === inspectorKey) return;
-    const focusIndex = key === inspectorKey && inspectorBody.contains(active)
-      ? [...inspectorBody.querySelectorAll('input, textarea, select, button')].indexOf(active) : -1;
+    const focusIndex =
+      key === inspectorKey && inspectorBody.contains(active) ? [...inspectorBody.querySelectorAll('input, textarea, select, button')].indexOf(active) : -1;
     inspectorKey = key;
     try {
       if (state.viewMode === 'final') {
-        finalPanel = renderFinalPanel(inspectorBody, { pid, tid, getBrief: () => state.brief, onEdit: patch => { Object.assign(state.brief, patch); redrawCanvas(); finalPanel?.refresh(); triggerAutosave(); }, onSaved: b => mergeServer(b) });
+        finalPanel = renderFinalPanel(inspectorBody, {
+          pid,
+          tid,
+          getBrief: () => state.brief,
+          onEdit: patch => {
+            Object.assign(state.brief, patch);
+            redrawCanvas();
+            finalPanel?.refresh();
+            triggerAutosave();
+          },
+          onSaved: b => mergeServer(b)
+        });
         return;
       }
       finalPanel = null;
@@ -418,14 +558,20 @@ export async function renderEditor(page, pid, tid) {
   function renderLayersList() {
     const scrollTop = layersPanel.querySelector('.layers-list')?.scrollTop || 0;
     layersPanel.innerHTML = '';
-    const lHeader = h('div', { class: 'layers-header row' },
+    const lHeader = h(
+      'div',
+      { class: 'layers-header row' },
       h('b', {}, 'LAYERS'),
       h('span', { class: 'spacer' }),
-      h('button', {
-        class: 'ghost',
-        title: 'Sort by depth (far -> near)',
-        onclick: () => sortByDepth()
-      }, '↕ Depth')
+      h(
+        'button',
+        {
+          class: 'ghost',
+          title: 'Sort by depth (far -> near)',
+          onclick: () => sortByDepth()
+        },
+        '↕ Depth'
+      )
     );
     layersPanel.append(lHeader);
 
@@ -438,44 +584,58 @@ export async function renderEditor(page, pid, tid) {
       const layer = layers[i];
       const isSelected = layer.id === state.selectedLayerId;
 
-      const row = h('div', {
-        class: 'layer-row' + (isSelected ? ' selected' : ''),
-        onclick: () => {
-          state.selectedLayerId = layer.id;
-          redrawCanvas();
-          updateInspector();
-          renderLayersList();
-        }
-      },
+      const row = h(
+        'div',
+        {
+          class: 'layer-row' + (isSelected ? ' selected' : ''),
+          onclick: () => {
+            state.selectedLayerId = layer.id;
+            redrawCanvas();
+            updateInspector();
+            renderLayersList();
+          }
+        },
         h('span', {
           class: 'layer-color-dot',
           style: { background: layer.color || '#6aa0ff' }
         }),
-        h('span', {
-          class: 'layer-title ellip',
-          title: layer.name,
-          ondblclick: e => {
-            e.stopPropagation();
-            renameLayerPrompt(layer);
-          }
-        }, layer.name),
+        h(
+          'span',
+          {
+            class: 'layer-title ellip',
+            title: layer.name,
+            ondblclick: e => {
+              e.stopPropagation();
+              renameLayerPrompt(layer);
+            }
+          },
+          layer.name
+        ),
         h('span', { class: 'spacer' }),
-        h('button', {
-          class: 'layer-btn',
-          title: layer.hidden ? 'Show' : 'Hide',
-          onclick: e => {
-            e.stopPropagation();
-            mutateLayer(layer.id, { hidden: !layer.hidden });
-          }
-        }, layer.hidden ? '🙈' : '👁'),
-        h('button', {
-          class: 'layer-btn',
-          title: layer.locked ? 'Unlock' : 'Lock',
-          onclick: e => {
-            e.stopPropagation();
-            mutateLayer(layer.id, { locked: !layer.locked });
-          }
-        }, layer.locked ? '🔒' : '🔓')
+        h(
+          'button',
+          {
+            class: 'layer-btn',
+            title: layer.hidden ? 'Show' : 'Hide',
+            onclick: e => {
+              e.stopPropagation();
+              mutateLayer(layer.id, { hidden: !layer.hidden });
+            }
+          },
+          layer.hidden ? '🙈' : '👁'
+        ),
+        h(
+          'button',
+          {
+            class: 'layer-btn',
+            title: layer.locked ? 'Unlock' : 'Lock',
+            onclick: e => {
+              e.stopPropagation();
+              mutateLayer(layer.id, { locked: !layer.locked });
+            }
+          },
+          layer.locked ? '🔒' : '🔓'
+        )
       );
       list.append(row);
     }
@@ -722,11 +882,15 @@ export async function renderEditor(page, pid, tid) {
       interactionMode = 'move';
       initialLayerSnapshot = JSON.parse(JSON.stringify(hit));
       initialLayersArray = JSON.parse(JSON.stringify(state.brief.layers));
-      redrawCanvas(); updateInspector(); renderLayersList();
+      redrawCanvas();
+      updateInspector();
+      renderLayersList();
     } else {
       // Clicked on empty space -> deselect
       state.selectedLayerId = null;
-      redrawCanvas(); updateInspector(); renderLayersList();
+      redrawCanvas();
+      updateInspector();
+      renderLayersList();
     }
   });
 
@@ -855,7 +1019,10 @@ export async function renderEditor(page, pid, tid) {
   const endInteraction = e => {
     if (activePointerId !== null && e.pointerId !== activePointerId) return;
     const wasInteracting = isInteracting;
-    const mode = interactionMode, stroke = activeStroke, prevArr = initialLayersArray, prevLight = initialLight;
+    const mode = interactionMode,
+      stroke = activeStroke,
+      prevArr = initialLayersArray,
+      prevLight = initialLight;
     const pointerId = activePointerId;
     isInteracting = false;
     interactionMode = null;
@@ -891,8 +1058,14 @@ export async function renderEditor(page, pid, tid) {
       const nextLight = JSON.parse(JSON.stringify(state.brief.light));
       if (JSON.stringify(prevLight) === JSON.stringify(nextLight)) return;
       history.push({
-        undo: () => { state.brief.light = prevLight; onStateChanged(); },
-        redo: () => { state.brief.light = nextLight; onStateChanged(); }
+        undo: () => {
+          state.brief.light = prevLight;
+          onStateChanged();
+        },
+        redo: () => {
+          state.brief.light = nextLight;
+          onStateChanged();
+        }
       });
       onStateChanged();
       return;
@@ -903,7 +1076,10 @@ export async function renderEditor(page, pid, tid) {
 
     // Push history command for entire drag operation
     const nextArr = JSON.parse(JSON.stringify(state.brief.layers));
-    if (!prevArr || JSON.stringify(prevArr) === JSON.stringify(nextArr)) { redrawCanvas(); return; }
+    if (!prevArr || JSON.stringify(prevArr) === JSON.stringify(nextArr)) {
+      redrawCanvas();
+      return;
+    }
 
     history.push({
       undo: () => {
@@ -929,11 +1105,15 @@ export async function renderEditor(page, pid, tid) {
     if (document.activeElement?.matches('input, textarea, select') || document.activeElement?.isContentEditable) {
       return;
     }
-    if (document.querySelector('.modal-bg')) return;   // a dialog / the variant viewer has the keys
+    if (document.querySelector('.modal-bg')) return; // a dialog / the variant viewer has the keys
 
     // any keyboard: a Turkish layout types 'ı' / 'İ' for the I key, both count as i
     const key = e.key.length <= 2 ? e.key.toLowerCase().normalize('NFD').replace(/̇/g, '').replace('ı', 'i') : e.key.toLowerCase();
-    if ((e.ctrlKey || e.metaKey) && key === 's') { e.preventDefault(); doExport(true).catch(() => { }); return; }
+    if ((e.ctrlKey || e.metaKey) && key === 's') {
+      e.preventDefault();
+      doExport(true).catch(() => {});
+      return;
+    }
 
     // Undo / Redo
     if ((e.ctrlKey || e.metaKey) && key === 'z') {
@@ -972,7 +1152,8 @@ export async function renderEditor(page, pid, tid) {
       const stepY = stepPx / canvas.height;
       const layer = state.brief.layers.find(l => l.id === state.selectedLayerId);
       if (layer && !layer.locked) {
-        let dx = 0, dy = 0;
+        let dx = 0,
+          dy = 0;
         if (key === 'arrowleft') dx = -stepX;
         if (key === 'arrowright') dx = stepX;
         if (key === 'arrowup') dy = -stepY;
@@ -1011,10 +1192,22 @@ export async function renderEditor(page, pid, tid) {
     }
 
     // View modes 1..4
-    if (key === '1') { setViewMode('layout'); return; }
-    if (key === '2') { setViewMode('depth'); return; }
-    if (key === '3') { setViewMode('preview'); return; }
-    if (key === '4') { setViewMode('final'); return; }
+    if (key === '1') {
+      setViewMode('layout');
+      return;
+    }
+    if (key === '2') {
+      setViewMode('depth');
+      return;
+    }
+    if (key === '3') {
+      setViewMode('preview');
+      return;
+    }
+    if (key === '4') {
+      setViewMode('final');
+      return;
+    }
   };
 
   const onPaste = e => {
@@ -1034,20 +1227,36 @@ export async function renderEditor(page, pid, tid) {
 
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('paste', onPaste);
-  const onLeave = e => { if (saveTimer) { e.preventDefault(); e.returnValue = ''; } };
+  const onLeave = e => {
+    if (saveTimer) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  };
   window.addEventListener('beforeunload', onLeave);
 
   // Initial draw (no save: nothing changed yet)
-  redrawCanvas(); updateInspector(true); renderLayersList(); depthPanelObj?.update(); strip.draw();
+  redrawCanvas();
+  updateInspector(true);
+  renderLayersList();
+  depthPanelObj?.update();
+  strip.draw();
 
   // Cleanup on page unload / navigation
   return () => {
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('paste', onPaste);
     window.removeEventListener('beforeunload', onLeave);
-    unsubHub(); strip.dispose(); setImageLoadHandler(null); viewer?.close?.();
-    canvasResize.disconnect(); depthPanelObj.destroy();
+    unsubHub();
+    strip.dispose();
+    setImageLoadHandler(null);
+    viewer?.close?.();
+    canvasResize.disconnect();
+    depthPanelObj.destroy();
     // leaving with an unsaved change: save it now
-    if (saveTimer) { clearTimeout(saveTimer); api(`/api/thumbstudio/${pid}/${tid}`, { method: 'PUT', body: state.brief }).catch(() => { }); }
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      api(`/api/thumbstudio/${pid}/${tid}`, { method: 'PUT', body: state.brief }).catch(() => {});
+    }
   };
 }

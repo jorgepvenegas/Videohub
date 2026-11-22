@@ -23,40 +23,47 @@ export async function thumbnailStudioPage(page, ...args) {
     q: '',
     project: '',
     status: '',
-    format: '',
+    format: ''
   };
 
   const container = h('div', { class: 'thumbstudio-page' });
   page.append(container);
 
   // Load project list and thumbnail list
-  const [projectsRes, thumbsRes] = await Promise.all([
-    api('/api/projects').catch(() => ({ projects: [] })),
-    api('/api/thumbstudio/list').catch(() => []),
-  ]);
+  const [projectsRes, thumbsRes] = await Promise.all([api('/api/projects').catch(() => ({ projects: [] })), api('/api/thumbstudio/list').catch(() => [])]);
 
   const projects = projectsRes.projects || [];
   let thumbnails = Array.isArray(thumbsRes) ? thumbsRes : [];
 
   // Header
-  const header = h('div', { class: 'thumbstudio-header row' },
+  const header = h(
+    'div',
+    { class: 'thumbstudio-header row' },
     h('h1', {}, 'Thumbnail Studio'),
     h('span', { class: 'spacer' }),
-    h('button', { class: 'ghost', onclick: () => openTemplatePickerModal({ onApplyTemplate: (tpl, slots) => createFromTemplate(tpl, slots) }) }, '📐 Template gallery'),
+    h(
+      'button',
+      { class: 'ghost', onclick: () => openTemplatePickerModal({ onApplyTemplate: (tpl, slots) => createFromTemplate(tpl, slots) }) },
+      '📐 Template gallery'
+    ),
     h('button', { class: 'primary', onclick: () => openNewDialog() }, '+ New thumbnail')
   );
   container.append(header);
 
   // Filters
-  const sel = (key, opts) => h('select', {
-    onchange: e => { state[key] = e.target.value; drawCards(); }
-  }, opts.map(([v, t]) => h('option', { value: v, selected: state[key] === v }, t)));
+  const sel = (key, opts) =>
+    h(
+      'select',
+      {
+        onchange: e => {
+          state[key] = e.target.value;
+          drawCards();
+        }
+      },
+      opts.map(([v, t]) => h('option', { value: v, selected: state[key] === v }, t))
+    );
 
-  const projectOpts = [
-    ['', 'All projects'],
-    ['_', 'General (no project)'],
-    ...projects.map(p => [p.id, p.title || p.name])
-  ];
+  const projectOpts = [['', 'All projects'], ['_', 'General (no project)'], ...projects.map(p => [p.id, p.title || p.name])];
 
   const statusOpts = [
     ['', 'All statuses'],
@@ -72,16 +79,21 @@ export async function thumbnailStudioPage(page, ...args) {
     ['9:16', 'Shorts 9:16']
   ];
 
-  const filters = h('div', { class: 'filters row' },
+  const filters = h(
+    'div',
+    { class: 'filters row' },
     h('input', {
       type: 'search',
       placeholder: 'Search thumbnails…',
       value: state.q,
-      oninput: e => { state.q = e.target.value; drawCards(); }
+      oninput: e => {
+        state.q = e.target.value;
+        drawCards();
+      }
     }),
     sel('project', projectOpts),
     sel('status', statusOpts),
-    sel('format', formatOpts),
+    sel('format', formatOpts)
   );
   container.append(filters);
 
@@ -92,22 +104,32 @@ export async function thumbnailStudioPage(page, ...args) {
   // Templates section
   const tplGrid = h('div', { class: 'template-gallery-grid' });
   const tplSummary = h('div', { class: 'dim', style: { fontSize: '13px', marginTop: '2px' } }, 'Loading templates…');
-  const tplSection = h('div', { style: { marginTop: '36px' } },
-    h('div', { class: 'row', style: { justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' } },
-      h('div', {},
-        h('h2', { style: { margin: 0 } }, '📐 Ready-made templates'),
-        tplSummary
+  const tplSection = h(
+    'div',
+    { style: { marginTop: '36px' } },
+    h(
+      'div',
+      { class: 'row', style: { justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' } },
+      h('div', {}, h('h2', { style: { margin: 0 } }, '📐 Ready-made templates'), tplSummary),
+      h(
+        'button',
+        {
+          class: 'primary small',
+          onclick: () => openTemplatePickerModal({ collection: 'reference-picks', onApplyTemplate: (tpl, slots) => createFromTemplate(tpl, slots) })
+        },
+        'New · 15 reference templates'
       ),
-      h('button', {
-        class: 'primary small',
-        onclick: () => openTemplatePickerModal({ collection: 'reference-picks', onApplyTemplate: (tpl, slots) => createFromTemplate(tpl, slots) })
-      }, 'New · 15 reference templates'),
-      h('button', {
-        class: 'ghost small',
-        onclick: () => openTemplatePickerModal({
-          onApplyTemplate: (tpl, slots) => createFromTemplate(tpl, slots)
-        })
-      }, 'View all')
+      h(
+        'button',
+        {
+          class: 'ghost small',
+          onclick: () =>
+            openTemplatePickerModal({
+              onApplyTemplate: (tpl, slots) => createFromTemplate(tpl, slots)
+            })
+        },
+        'View all'
+      )
     ),
     tplGrid
   );
@@ -125,9 +147,13 @@ export async function thumbnailStudioPage(page, ...args) {
     });
 
     if (!filtered.length) {
-      grid.append(h('div', { class: 'panel', style: { gridColumn: '1 / -1', padding: '32px', textAlign: 'center', color: 'var(--muted)' } },
-        'No matching thumbnails found.'
-      ));
+      grid.append(
+        h(
+          'div',
+          { class: 'panel', style: { gridColumn: '1 / -1', padding: '32px', textAlign: 'center', color: 'var(--muted)' } },
+          'No matching thumbnails found.'
+        )
+      );
       return;
     }
 
@@ -155,52 +181,73 @@ export async function thumbnailStudioPage(page, ...args) {
       preview.append(h('span', { class: 'dim', style: { fontSize: '13px' } }, is916 ? '9:16 Draft' : '16:9 Draft'));
     }
 
-    const card = h('div', { class: 'thumbstudio-card', onclick: () => { location.hash = `#/thumbstudio/${t.pid}/${t.id}`; } },
+    const card = h(
+      'div',
+      {
+        class: 'thumbstudio-card',
+        onclick: () => {
+          location.hash = `#/thumbstudio/${t.pid}/${t.id}`;
+        }
+      },
       preview,
-      h('div', { class: 'card-info' },
+      h(
+        'div',
+        { class: 'card-info' },
         h('div', { class: 'card-title', title: t.title }, t.title || 'Untitled'),
-        h('div', { class: 'card-meta' },
+        h(
+          'div',
+          { class: 'card-meta' },
           pill(t.status || 'draft', t.status || 'draft'),
           pill('fam', t.format || '16:9'),
           h('span', { class: 'spacer' }),
           h('span', { class: 'dim' }, AGO(t.updated || t.created))
         ),
-        h('div', { class: 'card-meta', style: { marginTop: '4px' } },
+        h(
+          'div',
+          { class: 'card-meta', style: { marginTop: '4px' } },
           h('span', { class: 'ellip', style: { maxWidth: '160px' }, title: t.projectTitle }, t.projectTitle || 'Global'),
           h('span', { class: 'spacer' }),
           t.variantCount ? h('span', { class: 'muted' }, `${t.variantCount} variants`) : null,
-          h('button', {
-            class: 'ghost',
-            title: 'Copy / Duplicate',
-            style: { padding: '2px 6px', fontSize: '12px' },
-            onclick: async e => {
-              e.stopPropagation();
-              try {
-                const res = await api(`/api/thumbstudio/${t.pid}/${t.id}/duplicate`, { method: 'POST' });
-                toast('Copy created');
-                refreshList();
-              } catch (err) {
-                toast(err.message, true);
+          h(
+            'button',
+            {
+              class: 'ghost',
+              title: 'Copy / Duplicate',
+              style: { padding: '2px 6px', fontSize: '12px' },
+              onclick: async e => {
+                e.stopPropagation();
+                try {
+                  const res = await api(`/api/thumbstudio/${t.pid}/${t.id}/duplicate`, { method: 'POST' });
+                  toast('Copy created');
+                  refreshList();
+                } catch (err) {
+                  toast(err.message, true);
+                }
               }
-            }
-          }, '⧉'),
-          h('button', {
-            class: 'ghost',
-            title: `Move to ${trashName()}`,
-            style: { padding: '2px 6px', fontSize: '12px', color: 'var(--red)' },
-            onclick: async e => {
-              e.stopPropagation();
-              const ok = await confirmBox(`Delete "${t.title}"?`, h('p', {}, `The thumbnail folder will be moved to the ${trashName()}.`));
-              if (!ok) return;
-              try {
-                await api(`/api/thumbstudio/${t.pid}/${t.id}/delete`, { method: 'POST' });
-                toast(`Moved to ${trashName()}`);
-                refreshList();
-              } catch (err) {
-                toast(err.message, true);
+            },
+            '⧉'
+          ),
+          h(
+            'button',
+            {
+              class: 'ghost',
+              title: `Move to ${trashName()}`,
+              style: { padding: '2px 6px', fontSize: '12px', color: 'var(--red)' },
+              onclick: async e => {
+                e.stopPropagation();
+                const ok = await confirmBox(`Delete "${t.title}"?`, h('p', {}, `The thumbnail folder will be moved to the ${trashName()}.`));
+                if (!ok) return;
+                try {
+                  await api(`/api/thumbstudio/${t.pid}/${t.id}/delete`, { method: 'POST' });
+                  toast(`Moved to ${trashName()}`);
+                  refreshList();
+                } catch (err) {
+                  toast(err.message, true);
+                }
               }
-            }
-          }, '🗑')
+            },
+            '🗑'
+          )
         )
       )
     );
@@ -211,7 +258,7 @@ export async function thumbnailStudioPage(page, ...args) {
     try {
       thumbnails = await api('/api/thumbstudio/list');
       drawCards();
-    } catch { }
+    } catch {}
   }
 
   let allTemplates = [];
@@ -226,15 +273,17 @@ export async function thumbnailStudioPage(page, ...args) {
       allTemplates.sort((a, b) => Number(!!b.tags?.includes('reference-picks')) - Number(!!a.tags?.includes('reference-picks')));
       tplGrid.innerHTML = '';
       for (const tpl of allTemplates) {
-        tplGrid.append(renderTemplateCard(tpl, {
-          onApply: selected => {
-            openTemplateSlotsModal(selected, {
-              onConfirm: slots => createFromTemplate(selected, slots)
-            });
-          }
-        }));
+        tplGrid.append(
+          renderTemplateCard(tpl, {
+            onApply: selected => {
+              openTemplateSlotsModal(selected, {
+                onConfirm: slots => createFromTemplate(selected, slots)
+              });
+            }
+          })
+        );
       }
-    } catch { }
+    } catch {}
   }
 
   async function createFromTemplate(tpl, slots) {
@@ -248,7 +297,7 @@ export async function thumbnailStudioPage(page, ...args) {
           format: tpl.format || '16:9',
           project: state.project || '_',
           template: tpl.id,
-          slots,
+          slots
         })
       });
       toast(`Thumbnail created from the "${tpl.name}" template.`);
@@ -276,48 +325,85 @@ export async function thumbnailStudioPage(page, ...args) {
     let chosenTemplate = '';
     let titleInput;
 
-    const modalBody = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px', margin: '12px 0' } },
-      h('label', {},
+    const modalBody = h(
+      'div',
+      { style: { display: 'flex', flexDirection: 'column', gap: '14px', margin: '12px 0' } },
+      h(
+        'label',
+        {},
         h('div', { style: { fontWeight: 600, marginBottom: '4px' } }, 'Title:'),
-        titleInput = h('input', { type: 'text', placeholder: 'e.g. The Secret Chamber Beneath the Pyramids', style: { width: '100%' } })
+        (titleInput = h('input', { type: 'text', placeholder: 'e.g. The Secret Chamber Beneath the Pyramids', style: { width: '100%' } }))
       ),
-      h('label', {},
+      h(
+        'label',
+        {},
         h('div', { style: { fontWeight: 600, marginBottom: '4px' } }, 'Template (optional):'),
-        h('select', {
-          style: { width: '100%' },
-          onchange: e => {
-            chosenTemplate = e.target.value;
-            const t = allTemplates.find(x => x.id === chosenTemplate);
-            if (t && t.format) {
-              chosenFormat = t.format;
-              const r = modalBody.querySelector(`input[name="thumb_format"][value="${t.format}"]`);
-              if (r) r.checked = true;
+        h(
+          'select',
+          {
+            style: { width: '100%' },
+            onchange: e => {
+              chosenTemplate = e.target.value;
+              const t = allTemplates.find(x => x.id === chosenTemplate);
+              if (t && t.format) {
+                chosenFormat = t.format;
+                const r = modalBody.querySelector(`input[name="thumb_format"][value="${t.format}"]`);
+                if (r) r.checked = true;
+              }
             }
-          }
-        },
+          },
           h('option', { value: '' }, 'Blank canvas (no template)'),
           allTemplates.filter(t => !t.error).map(t => h('option', { value: t.id }, `${t.name} (${t.format || '16:9'})`))
         )
       ),
-      h('label', {},
+      h(
+        'label',
+        {},
         h('div', { style: { fontWeight: 600, marginBottom: '4px' } }, 'Format:'),
-        h('div', { class: 'row', style: { gap: '12px' } },
-          h('label', { class: 'row', style: { gap: '6px', cursor: 'pointer' } },
-            h('input', { type: 'radio', name: 'thumb_format', value: '16:9', checked: true, onchange: () => { chosenFormat = '16:9'; } }),
+        h(
+          'div',
+          { class: 'row', style: { gap: '12px' } },
+          h(
+            'label',
+            { class: 'row', style: { gap: '6px', cursor: 'pointer' } },
+            h('input', {
+              type: 'radio',
+              name: 'thumb_format',
+              value: '16:9',
+              checked: true,
+              onchange: () => {
+                chosenFormat = '16:9';
+              }
+            }),
             h('span', {}, 'YouTube 16:9 (1280×720)')
           ),
-          h('label', { class: 'row', style: { gap: '6px', cursor: 'pointer' } },
-            h('input', { type: 'radio', name: 'thumb_format', value: '9:16', onchange: () => { chosenFormat = '9:16'; } }),
+          h(
+            'label',
+            { class: 'row', style: { gap: '6px', cursor: 'pointer' } },
+            h('input', {
+              type: 'radio',
+              name: 'thumb_format',
+              value: '9:16',
+              onchange: () => {
+                chosenFormat = '9:16';
+              }
+            }),
             h('span', {}, 'Shorts 9:16 (1080×1920)')
           )
         )
       ),
-      h('label', {},
+      h(
+        'label',
+        {},
         h('div', { style: { fontWeight: 600, marginBottom: '4px' } }, 'Project:'),
-        h('select', {
-          style: { width: '100%' },
-          onchange: e => { chosenPid = e.target.value; }
-        },
+        h(
+          'select',
+          {
+            style: { width: '100%' },
+            onchange: e => {
+              chosenPid = e.target.value;
+            }
+          },
           h('option', { value: '_' }, 'General (no project / global)'),
           projects.map(p => h('option', { value: p.id }, p.title || p.name))
         )
@@ -331,7 +417,7 @@ export async function thumbnailStudioPage(page, ...args) {
         const payload = {
           title,
           format: chosenFormat,
-          project: chosenPid === '_' ? null : chosenPid,
+          project: chosenPid === '_' ? null : chosenPid
         };
         if (chosenTemplate) {
           payload.template = chosenTemplate;

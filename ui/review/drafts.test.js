@@ -12,48 +12,139 @@ const quickEmpty = source.match(/^  const quickEmpty = .*$/m)?.[0];
 const plain = value => JSON.parse(JSON.stringify(value));
 
 function draft(frame, overrides = {}) {
-  return { t: (frame + 0.5) / 30, frame, text: 'Keep this note', kind: 'visual',
+  return {
+    t: (frame + 0.5) / 30,
+    frame,
+    text: 'Keep this note',
+    kind: 'visual',
     shapes: [{ type: 'pin', pts: [[0.2, 0.3]], color: '#ff4d4d', width: 1 }],
-    quick: true, useRange: null, ...overrides };
+    quick: true,
+    useRange: null,
+    ...overrides
+  };
 }
 
 function harness({ active = null, frame = 420, time = 14, paused = false, range = { a: null, b: null }, live = false, displayedTime = time } = {}) {
-  const seeks = [], notices = [], calls = [], requests = [];
-  const S = { draft: active, frame, range: { ...range }, parkedDrafts: [], undo: ['undo-snapshot'], redo: ['redo-snapshot'],
-    tool: 'cursor', color: '#ff4d4d', width: 1, selected: null, loopOn: false };
+  const seeks = [],
+    notices = [],
+    calls = [],
+    requests = [];
+  const S = {
+    draft: active,
+    frame,
+    range: { ...range },
+    parkedDrafts: [],
+    undo: ['undo-snapshot'],
+    redo: ['redo-snapshot'],
+    tool: 'cursor',
+    color: '#ff4d4d',
+    width: 1,
+    selected: null,
+    loopOn: false
+  };
   const node = (tag = 'div', attrs = {}, ...children) => ({
-    tag, ...attrs, children, style: {}, hidden: false,
-    append(...items) { this.children.push(...items); },
-    replaceChildren(...items) { this.children = items; },
-    set textContent(value) { this.text = value; },
-    addEventListener() {}, remove() {}, focus() {},
-    getContext() { return {}; }, toDataURL: () => 'data:image/png;base64,TEST',
+    tag,
+    ...attrs,
+    children,
+    style: {},
+    hidden: false,
+    append(...items) {
+      this.children.push(...items);
+    },
+    replaceChildren(...items) {
+      this.children = items;
+    },
+    set textContent(value) {
+      this.text = value;
+    },
+    addEventListener() {},
+    remove() {},
+    focus() {},
+    getContext() {
+      return {};
+    },
+    toDataURL: () => 'data:image/png;base64,TEST'
   });
   const videoA = {
-    currentTime: time, displayedTime, paused, videoWidth: 1920, videoHeight: 1080,
-    pause() { this.paused = true; calls.push(['pause', this.currentTime]); },
-    pauseAt(at) { this.currentTime = this.displayedTime = at; this.paused = true; calls.push(['pauseAt', at]); },
-    play() { this.paused = false; calls.push(['play', this.currentTime]); return Promise.resolve(); },
+    currentTime: time,
+    displayedTime,
+    paused,
+    videoWidth: 1920,
+    videoHeight: 1080,
+    pause() {
+      this.paused = true;
+      calls.push(['pause', this.currentTime]);
+    },
+    pauseAt(at) {
+      this.currentTime = this.displayedTime = at;
+      this.paused = true;
+      calls.push(['pauseAt', at]);
+    },
+    play() {
+      this.paused = false;
+      calls.push(['play', this.currentTime]);
+      return Promise.resolve();
+    }
   };
-  const notesPanel = new Proxy({}, { get: (_, method) => (...args) => calls.push([method, ...args]) });
+  const notesPanel = new Proxy(
+    {},
+    {
+      get:
+        (_, method) =>
+        (...args) =>
+          calls.push([method, ...args])
+    }
+  );
   const ctx = {
-    S, videoA, videoB: { pause() {} }, liveSrc: live ? videoA : null, notesPanel, cur: { rel: '~live', w: 1920, h: 1080 }, id: 'test-project',
-    pendingSeek: 8, target: 9,
-    notes: [], saving: 0, earlyNotes: new Map(), quickOpen: false, quick: node(), textInput: node(),
-    fps: () => 30, rangeOk: () => S.range.a != null && S.range.b != null,
-    setRange: (a, b) => { S.range = { a, b }; }, updRange() {},
-    clearRange: () => { S.range = { a: null, b: null }; },
-    seekFrame: frame => { seeks.push(frame); videoA.currentTime = (frame + 0.5) / 30; S.frame = frame; },
-    togglePlay: () => videoA.paused ? videoA.play() : videoA.pause(),
-    refreshTools() {}, redraw() {}, openQuick: () => calls.push(['openQuick']),
-    showNotes() {},   // P1: the side panel's Notes tab comes forward (no side panel in this harness)
-    pushTag() {},     // P3b: drawing steps tell the undo router (no router in this harness)
-    noteAt: () => null, selectNote: id => calls.push(['selectNote', id]),
-    toast: (...args) => notices.push(args), TC: String, h: node, paint() {}, numbered: shapes => shapes,
-    bbox: () => [0.2, 0.3, 0.2, 0.3], nextId: () => ctx.notes.reduce((id, note) => Math.max(id, note.id), 0) + 1,
-    timeline: { draw() {} }, performance: { now: () => 0 },
-    probeSave: () => ({ shown() {}, post() {} }), encodeJpeg: async () => 'data:image/jpeg;base64,TEST',
-    api: (url, opts) => new Promise((resolve, reject) => requests.push({ url, opts, resolve, reject })),
+    S,
+    videoA,
+    videoB: { pause() {} },
+    liveSrc: live ? videoA : null,
+    notesPanel,
+    cur: { rel: '~live', w: 1920, h: 1080 },
+    id: 'test-project',
+    pendingSeek: 8,
+    target: 9,
+    notes: [],
+    saving: 0,
+    earlyNotes: new Map(),
+    quickOpen: false,
+    quick: node(),
+    textInput: node(),
+    fps: () => 30,
+    rangeOk: () => S.range.a != null && S.range.b != null,
+    setRange: (a, b) => {
+      S.range = { a, b };
+    },
+    updRange() {},
+    clearRange: () => {
+      S.range = { a: null, b: null };
+    },
+    seekFrame: frame => {
+      seeks.push(frame);
+      videoA.currentTime = (frame + 0.5) / 30;
+      S.frame = frame;
+    },
+    togglePlay: () => (videoA.paused ? videoA.play() : videoA.pause()),
+    refreshTools() {},
+    redraw() {},
+    openQuick: () => calls.push(['openQuick']),
+    showNotes() {}, // P1: the side panel's Notes tab comes forward (no side panel in this harness)
+    pushTag() {}, // P3b: drawing steps tell the undo router (no router in this harness)
+    noteAt: () => null,
+    selectNote: id => calls.push(['selectNote', id]),
+    toast: (...args) => notices.push(args),
+    TC: String,
+    h: node,
+    paint() {},
+    numbered: shapes => shapes,
+    bbox: () => [0.2, 0.3, 0.2, 0.3],
+    nextId: () => ctx.notes.reduce((id, note) => Math.max(id, note.id), 0) + 1,
+    timeline: { draw() {} },
+    performance: { now: () => 0 },
+    probeSave: () => ({ shown() {}, post() {} }),
+    encodeJpeg: async () => 'data:image/jpeg;base64,TEST',
+    api: (url, opts) => new Promise((resolve, reject) => requests.push({ url, opts, resolve, reject }))
   };
   vm.createContext(ctx);
   vm.runInContext(`${quickEmpty}\n${draftFunctions}\n${clickFunction}`, ctx);
@@ -123,7 +214,19 @@ test('an untouched old quick point is discarded rather than adding a pending dra
 });
 
 test('an older drawing is preserved even when its text is still empty', () => {
-  const old = draft(300, { text: '', quick: false, shapes: [{ type: 'rect', pts: [[0.2, 0.2], [0.4, 0.4]] }] });
+  const old = draft(300, {
+    text: '',
+    quick: false,
+    shapes: [
+      {
+        type: 'rect',
+        pts: [
+          [0.2, 0.2],
+          [0.4, 0.4]
+        ]
+      }
+    ]
+  });
   const h = harness({ active: old });
   h.ctx.quickPoint([0.7, 0.8], 14, true);
   assert.equal(h.S.draft.frame, 420);
@@ -148,7 +251,8 @@ test('explicitly restoring a parked draft swaps the active note and restores ran
   recent.text = 'The newer note';
   const entry = h.S.parkedDrafts[0];
   h.S.range = { a: 400, b: 430 };
-  h.S.undo = ['new-undo']; h.S.redo = [];
+  h.S.undo = ['new-undo'];
+  h.S.redo = [];
   h.ctx.restoreDraft(entry);
   assert.equal(h.S.draft, old);
   assert.equal(h.S.frame, 300);
@@ -169,7 +273,9 @@ test('a delayed failed save parks its old draft and never overwrites a newer act
   assert.equal(h.requests.length, 1);
   assert.equal(h.S.draft, null);
   const current = draft(420, { text: 'A newer unsaved note' });
-  h.S.draft = current; h.S.frame = 420; h.videoA.currentTime = 14;
+  h.S.draft = current;
+  h.S.frame = 420;
+  h.videoA.currentTime = 14;
   h.requests[0].reject(new Error('temporary offline'));
   await saving;
   assert.equal(h.S.draft, current);
@@ -180,45 +286,77 @@ test('a delayed failed save parks its old draft and never overwrites a newer act
 });
 
 test('the real notes composer writes to the switched draft and its shelf exposes explicit restoration', () => {
-  const panelSource = fs.readFileSync(new URL('./notes.js', import.meta.url), 'utf8')
+  const panelSource = fs
+    .readFileSync(new URL('./notes.js', import.meta.url), 'utf8')
     .replace(/^import .+;\r?$/gm, '')
     .replace('export function createNotesPanel', 'function createNotesPanel');
   function node(tag, attrs = {}, ...children) {
     return {
-      tag, ...attrs, children: children.flat(Infinity).filter(child => child != null && child !== false),
-      append(...items) { this.children.push(...items.flat(Infinity)); },
-      replaceChildren(...items) { this.children = items; },
-      set innerHTML(_) { this.children = []; },
-      set textContent(value) { this.children = [String(value)]; },
-      addEventListener() {}, focus() {},
+      tag,
+      ...attrs,
+      children: children.flat(Infinity).filter(child => child != null && child !== false),
+      append(...items) {
+        this.children.push(...items.flat(Infinity));
+      },
+      replaceChildren(...items) {
+        this.children = items;
+      },
+      set innerHTML(_) {
+        this.children = [];
+      },
+      set textContent(value) {
+        this.children = [String(value)];
+      },
+      addEventListener() {},
+      focus() {}
     };
   }
   const find = (root, predicate) => {
     if (!root || typeof root !== 'object') return null;
     if (predicate(root)) return root;
-    for (const child of root.children || []) { const found = find(child, predicate); if (found) return found; }
+    for (const child of root.children || []) {
+      const found = find(child, predicate);
+      if (found) return found;
+    }
     return null;
   };
-  const old = draft(300), newer = draft(420, { text: 'The new draft' });
-  let active = old, restored = null;
+  const old = draft(300),
+    newer = draft(420, { text: 'The new draft' });
+  let active = old,
+    restored = null;
   const entry = { draft: old, undo: [], redo: [], range: { a: null, b: null } };
   const context = {
     agentName: () => 'OpenCode',
-    h: node, TC: String, document: { body: {}, activeElement: null },
-    api: () => { throw new Error('This test must not send a note'); },
+    h: node,
+    TC: String,
+    document: { body: {}, activeElement: null },
+    api: () => {
+      throw new Error('This test must not send a note');
+    }
   };
-  vm.createContext(context); vm.runInContext(panelSource, context);
+  vm.createContext(context);
+  vm.runInContext(panelSource, context);
   const panel = context.createNotesPanel({
-    draft: () => active, fps: () => 30, chunkSec: () => null, atDraft: () => true,
-    range: () => ({ a: null, b: null }), rangeOk: () => false, parkedDrafts: () => [entry],
-    restoreDraft: chosen => { restored = chosen; },
+    draft: () => active,
+    fps: () => 30,
+    chunkSec: () => null,
+    atDraft: () => true,
+    range: () => ({ a: null, b: null }),
+    rangeOk: () => false,
+    parkedDrafts: () => [entry],
+    restoreDraft: chosen => {
+      restored = chosen;
+    }
   });
   panel.openComposer(false);
   assert.equal(find(panel.el, el => el.tag === 'textarea').value, old.text);
-  panel.closeComposer(); active = newer; panel.openComposer(false);
+  panel.closeComposer();
+  active = newer;
+  panel.openComposer(false);
   const input = find(panel.el, el => el.tag === 'textarea');
   assert.equal(input.value, newer.text);
-  input.value = 'Edited newer note'; input.oninput();
+  input.value = 'Edited newer note';
+  input.oninput();
   assert.equal(newer.text, 'Edited newer note');
   assert.equal(old.text, 'Keep this note', 'New composer input must not mutate the parked draft');
   panel.renderDrafts();

@@ -6,13 +6,15 @@ import { applyTemplateSlots, loadBuiltinTemplates } from './templates.js';
 
 // Importing app.js starts routing and SSE. Evaluate the actual gallery module
 // with just its DOM and drawScene dependencies stubbed instead.
-const source = fs.readFileSync(new URL('../../ui/thumbstudio/templates.js', import.meta.url), 'utf8')
+const source = fs
+  .readFileSync(new URL('../../ui/thumbstudio/templates.js', import.meta.url), 'utf8')
   .replace(/^import .+;\r?$/gm, '')
   .replace(/^export function /gm, 'function ');
 const selection = loadBuiltinTemplates().filter(t => t.tags?.includes('reference-picks'));
 
 function harness() {
-  const draws = [], errors = [];
+  const draws = [],
+    errors = [];
   function h(tag, props = {}, ...children) {
     const node = { tag, props, children: children.flat(Infinity).filter(Boolean) };
     if (tag === 'canvas') {
@@ -28,7 +30,7 @@ function harness() {
     h,
     pill: (kind, label) => h('span', { class: kind }, label),
     drawScene: (ctx, brief, mode, opts) => draws.push({ ctx, brief, mode, opts }),
-    console: { error: (...args) => errors.push(args) },
+    console: { error: (...args) => errors.push(args) }
   };
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox);
@@ -40,7 +42,9 @@ function harness() {
 function comparable(applied) {
   const clone = JSON.parse(JSON.stringify(applied));
   const ids = new Map(clone.layers.map((layer, i) => [layer.id, `layer-${i}`]));
-  clone.layers.forEach(layer => { layer.id = ids.get(layer.id); });
+  clone.layers.forEach(layer => {
+    layer.id = ids.get(layer.id);
+  });
   if (clone.camera.focusLayer) clone.camera.focusLayer = ids.get(clone.camera.focusLayer);
   return clone;
 }
@@ -64,7 +68,10 @@ test('client template slots: all 15 reference layouts match server defaults with
     assert.doesNotMatch(JSON.stringify(applied), /\{\{[A-Z0-9_\-]+\}\}/, template.id);
     assert.deepEqual(comparable(applied), comparable(applyTemplateSlots(template)), template.id);
     assert.equal(new Set(applied.layers.map(l => l.id)).size, applied.layers.length, template.id);
-    assert.ok(applied.layers.every((layer, i) => layer.id !== template.layers[i].id), template.id);
+    assert.ok(
+      applied.layers.every((layer, i) => layer.id !== template.layers[i].id),
+      template.id
+    );
     if (template.camera.focusLayer) {
       const index = template.layers.findIndex(layer => layer.id === template.camera.focusLayer);
       assert.notEqual(index, -1, template.id);
@@ -111,7 +118,11 @@ test('gallery cards draw resolved defaults with guides disabled and retain the o
     }
     const applyButton = find(card, node => node.tag === 'button');
     let stopped = false;
-    applyButton.props.onclick({ stopPropagation: () => { stopped = true; } });
+    applyButton.props.onclick({
+      stopPropagation: () => {
+        stopped = true;
+      }
+    });
     assert.equal(stopped, true);
     assert.equal(chosen[0], template, `${template.id}: apply should use reusable source data`);
     assert.equal(JSON.stringify(template), original, template.id);
