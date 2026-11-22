@@ -4,10 +4,10 @@
 - Phase: P2
 - Plan version: 1
 - Validated against master version: 17
-- Status: in_progress
+- Status: done
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-21
-- Commit: pending
+- Commit: cd8073c
 - Implementation mode: subagent
 - Implemented by: p2-server-core
 - Implemented at: 2026-11-21
@@ -41,6 +41,8 @@ Convert the core of the hub server to strict TypeScript: the 27 top-level `serve
 | L2 | `server/encoders.js` passes an `async` executor to `new Promise` (oxlint `no-async-promise-executor`) | Inspected at planning (`server/encoders.js:105`): the only throwing call inside, `spawn`, is already wrapped in `try/catch`, so the risk is low. S4 types it **as-is** with no behavior change. The worker records in §9 whether any path can still throw out of the executor. A fix needs a separate user-approved change and is out of scope here |
 | L3 | 12 lint rules sit at `warn` (146 warnings) | No dead-code removal or warning cleanup in P2, and `noUnusedLocals` stays off. The worker records the warning count for P2 files before and after (S5) |
 | L4 | oxfmt reflows statements, so source-reading tests must slice between stable markers | S1's helper returns whole stripped source. S3 and S4 convert the seven source-reading tests (`config`, `guard`, `jobs`, `peaks`, `ramhogs`, `scan-cache`, `util`) to marker slicing where they still pick single lines. Assertions stay unchanged |
+| L7 | L2 resolved by inspection during P2 (encoders async executor cannot throw out) | Recorded during closeout; no change to steps |
+| L11 | Type-only edits to S3 files (`source-revision.ts`, `platform.recycleStream`) were needed while typing `janitor.ts` | Accepted as a type-only deviation (no runtime change, verified by stripped-source comparison) |
 
 ## 3. Scope
 
@@ -60,10 +62,10 @@ Out of scope:
 
 ## 4. Entry conditions
 
-- [ ] P1 is `done` in the master and `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` is green on `plan/typescript-migration` — verify: `python3 .claude/skills/progressive-plan/scripts/progressive_plan.py status docs/plans/typescript-migration` and the four commands
-- [ ] Working tree clean and pushed — verify: `git status -sb`
-- [ ] Phase plan revalidated against current master version (17)
-- [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
+- [x] P1 is `done` in the master and `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` is green on `plan/typescript-migration` — verify: `python3 .claude/skills/progressive-plan/scripts/progressive_plan.py status docs/plans/typescript-migration` and the four commands
+- [x] Working tree clean and pushed — verify: `git status -sb`
+- [x] Phase plan revalidated against current master version (17)
+- [x] User approved this phase plan — verify: `Approved by` is set and status is `ready`
 
 ## 5. Steps
 
