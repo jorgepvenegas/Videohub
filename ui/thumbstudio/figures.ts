@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Mannequin & Pose Library (Vector-drawn 15-joint skeleton, crops, and expressions)
 
 // Standard joint positions normalized in a 1x1 bounding box for full body:

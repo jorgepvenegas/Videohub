@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Light Gizmo & Directional Shading Helper
 export const SUN_GIZMO_RADIUS = 14;
 

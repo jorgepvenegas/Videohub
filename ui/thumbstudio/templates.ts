@@ -1,6 +1,7 @@
+// @ts-nocheck
 // VideoHub · Thumbnail Studio Template Gallery, Slot Form and Save Template
 import { h, api, toast, confirmBox, pill, onHubEvent } from '../app.ts';
-import { drawScene } from './scene.js';
+import { drawScene } from './scene.ts';
 
 // Client-side slot substitution
 export function applyClientTemplateSlots(template, slotValues = {}) {

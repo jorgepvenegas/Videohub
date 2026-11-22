@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -18,7 +19,7 @@ import {
 } from './templates.ts';
 import { config } from '../config.ts';
 import { normalizeBrief } from './schema.ts';
-import { generatePrompt, PROMPT_MAX } from '../../ui/thumbstudio/prompt.js';
+import { generatePrompt, PROMPT_MAX } from '../../ui/thumbstudio/prompt.ts';
 
 // Setup temp test directory for user templates
 const testTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vh-templates-test-'));

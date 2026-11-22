@@ -1,5 +1,6 @@
+// @ts-nocheck
 // Thumbnail Studio catalog: style presets, poses, camera, light, text presets (plain data).
-// Shared by the browser UI and the server (server/thumbstudio/schema.js re-exports it), so no Node imports here.
+// Shared by the browser UI and the server (server/thumbstudio/schema.ts re-exports it), so no Node imports here.
 // ---------- style presets (§5.4)
 export const STYLE_PRESETS = [
   {

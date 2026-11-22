@@ -1,11 +1,12 @@
+// @ts-nocheck
 import { agentName } from '../agent.ts';
 // VideoHub · Thumbnail Studio Editor Shell (#/thumbstudio/<pid>/<tid>)
 import { h, api, toast, confirmBox, pill, onHubEvent } from '../app.ts';
-import { History } from './history.js';
-import { drawScene, renderExportCanvases, setImageLoadHandler, isOverlayLayer } from './scene.js';
-import { generatePrompt } from './prompt.js';
-import { createVariantStrip, openVariantViewer, markedImage, fileUrl as tsFileUrl } from './gen.js';
-import { renderFinalPanel } from './compose.js';
+import { History } from './history.ts';
+import { drawScene, renderExportCanvases, setImageLoadHandler, isOverlayLayer } from './scene.ts';
+import { generatePrompt } from './prompt.ts';
+import { createVariantStrip, openVariantViewer, markedImage, fileUrl as tsFileUrl } from './gen.ts';
+import { renderFinalPanel } from './compose.ts';
 import {
   createObjectLayer,
   createZoneLayer,
@@ -20,13 +21,13 @@ import {
   snapLayerBounds,
   getLayerBox,
   toLayerLocal
-} from './layers.js';
-import { renderInspector } from './inspector.js';
-import { openReferencesModal } from './refs.js';
-import { createDepthPanel } from './depth.js';
-import { hitTestLightGizmo, computeAzimuthFromPointer } from './light.js';
-import { applyPerspectiveLock } from './camera.js';
-import { openTemplatePickerModal, openSaveTemplateModal, applyClientTemplateSlots } from './templates.js';
+} from './layers.ts';
+import { renderInspector } from './inspector.ts';
+import { openReferencesModal } from './refs.ts';
+import { createDepthPanel } from './depth.ts';
+import { hitTestLightGizmo, computeAzimuthFromPointer } from './light.ts';
+import { applyPerspectiveLock } from './camera.ts';
+import { openTemplatePickerModal, openSaveTemplateModal, applyClientTemplateSlots } from './templates.ts';
 
 export async function renderEditor(page, pid, tid) {
   // Load brief from server

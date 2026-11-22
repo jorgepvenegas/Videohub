@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { trashName } from '../system.ts';
 import { agentName } from '../agent.ts';
 // Variants UI: the variants strip under the canvas and the big variant viewer (compare two, lay the layout over it,

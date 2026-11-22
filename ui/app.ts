@@ -4,7 +4,7 @@ import { agentName, setAgentName } from './agent.ts';
 import { reviewPage } from './review.ts';
 import { outputsPanel, outputActions } from './outputs-panel.ts';
 import { activeRenders, elapsedSeconds, timeText, remainingText } from './render-status.ts';
-import { thumbnailStudioPage } from './thumbstudio/page.js';
+import { thumbnailStudioPage } from './thumbstudio/page.ts';
 import { NOTE_STATUS_LABEL, NOTE_KIND_LABEL, PROJECT_STATUS_LABEL, THUMB_STATUS_LABEL } from './values.ts';
 
 // any: the hub's JSON replies and the pages' loose objects have no shared schema yet; typing each is a redesign, not a conversion

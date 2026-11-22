@@ -1,5 +1,6 @@
+// @ts-nocheck
 // Camera, Perspective Grid, Angle Calculations, and Framing Consistency Checks
-import { CAMERA_ANGLES, CAMERA_SHOTS, LENSES } from './catalog.js';
+import { CAMERA_ANGLES, CAMERA_SHOTS, LENSES } from './catalog.ts';
 
 // Calculate grid parameters from camera settings
 export function getGridParams(camera, W, H) {

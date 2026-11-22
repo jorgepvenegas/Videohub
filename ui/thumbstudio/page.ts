@@ -1,7 +1,8 @@
+// @ts-nocheck
 import { trashName } from '../system.ts';
 // VideoHub · Thumbnail Studio Home / List Page (#/thumbstudio)
 import { h, api, toast, confirmBox, pill, AGO, onHubEvent } from '../app.ts';
-import { openTemplatePickerModal, openTemplateSlotsModal, renderTemplateCard } from './templates.js';
+import { openTemplatePickerModal, openTemplateSlotsModal, renderTemplateCard } from './templates.ts';
 
 export async function thumbnailStudioPage(page, ...args) {
   // If editing an existing thumbnail: #/thumbstudio/<pid>/<tid>
@@ -10,11 +11,11 @@ export async function thumbnailStudioPage(page, ...args) {
 
     // Visual Pose & Expression Catalog Inspection: #/thumbstudio/_/catalog
     if (pid === '_' && tid === 'catalog') {
-      const { renderCatalogPage } = await import('./figures-catalog.js');
+      const { renderCatalogPage } = await import('./figures-catalog.ts');
       return renderCatalogPage(page);
     }
 
-    const { renderEditor } = await import('./editor.js');
+    const { renderEditor } = await import('./editor.ts');
     return renderEditor(page, pid, tid);
   }
 

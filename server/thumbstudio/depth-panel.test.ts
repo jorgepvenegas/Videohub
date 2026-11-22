@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -6,7 +7,7 @@ import vm from 'node:vm';
 // The app helper starts the browser's router/SSE connection. Run the actual panel
 // in a small DOM sandbox so these tests can exercise pointer and resize behavior.
 const source = fs
-  .readFileSync(new URL('../../ui/thumbstudio/depth.js', import.meta.url), 'utf8')
+  .readFileSync(new URL('../../ui/thumbstudio/depth.ts', import.meta.url), 'utf8')
   .replace(/^import .+;\r?$/gm, '')
   .replace('export function createDepthPanel', 'function createDepthPanel');
 
@@ -48,6 +49,7 @@ function harness(initial, { getter = true } = {}) {
     document: { createElement: () => canvas },
     ResizeObserver: class {
       constructor(fn) {
+        // oxlint-disable-next-line typescript/no-this-alias -- the test captures the instance the page code creates
         observer = this;
         this.fn = fn;
       }

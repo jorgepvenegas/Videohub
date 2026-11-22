@@ -1,4 +1,4 @@
-// Thumbnail brief validation and normalization. The catalog data lives in ui/thumbstudio/catalog.js (shared with the UI).
+// Thumbnail brief validation and normalization. The catalog data lives in ui/thumbstudio/catalog.ts (shared with the UI).
 import type { Json } from '../types.ts';
 import { thumbStatus, thumbNoteStatus } from '../../ui/values.ts';
 import {
@@ -14,7 +14,7 @@ import {
   EFFECT_KINDS,
   MOODS,
   catalog
-} from '../../ui/thumbstudio/catalog.js';
+} from '../../ui/thumbstudio/catalog.ts';
 // text preset ids of older (Turkish) versions
 const LEGACY_FONTS: Record<string, string> = {
   'youtube-kal\u0131n': 'youtube-bold',

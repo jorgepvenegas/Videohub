@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,7 +8,7 @@ import { applyTemplateSlots, loadBuiltinTemplates } from './templates.ts';
 // Importing app.js starts routing and SSE. Evaluate the actual gallery module
 // with just its DOM and drawScene dependencies stubbed instead.
 const source = fs
-  .readFileSync(new URL('../../ui/thumbstudio/templates.js', import.meta.url), 'utf8')
+  .readFileSync(new URL('../../ui/thumbstudio/templates.ts', import.meta.url), 'utf8')
   .replace(/^import .+;\r?$/gm, '')
   .replace(/^export function /gm, 'function ');
 const selection = loadBuiltinTemplates().filter(t => t.tags?.includes('reference-picks'));

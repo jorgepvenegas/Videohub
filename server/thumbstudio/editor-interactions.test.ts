@@ -1,15 +1,16 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { History } from '../../ui/thumbstudio/history.js';
-import * as layers from '../../ui/thumbstudio/layers.js';
-import * as light from '../../ui/thumbstudio/light.js';
+import { History } from '../../ui/thumbstudio/history.ts';
+import * as layers from '../../ui/thumbstudio/layers.ts';
+import * as light from '../../ui/thumbstudio/light.ts';
 
 // Exercise the actual editor and its real geometry/history helpers without
 // starting app.js's browser router, SSE connection.
 const source = fs
-  .readFileSync(new URL('../../ui/thumbstudio/editor.js', import.meta.url), 'utf8')
+  .readFileSync(new URL('../../ui/thumbstudio/editor.ts', import.meta.url), 'utf8')
   .replace(/^import[\s\S]*?from ['"][^'"]+['"];\r?$/gm, '')
   .replace('export async function renderEditor', 'async function renderEditor');
 

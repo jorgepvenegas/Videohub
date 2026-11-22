@@ -1,10 +1,11 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { testTrash } from './test-trash.ts';
 import { POSES, EXPRESSIONS } from './schema.ts';
-import { FIGURE_POSES, CROP_CONFIG } from '../../ui/thumbstudio/figures.js';
+import { FIGURE_POSES, CROP_CONFIG } from '../../ui/thumbstudio/figures.ts';
 import { saveReference, createThumbnail, getThumbnail, deleteThumbnail } from './store.ts';
 import { config } from '../config.ts';
 

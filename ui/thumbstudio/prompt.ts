@@ -1,6 +1,7 @@
+// @ts-nocheck
 // Thumbnail prompt builder: brief -> English image prompt + English summary + ordered references.
 // Pure and deterministic; shared by the editor (live preview) and the server (export, hub_thumb_brief).
-import { STYLE_PRESETS, CAMERA_ANGLES, CAMERA_SHOTS, EXPRESSIONS, POSES, LIGHT_KEYS, LIGHT_TIMES } from './catalog.js';
+import { STYLE_PRESETS, CAMERA_ANGLES, CAMERA_SHOTS, EXPRESSIONS, POSES, LIGHT_KEYS, LIGHT_TIMES } from './catalog.ts';
 
 export const PROMPT_MAX = 1200;
 

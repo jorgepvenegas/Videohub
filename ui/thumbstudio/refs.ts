@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Reference Image Management Panel (#/thumbstudio/<pid>/<tid> -> References)
 import { h, api, toast, confirmBox } from '../app.ts';
 

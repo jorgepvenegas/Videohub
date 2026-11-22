@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Side-view Depth Panel and Depth Mode Rendering
 import { h } from '../app.ts';
 

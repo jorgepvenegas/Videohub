@@ -1,7 +1,8 @@
+// @ts-nocheck
 // Pose & Expression Visual Inspection Catalog (#/thumbstudio/_/catalog)
 import { h } from '../app.ts';
-import { FIGURE_POSES, drawFigure } from './figures.js';
-import { POSES, EXPRESSIONS } from './catalog.js';
+import { FIGURE_POSES, drawFigure } from './figures.ts';
+import { POSES, EXPRESSIONS } from './catalog.ts';
 
 export function renderCatalogPage(page) {
   const container = h('div', { class: 'thumbstudio-page', style: { paddingBottom: '60px' } });

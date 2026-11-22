@@ -1,10 +1,11 @@
+// @ts-nocheck
 // Scene renderer: drawScene(ctx, brief, mode, opts) — Unified drawing engine for editor & export
-import { getLayerBox, getHandles, HANDLE_SIZE } from './layers.js';
-import { drawFigure } from './figures.js';
-import { drawEffect } from './shapes.js';
-import { drawPerspectiveGrid } from './camera.js';
-import { drawLightGizmo } from './light.js';
-import { TEXT_PRESETS } from './catalog.js';
+import { getLayerBox, getHandles, HANDLE_SIZE } from './layers.ts';
+import { drawFigure } from './figures.ts';
+import { drawEffect } from './shapes.ts';
+import { drawPerspectiveGrid } from './camera.ts';
+import { drawLightGizmo } from './light.ts';
+import { TEXT_PRESETS } from './catalog.ts';
 
 // effects drawn by code over the final image (never sent to the image model)
 export const OVERLAY_EFFECTS = new Set(['arrow', 'circle', 'x-mark', 'check', 'badge']);

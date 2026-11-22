@@ -1,3 +1,4 @@
+// @ts-nocheck
 // History management: Undo / Redo command stack (up to 150 steps)
 
 export class History {

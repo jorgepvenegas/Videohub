@@ -1,6 +1,7 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { History } from '../../ui/thumbstudio/history.js';
+import { History } from '../../ui/thumbstudio/history.ts';
 import {
   createObjectLayer,
   createZoneLayer,
@@ -10,7 +11,7 @@ import {
   toLayerLocal,
   snapLayerBounds,
   hitTestHandle
-} from '../../ui/thumbstudio/layers.js';
+} from '../../ui/thumbstudio/layers.ts';
 
 test('History supports 25+ steps of undo and redo', () => {
   const history = new History(150);

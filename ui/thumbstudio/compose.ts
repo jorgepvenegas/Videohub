@@ -1,7 +1,8 @@
+// @ts-nocheck
 // Final composition panel (view mode "Final"): crop of the chosen variant, adjustments, text/marks drawn by code,
 // small-size readability test, a generic video-feed mock (light/dark, A/B) and the < 2 MB JPEG export.
 import { h, api, toast } from '../app.ts';
-import { drawFinal, FINAL_DEFAULTS, getLayerBoxSafe } from './scene.js';
+import { drawFinal, FINAL_DEFAULTS, getLayerBoxSafe } from './scene.ts';
 
 export const FINAL_LIMIT = 2 * 1024 * 1024;
 const SIZES = [

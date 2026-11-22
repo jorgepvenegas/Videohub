@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Layer model, defaults, hit-testing, handles, and snapping
 
 export const HANDLE_SIZE = 8;

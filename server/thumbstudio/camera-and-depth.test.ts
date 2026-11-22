@@ -1,7 +1,8 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getGridParams, checkFramingConsistency, applyPerspectiveLock } from '../../ui/thumbstudio/camera.js';
-import { getSunGizmoPos, hitTestLightGizmo, computeAzimuthFromPointer } from '../../ui/thumbstudio/light.js';
+import { getGridParams, checkFramingConsistency, applyPerspectiveLock } from '../../ui/thumbstudio/camera.ts';
+import { getSunGizmoPos, hitTestLightGizmo, computeAzimuthFromPointer } from '../../ui/thumbstudio/light.ts';
 
 test('getGridParams respects angle and lens', () => {
   const W = 1280;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Effect & Shape Library for Classic YouTube Highlights
 
 export function drawEffect(ctx, layer, x, y, w, h, opts = {}) {

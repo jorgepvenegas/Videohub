@@ -1,7 +1,8 @@
+// @ts-nocheck
 // Right panel: Inspector for selected layer or overall scene
 import { h } from '../app.ts';
-import { checkFramingConsistency } from './camera.js';
-import { CAMERA_SHOTS, CAMERA_ANGLES, LENSES, LIGHT_KEYS, LIGHT_TIMES, STYLE_PRESETS, MOODS, TEXT_PRESETS } from './catalog.js';
+import { checkFramingConsistency } from './camera.ts';
+import { CAMERA_SHOTS, CAMERA_ANGLES, LENSES, LIGHT_KEYS, LIGHT_TIMES, STYLE_PRESETS, MOODS, TEXT_PRESETS } from './catalog.ts';
 
 export function renderInspector(container, brief, selectedLayerId, { onLayerChange, onBriefChange, onDuplicate, onDelete }) {
   container.innerHTML = '';
