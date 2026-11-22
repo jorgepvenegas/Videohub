@@ -1,7 +1,6 @@
-// @ts-nocheck
 // VideoHub 2D layers (Nov 6): what the user adds or changes in a 2D film from VideoHub's live editor ("🧩 2D layers"),
-// with no code change and no Claude. Engine-neutral page side; master copy in VideoHub/engine-hooks/vh2d.js
-// (installed as 3D studio engine/vh2d.js and spotlight template2d src/vh2d.js — update those from here).
+// with no code change and no Claude. Engine-neutral page side; master copy in VideoHub/engine-hooks/vh2d.ts
+// (built to dist/engine-hooks/vh2d.js; installed as 3D studio engine/vh2d.js and spotlight template2d src/vh2d.js — update those from here).
 //
 // It lives in the film's tweaks.json next to the other scene tweaks:
 //   "items2d": [ { id, kind: "image"|"text"|"rect"|"ellipse"|"arrow", name, t0, t1, fin, fout, anim: "none"|"pop",
@@ -18,14 +17,97 @@
 //   VH2D.draw(g, t, W, H)          at the end of the frame, on the final 2D canvas: the added items
 // Data: VH2D.use(data, baseUrl) (the engine's own tweaks.json object) or VH2D.load(url); VH2D.ready() resolves when
 // every image an item needs is decoded (renders must not grab a frame before).
-const S = { data: null, base: null, imgs: new Map(), pending: new Set(), actors: [], seen: new Map(), shot: '', t: 0, redraw: null };
+// tweaks.json is user data: a number can be missing or a string, so every use coerces it with unary plus
+type Num = number | string;
+
+interface Item {
+  id?: string;
+  kind?: string;
+  name?: string;
+  t0: Num;
+  t1: Num | null;
+  fin: Num;
+  fout: Num;
+  anim?: string;
+  x: Num;
+  y: Num;
+  w: Num;
+  h: Num;
+  rot: Num;
+  op: Num;
+  text?: string;
+  font?: string;
+  size: Num;
+  color?: string;
+  stroke?: string;
+  strokeW: Num;
+  shadow?: boolean;
+  align?: CanvasTextAlign;
+  weight?: number | string;
+  src?: string;
+  fill?: string;
+  line?: string;
+  lineW: Num;
+  radius: Num;
+  hide?: boolean;
+}
+interface ActorTweak {
+  dx: Num;
+  dy: Num;
+  s: Num;
+  hide?: boolean;
+}
+interface VH2DData {
+  items2d: Item[];
+  actors2d: Record<string, ActorTweak>;
+}
+// a character's state as the engine passes it: position, height (s) and the ground it stands on
+interface Stand {
+  x?: number;
+  y?: number;
+  s?: number;
+  ground?: number | null;
+}
+type Bot = { vhName?: string; name?: string; label?: string } | null | undefined;
+interface ActorRec {
+  key: string;
+  label: string;
+  shot: string;
+  x: number;
+  y: number;
+  x0: number;
+  y0: number;
+  h: number;
+  k: number;
+  hidden: boolean;
+  tw: ActorTweak | null;
+}
+interface State {
+  data: Partial<VH2DData> | null;
+  base: string | null;
+  imgs: Map<string, { img: HTMLImageElement; ok: boolean }>;
+  pending: Set<Promise<void>>;
+  actors: ActorRec[];
+  seen: Map<string, number>;
+  shot: string;
+  t: number;
+  redraw: (() => void) | null;
+}
+
+declare global {
+  interface Window {
+    VH2D?: unknown;
+  }
+}
+
+const S: State = { data: null, base: null, imgs: new Map(), pending: new Set(), actors: [], seen: new Map(), shot: '', t: 0, redraw: null };
 
 function waitImages() {
   return Promise.all([...S.pending]).then(() => {});
 }
-function imageOf(src) {
+function imageOf(src?: string | null) {
   if (!src) return null;
-  let url;
+  let url: string;
   try {
     url = new URL(src, S.base || location.href).href;
   } catch {
@@ -35,9 +117,9 @@ function imageOf(src) {
   if (!rec) {
     const img = new Image();
     rec = { img, ok: false };
-    const p = new Promise(res => {
+    const p = new Promise<void>(res => {
       img.onload = () => {
-        rec.ok = true;
+        rec!.ok = true;
         S.pending.delete(p);
         res();
         S.redraw?.();
@@ -59,7 +141,7 @@ function prime() {
 
 export const VH2D = {
   version: 1,
-  use(data, baseUrl) {
+  use(data?: Partial<VH2DData> | null, baseUrl?: string | null) {
     S.data = data || {};
     S.data.items2d = S.data.items2d || [];
     S.data.actors2d = S.data.actors2d || {};
@@ -67,7 +149,7 @@ export const VH2D = {
     prime();
     return S.data;
   },
-  async load(url) {
+  async load(url: string): Promise<Partial<VH2DData>> {
     let j = {};
     try {
       const r = await fetch(url, { cache: 'no-store' });
@@ -79,10 +161,10 @@ export const VH2D = {
     return waitImages();
   },
   data: () => S.data,
-  onRedraw(fn) {
+  onRedraw(fn: () => void) {
     S.redraw = fn;
   },
-  begin(t, shot) {
+  begin(t: number, shot?: string) {
     S.t = t;
     S.shot = shot || '';
     S.actors = [];
@@ -91,16 +173,16 @@ export const VH2D = {
   // a character about to be drawn: the user's move / scale / hide for it in this shot (or the whole film)
   // opt.record = false: an extra pass of the same character (its cast shadow, an arm drawn again over a prop): it gets
   // the same move as the character's first draw but is not counted or listed
-  actor(g, bot, st, opt = {}) {
+  actor(g: CanvasRenderingContext2D, bot: Bot, st: Stand, opt: { record?: boolean } = {}) {
     const label = labelOf(bot);
     // st.s is the character's height in world units (film2d's QA reads it the same way); st.ground/st.y its feet
-    let m = null;
+    let m: DOMMatrix | null = null;
     try {
       m = g.getTransform();
     } catch {}
-    const foot = s => (m ? m.transformPoint({ x: s.x || 0, y: s.ground ?? s.y ?? 0 }) : { x: 0, y: 0 });
+    const foot = (s: Stand) => (m ? m.transformPoint({ x: s.x || 0, y: s.ground ?? s.y ?? 0 }) : { x: 0, y: 0 });
     const p0 = foot(st);
-    let key;
+    let key: string;
     // the same character drawn again at the same place in this frame (a second layer of it) is the same one
     const again = opt.record !== false && S.actors.find(a => a.label === label && Math.abs(a.x0 - p0.x) < 3 && Math.abs(a.y0 - p0.y) < 3);
     if (again) key = again.key;
@@ -111,7 +193,7 @@ export const VH2D = {
     }
     const A = S.data?.actors2d || {};
     const tw = A[`${S.shot}|${key}`] || A[`*|${key}`] || null;
-    let out = st;
+    let out: Stand = st;
     if (tw)
       out = {
         ...st,
@@ -131,8 +213,8 @@ export const VH2D = {
     return tw && tw.hide ? null : out;
   },
   actors: () => S.actors.slice(),
-  itemsAt: t => (S.data?.items2d || []).filter(it => it && !it.hide && t >= (+it.t0 || 0) && t <= (it.t1 == null ? Infinity : +it.t1)),
-  draw(g, t, W, H) {
+  itemsAt: (t: number) => (S.data?.items2d || []).filter(it => it && !it.hide && t >= (+it.t0 || 0) && t <= (it.t1 == null ? Infinity : +it.t1)),
+  draw(g: CanvasRenderingContext2D, t: number, W: number, H: number) {
     const items = VH2D.itemsAt(t);
     if (!items.length) return;
     g.save();
@@ -154,25 +236,25 @@ export const VH2D = {
     g.restore();
   },
   // the editor: the box of an item on the frame (after its animation), in frame px
-  box(it, t) {
+  box(it: Item, t?: number) {
     const k = animK(it, t ?? S.t);
     return { x: +it.x || 0, y: +it.y || 0, w: (+it.w || 100) * k.s, h: (+it.h || 100) * k.s, rot: +it.rot || 0 };
   }
 };
 
 // a character's name: the engine's (spec.vhName / name / label), else "karakter N" in the order they first appear
-const anon = new WeakMap();
+const anon = new WeakMap<object, string>();
 let anonN = 0;
-function labelOf(bot) {
+function labelOf(bot: Bot) {
   if (!bot) return 'karakter';
   const n = bot.vhName || bot.name || bot.label;
   if (n) return String(n);
   if (typeof bot !== 'object' && typeof bot !== 'function') return 'karakter';
   if (!anon.has(bot)) anon.set(bot, 'karakter ' + ++anonN);
-  return anon.get(bot);
+  return anon.get(bot)!;
 }
 
-function animK(it, t) {
+function animK(it: Item, t: number) {
   const t0 = +it.t0 || 0,
     t1 = it.t1 == null ? Infinity : +it.t1,
     fin = Math.max(0, +it.fin || 0),
@@ -191,7 +273,7 @@ function animK(it, t) {
   return { a: sm, s };
 }
 
-function drawItem(g, it, t, W, H) {
+function drawItem(g: CanvasRenderingContext2D, it: Item, t: number, W: number, H: number) {
   const k = animK(it, t),
     op = Math.max(0, Math.min(1, it.op == null ? 1 : +it.op)) * k.a;
   if (op <= 0.001) return;

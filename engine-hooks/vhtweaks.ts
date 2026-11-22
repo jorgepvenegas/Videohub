@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Scene tweaks: small fixes the user makes in VideoHub's live editor, with no code change and no Claude.
 // They live in scenes/<name>/tweaks.json and every frame (preview and render alike) is drawn with them:
 //
@@ -14,12 +13,101 @@
 // window.VH_EDIT is what the editor uses: pick an object, steer a free camera, change and save the tweaks.
 import * as THREE from 'three';
 
+interface ObjTweak {
+  t?: string;
+  dp?: number[];
+  ry?: number;
+  s?: number;
+  hide?: boolean;
+}
+interface OvTweak {
+  dx?: number;
+  dy?: number;
+  s?: number;
+  cx?: number;
+  cy?: number;
+  hide?: boolean;
+}
+interface CamTweak {
+  dp?: number[];
+  dq?: number[];
+  fov?: number;
+}
+interface ShotTweak {
+  camera?: CamTweak;
+  objects?: Record<string, ObjTweak>;
+  overlays?: Record<string, OvTweak>;
+}
+interface Cut {
+  at: number;
+  d: number;
+}
+interface SoundEntry {
+  shot: string;
+  t0: number;
+  music?: number | null;
+  sfx?: number | null;
+  vo?: number | null;
+  all?: number | null;
+}
+interface TweakData {
+  v?: number;
+  shots: Record<string, ShotTweak>;
+  cuts: Cut[];
+  sound: SoundEntry[];
+}
+interface Slot {
+  scene: THREE.Object3D;
+  camera: THREE.PerspectiveCamera;
+  shot?: string | null;
+  main?: boolean;
+}
+interface MakeTweaksOptions {
+  scene: THREE.Object3D;
+  camera: THREE.PerspectiveCamera;
+  data: TweakData;
+  redraw: () => void;
+  now?: () => number;
+  step?: (s: number) => void;
+  fps?: number;
+  shotName?: (() => string) | null;
+  shotAt?: ((s: number) => string) | null;
+}
+interface Applied {
+  o: THREE.Object3D;
+  cam: boolean;
+  pos: THREE.Vector3;
+  quat: THREE.Quaternion;
+  scale: THREE.Vector3;
+  vis: boolean;
+  fov: number;
+}
+interface Free {
+  pos: THREE.Vector3;
+  quat: THREE.Quaternion;
+  fov: number;
+  target: THREE.Vector3;
+}
+// the picked object is a mesh when it has a material; three's Object3D does not declare either
+type MeshLike = THREE.Object3D & { isMesh?: boolean; material?: THREE.Material | THREE.Material[] };
+
+declare global {
+  interface Window {
+    __qaShot?: () => string;
+    __vhSky?: unknown;
+    __vhOverlays?: { inspect(): unknown[] }[];
+    __vhOverlayTweak?: (id: string) => OvTweak | null;
+    // any: the editor's methods call each other through this, so the literal needs a loose contextual type
+    VH_EDIT?: any;
+  }
+}
+
 const V = new THREE.Vector3(),
   V2 = new THREE.Vector3(),
   Q = new THREE.Quaternion(),
   E = new THREE.Euler();
 
-export async function loadTweaks(url) {
+export async function loadTweaks(url: string): Promise<Partial<TweakData> & Pick<TweakData, 'shots'>> {
   try {
     const r = await fetch(url, { cache: 'no-store' });
     if (r.ok) {
@@ -33,22 +121,22 @@ export async function loadTweaks(url) {
 // Engines with one scene and camera pass them once; engines that draw several slots per frame (a cross-fade: two sets,
 // two cameras) call apply({ scene, camera, shot, main }) for each slot after its own update. shotName() is the shot on
 // screen; shotAt(s) (optional) names the shot at a source time cheaply, else findCut steps the scene with step(s).
-export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = () => {}, fps = 60, shotName = null, shotAt = null }) {
+export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = () => {}, fps = 60, shotName = null, shotAt = null }: MakeTweaksOptions) {
   data.cuts = data.cuts || [];
   data.sound = data.sound || [];
-  let curShot = null,
+  let curShot: string | null = null,
     mainShot = '',
-    lastCam = { tw: null, free: null };
-  let applied = []; // what was changed this frame, to take back
-  let free = null; // editor's free camera { pos, quat, fov, target }
+    lastCam: { tw: CamTweak | null; free: THREE.PerspectiveCamera | null } = { tw: null, free: null };
+  let applied: Applied[] = []; // what was changed this frame, to take back
+  let free: Free | null = null; // editor's free camera { pos, quat, fov, target }
   const orig = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), fov: camera ? camera.fov : 50 }; // the shot's own camera this frame
-  const cache = new Map();
+  const cache = new Map<string, THREE.Object3D>();
   const nameNow = () => (shotName ? shotName() : window.__qaShot && window.__qaShot()) || '';
   const shot = () => curShot ?? nameNow();
 
-  function pathOf(o) {
-    const segs = [];
-    for (let a = o; a && a !== scene; a = a.parent) {
+  function pathOf(o: THREE.Object3D) {
+    const segs: string[] = [];
+    for (let a: THREE.Object3D | null = o; a && a !== scene; a = a.parent) {
       const p = a.parent;
       if (!p) return null;
       if (a.name) {
@@ -58,11 +146,11 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
     }
     return segs.reverse().join('/');
   }
-  function find(path) {
+  function find(path: string) {
     const ck = scene.uuid + '|' + path,
       c = cache.get(ck);
     if (c && c.parent && pathOf(c) === path) return c;
-    let o = scene;
+    let o: THREE.Object3D | null | undefined = scene;
     for (const seg of path.split('/')) {
       if (!o) break;
       if (seg[0] === '#') {
@@ -87,16 +175,24 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       a.o.scale.copy(a.scale);
       a.o.visible = a.vis;
       if (a.cam) {
-        a.o.fov = a.fov;
-        a.o.updateProjectionMatrix();
+        (a.o as THREE.PerspectiveCamera).fov = a.fov;
+        (a.o as THREE.PerspectiveCamera).updateProjectionMatrix();
       }
     }
     applied = [];
   }
-  function keep(o, cam) {
-    applied.push({ o, cam, pos: o.position.clone(), quat: o.quaternion.clone(), scale: o.scale.clone(), vis: o.visible, fov: cam ? o.fov : 0 });
+  function keep(o: THREE.Object3D, cam: boolean) {
+    applied.push({
+      o,
+      cam,
+      pos: o.position.clone(),
+      quat: o.quaternion.clone(),
+      scale: o.scale.clone(),
+      vis: o.visible,
+      fov: cam ? (o as THREE.PerspectiveCamera).fov : 0
+    });
   }
-  function apply(slot) {
+  function apply(slot?: Slot) {
     if (slot) {
       scene = slot.scene;
       camera = slot.camera;
@@ -109,7 +205,7 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       orig.quat.copy(camera.quaternion);
       orig.fov = camera.fov;
     }
-    let camTweak = null;
+    let camTweak: CamTweak | null = null;
     for (const e of entries()) {
       if (e.camera) camTweak = e.camera; // a shot's own camera wins over the whole-film one
       for (const [path, d] of Object.entries(e.objects || {})) {
@@ -142,15 +238,15 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
 
   // ---- editor API
   const ray = new THREE.Raycaster();
-  function hitAt(nx, ny, skip) {
+  function hitAt(nx: number, ny: number, skip?: (o: MeshLike) => boolean) {
     camera.updateMatrixWorld(true);
     ray.setFromCamera({ x: nx, y: ny }, camera);
     const hits = ray.intersectObjects(scene.children, true);
     for (const h of hits) {
-      const o = h.object;
+      const o = h.object as MeshLike;
       if (!o.isMesh || skip?.(o)) continue;
       let vis = true;
-      for (let a = o; a; a = a.parent)
+      for (let a: THREE.Object3D | null = o; a; a = a.parent)
         if (!a.visible) {
           vis = false;
           break;
@@ -163,9 +259,9 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
     }
     return null;
   }
-  function describe(o) {
+  function describe(o: THREE.Object3D) {
     const box = new THREE.Box3().setFromObject(o);
-    const corners = [];
+    const corners: THREE.Vector3[] = [];
     if (!box.isEmpty())
       for (let i = 0; i < 8; i++)
         corners.push(
@@ -185,14 +281,18 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
           .map(n => +n.toFixed(2));
     return { path: pathOf(o), name: o.name || '', type: o.type, size, rect };
   }
-  function tw(key, create) {
+  function tw(key: string, create: true): ShotTweak;
+  function tw(key: string, create?: boolean): ShotTweak | null;
+  function tw(key: string, create?: boolean) {
     if (!data.shots[key]) {
       if (!create) return null;
       data.shots[key] = {};
     }
     return data.shots[key];
   }
-  function objTweak(key, path, create = true) {
+  function objTweak(key: string, path: string, create?: true): ObjTweak;
+  function objTweak(key: string, path: string, create: boolean): ObjTweak | null;
+  function objTweak(key: string, path: string, create = true) {
     const s = tw(key, create);
     if (!s) return null;
     s.objects = s.objects || {};
@@ -206,7 +306,7 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
         if (!d.ry) delete d.ry;
         if (!d.s || Math.abs(d.s - 1) < 1e-4) delete d.s;
         if (!d.hide) delete d.hide;
-        if (!Object.keys(d).filter(k => k !== 't').length) delete s.objects[p];
+        if (!Object.keys(d).filter(k => k !== 't').length) delete s.objects![p];
       }
       if (s.objects && !Object.keys(s.objects).length) delete s.objects;
       for (const [id, o] of Object.entries(s.overlays || {})) {
@@ -218,19 +318,19 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
           delete o.cx;
           delete o.cy;
         }
-        if (!Object.keys(o).length) delete s.overlays[id];
+        if (!Object.keys(o).length) delete s.overlays![id];
       }
       if (s.overlays && !Object.keys(s.overlays).length) delete s.overlays;
       if (!Object.keys(s).length) delete data.shots[k];
     }
     data.cuts = data.cuts.filter(c => Math.abs(c.d) > 1e-4).sort((a, b) => a.at - b.at);
   }
-  const r3 = a => a.map(n => +n.toFixed(4));
+  const r3 = (a: number[]) => a.map(n => +n.toFixed(4));
 
   // ---- cuts: a cut moved by d s; the film time around it is stretched (the shot before plays a little faster or
   // slower, the one after too) so the cut lands d s earlier/later while the sound stays where it is
-  const cutW = d => Math.max(0.6, Math.abs(d) * 2.5);
-  function time(t) {
+  const cutW = (d: number) => Math.max(0.6, Math.abs(d) * 2.5);
+  function time(t: number) {
     let s = t;
     for (const { at, d } of data.cuts) {
       const W = cutW(d);
@@ -241,11 +341,11 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
   }
   // ---- screen items (engine/overlay.js asks while it draws): the shot's own tweak wins over the whole film's
   window.__vhOverlayTweak = id => {
-    let r = null;
+    let r: OvTweak | null = null;
     for (const e of entries()) if (e.overlays && e.overlays[id]) r = e.overlays[id];
     return r;
   };
-  function ovTweak(key, id) {
+  function ovTweak(key: string, id: string) {
     const s = tw(key, true);
     s.overlays = s.overlays || {};
     return (s.overlays[id] = s.overlays[id] || {});
@@ -256,7 +356,7 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
     shot: () => mainShot || nameNow(),
     caps: () => ({ overlays: !!(window.__vhOverlays && window.__vhOverlays.length), cuts: true, sound: true }),
     get: () => JSON.parse(JSON.stringify(data)),
-    set(d) {
+    set(d?: Partial<TweakData> | null) {
       data.shots = (d && d.shots) || {};
       data.cuts = (d && d.cuts) || [];
       data.sound = (d && d.sound) || [];
@@ -264,21 +364,21 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       redraw();
     },
     // ---- sound: per-shot levels, applied to the mix by VideoHub (stems) — the page only keeps them
-    soundSet(entry) {
+    soundSet(entry: SoundEntry) {
       data.sound = data.sound.filter(x => x.shot !== entry.shot);
-      if (['music', 'sfx', 'vo', 'all'].some(k => entry[k] != null && Math.abs(entry[k] - 1) > 1e-3)) data.sound.push(entry);
+      if ((['music', 'sfx', 'vo', 'all'] as const).some(k => entry[k] != null && Math.abs(entry[k] - 1) > 1e-3)) data.sound.push(entry);
       data.sound.sort((a, b) => a.t0 - b.t0);
     },
     // ---- screen items: what was drawn this frame, each with its box (1920x1080 px, after its tweak)
     overlays() {
-      const out = [];
+      const out: unknown[] = [];
       for (const ov of window.__vhOverlays || [])
         try {
           out.push(...ov.inspect());
         } catch {}
       return out;
     },
-    ovMove(key, id, dx, dy) {
+    ovMove(key: string, id: string, dx: number, dy: number) {
       const o = ovTweak(key, id);
       o.dx = +((o.dx || 0) + dx).toFixed(1);
       o.dy = +((o.dy || 0) + dy).toFixed(1);
@@ -286,7 +386,7 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       redraw();
     },
     // size around the item's own centre (box centre on screen, before its move)
-    ovScale(key, id, k, cx, cy) {
+    ovScale(key: string, id: string, k: number, cx: number, cy: number) {
       const o = ovTweak(key, id);
       if (o.cx == null) {
         o.cx = +(cx - (o.dx || 0)).toFixed(1);
@@ -296,26 +396,26 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       tidy();
       redraw();
     },
-    ovHide(key, id, on) {
+    ovHide(key: string, id: string, on: boolean) {
       const o = ovTweak(key, id);
       o.hide = !!on;
       tidy();
       redraw();
     },
-    ovReset(key, id) {
+    ovReset(key: string, id: string) {
       const s = tw(key);
       if (s?.overlays) delete s.overlays[id];
       tidy();
       redraw();
     },
     // ---- cuts: the next (dir 1) or previous (-1) change of shot from the moment on screen, in source time
-    findCut(dir, from, f) {
+    findCut(dir: number, from?: number | null, f?: number) {
       if (f) fps = f;
       const t0 = from ?? now(),
         s0 = time(t0),
-        nameAt = s => (shotAt ? shotAt(s) : (step(s), nameNow()));
+        nameAt = (s: number) => (shotAt ? shotAt(s) : (step(s), nameNow()));
       const name0 = nameAt(s0);
-      let found = null;
+      let found: { at: number; from: string; to: string } | null = null;
       for (let i = 1; i <= fps * 40; i++) {
         const s = s0 + (dir * i) / fps;
         if (s < 0) break;
@@ -331,7 +431,7 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       const c = data.cuts.find(x => Math.abs(x.at - found.at) < 1e-3);
       return { ...found, d: c ? c.d : 0, film: +(found.at + (c ? c.d : 0)).toFixed(4) };
     },
-    cutShift(at, frames, f) {
+    cutShift(at: number, frames: number, f?: number) {
       if (f) fps = f;
       let c = data.cuts.find(x => Math.abs(x.at - at) < 1e-3);
       if (!c) data.cuts.push((c = { at, d: 0 }));
@@ -341,17 +441,17 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       redraw();
       return d;
     },
-    cutReset(at) {
+    cutReset(at: number) {
       data.cuts = data.cuts.filter(x => Math.abs(x.at - at) >= 1e-3);
       redraw();
     },
     cuts: () => data.cuts.map(c => ({ ...c })),
     // the object under a point of the view (-1..1, y up), with its parents up to the scene for "select the bigger thing"
-    pick(nx, ny) {
+    pick(nx: number, ny: number) {
       const h = hitAt(nx, ny);
       if (!h) return null;
       const chain = [];
-      for (let a = h.object; a && a !== scene; a = a.parent) chain.push(describe(a));
+      for (let a: THREE.Object3D | null = h.object; a && a !== scene; a = a.parent) chain.push(describe(a));
       // default: a whole thing, not one of its faces: a named part, else the biggest group under 25 m (not the whole set)
       let sel = chain.findIndex(c => c.name);
       if (sel < 0) {
@@ -364,12 +464,12 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       }
       return { point: h.point.toArray().map(n => +n.toFixed(3)), chain, sel };
     },
-    info(path) {
+    info(path: string) {
       const o = find(path);
       return o ? describe(o) : null;
     },
     // ---- objects: drag in the view (along the plane facing the camera through the object, or only up/down)
-    drag(key, path, nx0, ny0, nx1, ny1, vertical) {
+    drag(key: string, path: string, nx0: number, ny0: number, nx1: number, ny1: number, vertical?: boolean) {
       const o = find(path);
       if (!o) return;
       const box = new THREE.Box3().setFromObject(o),
@@ -395,7 +495,7 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       this.nudge(key, path, w.toArray());
     },
     // move by a world-space step (converted into the object's parent space)
-    nudge(key, path, world) {
+    nudge(key: string, path: string, world: number[]) {
       const o = find(path);
       if (!o || !o.parent) return;
       o.parent.updateMatrixWorld(true);
@@ -410,12 +510,12 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       redraw();
     },
     // put it on what is under it (or lift it out of what it sank into)
-    ground(key, path) {
+    ground(key: string, path: string) {
       const o = find(path);
       if (!o) return null;
       const box = new THREE.Box3().setFromObject(o);
       if (box.isEmpty()) return null;
-      const mine = new Set();
+      const mine = new Set<THREE.Object3D>();
       o.traverse(ch => mine.add(ch));
       const c = box.getCenter(new THREE.Vector3()),
         h = box.max.y - box.min.y;
@@ -427,7 +527,7 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
         .find(
           x =>
             !mine.has(x.object) &&
-            x.object.isMesh &&
+            (x.object as MeshLike).isMesh &&
             x.object.visible &&
             x.point.y <= box.min.y + h * 0.25 &&
             (!x.face || x.face.normal.clone().transformDirection(x.object.matrixWorld).y > 0.3)
@@ -437,25 +537,25 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       this.nudge(key, path, [0, hit.point.y - box.min.y, 0]);
       return +(hit.point.y - box.min.y).toFixed(3);
     },
-    rotate(key, path, deg) {
+    rotate(key: string, path: string, deg: number) {
       const d = objTweak(key, path);
       d.ry = +(((d.ry || 0) + deg) % 360).toFixed(2);
       tidy();
       redraw();
     },
-    scale(key, path, k) {
+    scale(key: string, path: string, k: number) {
       const d = objTweak(key, path);
       d.s = +((d.s || 1) * k).toFixed(4);
       tidy();
       redraw();
     },
-    hide(key, path, on) {
+    hide(key: string, path: string, on: boolean) {
       const d = objTweak(key, path);
       d.hide = !!on;
       tidy();
       redraw();
     },
-    resetObj(key, path) {
+    resetObj(key: string, path: string) {
       const s = tw(key);
       if (s?.objects) delete s.objects[path];
       tidy();
@@ -472,7 +572,7 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
     },
     freeState: () => free && { pos: free.pos.toArray(), fov: free.fov },
     // orbit around what is under the pointer when a drag starts (kept when nothing is there)
-    pivotAt(nx, ny) {
+    pivotAt(nx: number, ny: number) {
       if (!free) return;
       const h = hitAt(nx, ny);
       if (h && h.distance < 500) free.target.copy(h.point);
@@ -482,43 +582,43 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       redraw();
     },
     // orbit (drag), pan (shift/right drag), dolly (wheel); dx/dy in view units (-1..1 across the frame)
-    nav(kind, dx, dy) {
+    nav(kind: string, dx: number, dy: number) {
       if (!free) this.freeStart();
-      const off = free.pos.clone().sub(free.target),
+      const off = free!.pos.clone().sub(free!.target),
         dist = off.length();
       if (kind === 'orbit') {
         // turn the camera and its position around the pivot together (no jump to look at the pivot)
-        const right = V.set(1, 0, 0).applyQuaternion(free.quat).normalize();
+        const right = V.set(1, 0, 0).applyQuaternion(free!.quat).normalize();
         const q = new THREE.Quaternion().setFromAxisAngle(V2.set(0, 1, 0), -dx * 1.6).multiply(new THREE.Quaternion().setFromAxisAngle(right, dy * 1.6));
-        free.pos.sub(free.target).applyQuaternion(q).add(free.target);
-        free.quat.premultiply(q).normalize();
+        free!.pos.sub(free!.target).applyQuaternion(q).add(free!.target);
+        free!.quat.premultiply(q).normalize();
       } else if (kind === 'pan') {
-        const k = dist * Math.tan((free.fov * Math.PI) / 360);
+        const k = dist * Math.tan((free!.fov * Math.PI) / 360);
         const right = V.set(1, 0, 0)
-          .applyQuaternion(free.quat)
+          .applyQuaternion(free!.quat)
           .multiplyScalar(-dx * k * (camera.aspect || 1.78));
         const up = V2.set(0, 1, 0)
-          .applyQuaternion(free.quat)
+          .applyQuaternion(free!.quat)
           .multiplyScalar(-dy * k);
-        free.pos.add(right).add(up);
-        free.target.add(right).add(up);
+        free!.pos.add(right).add(up);
+        free!.target.add(right).add(up);
       } else if (kind === 'look') {
         // turn the head in place
-        E.setFromQuaternion(free.quat, 'YXZ');
+        E.setFromQuaternion(free!.quat, 'YXZ');
         E.y -= dx * 1.2;
         E.x = Math.min(1.5, Math.max(-1.5, E.x + dy * 1.2));
-        free.quat.setFromEuler(E);
-        free.target.copy(free.pos).add(V.set(0, 0, -dist).applyQuaternion(free.quat));
+        free!.quat.setFromEuler(E);
+        free!.target.copy(free!.pos).add(V.set(0, 0, -dist).applyQuaternion(free!.quat));
       } else if (kind === 'dolly') {
         const nd = Math.max(0.05, dist * Math.exp(dx));
-        free.pos.copy(free.target).add(off.setLength(nd));
+        free!.pos.copy(free!.target).add(off.setLength(nd));
       } else if (kind === 'fov') {
-        free.fov = Math.min(110, Math.max(8, dx));
+        free!.fov = Math.min(110, Math.max(8, dx));
       }
       redraw();
     },
     // the free camera as this shot's camera: stored relative to what the shot itself does at this moment
-    saveCam(key) {
+    saveCam(key: string) {
       if (!free) return null;
       const iq = orig.quat.clone().invert();
       const dp = free.pos.clone().sub(orig.pos).applyQuaternion(iq),
@@ -531,7 +631,7 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
       redraw();
       return s.camera;
     },
-    resetCam(key) {
+    resetCam(key: string) {
       const s = tw(key);
       if (s) delete s.camera;
       free = null;
@@ -540,7 +640,7 @@ export function makeTweaks({ scene, camera, data, redraw, now = () => 0, step = 
     }
   };
   // the slot's camera change on another camera of the same shot (e.g. the one a frame earlier, for motion blur)
-  function camOn(c) {
+  function camOn(c: THREE.PerspectiveCamera) {
     if (lastCam.free) {
       c.position.copy(lastCam.free.position);
       c.quaternion.copy(lastCam.free.quaternion);
