@@ -4,10 +4,10 @@
 - Phase: P9
 - Plan version: 2
 - Validated against master version: 67
-- Status: in_progress
+- Status: done
 - Approved by: Jorge Venegas (standing instruction 2026-11-22, C15)
 - Approved at: 2026-11-22
-- Commit: pending
+- Commit: b12e78c
 - Implementation mode: subagent
 - Implemented by: p9-worker
 - Implemented at: 2026-11-22

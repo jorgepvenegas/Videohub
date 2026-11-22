@@ -298,6 +298,9 @@ Fill at the end of every implementation session. Do not mark the phase done unti
 | D4 (master) | met | This phase's share: 320 passing tests, above the 312 floor, with the new `.ts` and legacy tests. D stays open until P9 |
 | D7 (master) | met | This phase's share: the example copy and a new starter film open in live preview with no console errors (S5); the user reviewed the scratch preview and explicitly asked for the render; one queued render of the example copy completed (A6); template and example `render.ts` are byte-identical (`cmp`, identity test). D stays open until P9 |
 | D8 (master) | met | This phase's share: `render.js`/`film.js` films still preview (the `hello-legacy` copy in the S5 browser check, live-capable, `render.js` detected) and queue (the queued-command test for a legacy film). D stays open until P9 |
+| D5 (master) | met | Final evidence in the P9 closeout (S4): `pnpm build` exits 0 and a scratch hub serves the library, review and thumbnail studio pages with zero console errors; this phase's share: the three film preview pages (S5) |
+| D6 (master) | met | Final evidence in the P9 closeout (S4): fresh setup and update from a 70cf504 install in a fake home; this phase changed no installer behavior |
+| D9 (master) | met | Final evidence in the P9 closeout (S3): the D9 grep prints nothing; this phase updated the starter's own README |
 
 **Discoveries no earlier plan predicted:**
 

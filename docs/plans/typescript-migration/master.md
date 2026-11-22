@@ -2,7 +2,7 @@
 
 - Plan ID: `typescript-migration`
 - Master version: 67
-- Status: active
+- Status: complete
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
 - Size: large
@@ -28,15 +28,15 @@ flowchart LR
 
 ## 3. Definition of done
 
-- [ ] D1 — No JavaScript source is tracked: VideoHub's own code, tests, scripts, engine hooks, film starter and example are `.ts`. — verify: `git ls-files '*.js' '*.mjs' '*.cjs' '*.jsx'` prints nothing
-- [ ] D2 — The whole repo type-checks under `strict` with no `allowJs`. — verify: `pnpm typecheck` exits 0, and `tsconfig.json` has `"strict": true` and no `allowJs`
-- [ ] D3 — Lint and format are clean. — verify: `pnpm lint` reports 0 errors and `pnpm format:check` exits 0
-- [ ] D4 — Behavior is preserved: the full suite passes with at least the baseline count. — verify: `pnpm test` reports ≥ 298 pass, 0 fail (baseline: 299 tests, 298 pass, 1 skipped)
-- [ ] D5 — Vite builds the browser code, and the hub serves the built UI. — verify: `pnpm build` exits 0; a scratch hub (`VIDEOHUB_PORT=7799`, scratch data/base, guard and jobs off, no window) serves the library, review and thumbnail studio pages with no console errors
-- [ ] D6 — Fresh setup and update from a JavaScript-era install both work. — verify: in a fake `HOME`/`XDG_*` under `.test-tmp`, `bash setup.sh --yes …` installs, builds the UI and registers MCP at the `.ts` entry point; `bash update.sh --target` pointed at a scratch install of commit 70cf504 stops the old hub, re-points integrations and preserves data. Both are covered by tests in `scripts/install.test.ts` and `scripts/agents.test.ts`
-- [ ] D7 — A new film made from the TypeScript starter, and the example, open in live preview and render through the queue. — verify: on a scratch copy of the example, `hub_live` loads the film with no console errors, and after the user reviews the preview and explicitly asks, one queued render completes; template and example `render.ts` stay byte-identical (test)
-- [ ] D8 — Existing JavaScript films still work: `render.js` and `film.js` films preview and queue as before. — verify: legacy tests in `server/jobs.test.ts` and the live-preview tests pass for both `render.js` and `render.ts` projects
-- [ ] D9 — Docs and agent rules describe the TypeScript codebase: entry points, Node ≥ 22.18, the standards commands and the film contract. — verify: `grep -rnE "server/(hub|mcp|cli)\.js|scripts/[a-z-]+\.mjs|node --check" CLAUDE.md AGENTS.md README.md docs skill --exclude-dir=plans` prints nothing
+- [x] D1 — No JavaScript source is tracked: VideoHub's own code, tests, scripts, engine hooks, film starter and example are `.ts`. — verify: `git ls-files '*.js' '*.mjs' '*.cjs' '*.jsx'` prints nothing
+- [x] D2 — The whole repo type-checks under `strict` with no `allowJs`. — verify: `pnpm typecheck` exits 0, and `tsconfig.json` has `"strict": true` and no `allowJs`
+- [x] D3 — Lint and format are clean. — verify: `pnpm lint` reports 0 errors and `pnpm format:check` exits 0
+- [x] D4 — Behavior is preserved: the full suite passes with at least the baseline count. — verify: `pnpm test` reports ≥ 298 pass, 0 fail (baseline: 299 tests, 298 pass, 1 skipped)
+- [x] D5 — Vite builds the browser code, and the hub serves the built UI. — verify: `pnpm build` exits 0; a scratch hub (`VIDEOHUB_PORT=7799`, scratch data/base, guard and jobs off, no window) serves the library, review and thumbnail studio pages with no console errors
+- [x] D6 — Fresh setup and update from a JavaScript-era install both work. — verify: in a fake `HOME`/`XDG_*` under `.test-tmp`, `bash setup.sh --yes …` installs, builds the UI and registers MCP at the `.ts` entry point; `bash update.sh --target` pointed at a scratch install of commit 70cf504 stops the old hub, re-points integrations and preserves data. Both are covered by tests in `scripts/install.test.ts` and `scripts/agents.test.ts`
+- [x] D7 — A new film made from the TypeScript starter, and the example, open in live preview and render through the queue. — verify: on a scratch copy of the example, `hub_live` loads the film with no console errors, and after the user reviews the preview and explicitly asks, one queued render completes; template and example `render.ts` stay byte-identical (test)
+- [x] D8 — Existing JavaScript films still work: `render.js` and `film.js` films preview and queue as before. — verify: legacy tests in `server/jobs.test.ts` and the live-preview tests pass for both `render.js` and `render.ts` projects
+- [x] D9 — Docs and agent rules describe the TypeScript codebase: entry points, Node ≥ 22.18, the standards commands and the film contract. — verify: `grep -rnE "server/(hub|mcp|cli)\.js|scripts/[a-z-]+\.mjs|node --check" CLAUDE.md AGENTS.md README.md docs skill --exclude-dir=plans` prints nothing
 
 ## 4. Code standards
 
@@ -94,7 +94,7 @@ flowchart LR
 | P7 | Thumbnail studio UI to TS | `ui/thumbstudio/` (and the server tests importing it) are `.ts`; the thumbnail studio works in a scratch hub | P5 | done | [plan](phases/07-thumbnail-studio-ui-to-ts/plan.md) |
 | P8 | Engine hooks to TS | `engine-hooks/vh2d` and `vhtweaks` are strict `.ts` (with a local `three` declaration, C13); Vite builds them into stable, readable `dist/engine-hooks/vh2d.js` and `vhtweaks.js` that engines copy; `three` stays external | P4,P5 | done | [plan](phases/08-engine-hooks-to-ts/plan.md) |
 | P10 | Film starter and example to TS | templates/new-film and examples/hello-film use render.ts, make-audio.ts and film.ts; hub live preview and render.ts serve film.ts stripped; render.js and film.js films still preview and render; one scratch render after the user reviews the preview | P8 | done | [plan](phases/10-film-starter-and-example-to-ts/plan.md) |
-| P9 | Strict repo-wide, no JS left, docs | `allowJs` removed, strict repo-wide, a test fails on any tracked JS file, CLAUDE.md/docs/skill/README updated; full D1–D9 verification | P6,P7,P10 | in_progress | [plan](phases/09-strict-repo-wide-no-js-left-docs/plan.md) |
+| P9 | Strict repo-wide, no JS left, docs | `allowJs` removed, strict repo-wide, a test fails on any tracked JS file, CLAUDE.md/docs/skill/README updated; full D1–D9 verification | P6,P7,P10 | done | [plan](phases/09-strict-repo-wide-no-js-left-docs/plan.md) |
 
 Status: `planned`, `ready`, `in_progress`, `done`, `blocked`, `needs_replan`, `superseded`.
 `ready` means the user has explicitly approved that phase plan. A written plan is not `ready` until it passes the approval gate. Later phases may stay as outlines; add them with `add-phase --outline`, then write the plan with `write-plan` just before the phase starts and stop for approval.
@@ -211,12 +211,13 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 | P7 | 2026-11-22 | addressed | A1, A2, A3, A4, A5 | 7a1a29a | [report](phases/07-thumbnail-studio-ui-to-ts/plan.md) |
 | P8 | 2026-11-22 | addressed | A1, A2, A3, A4, A5, A6 | a604555 | [report](phases/08-engine-hooks-to-ts/plan.md) |
 | P10 | 2026-11-22 | addressed | A1, A2, A3, A4, A5, A6 | 80d339f | [report](phases/10-film-starter-and-example-to-ts/plan.md) |
+| P9 | 2026-11-22 | addressed | A1, A2, A3, A4, A5, A6, A7, A8 | b12e78c | [report](phases/09-strict-repo-wide-no-js-left-docs/plan.md) |
 
 ## 12. Resume brief
 
-- Current phase: P9 (in progress)
-- Last verdict: P10 addressed (scratch render after user review: 10.0 s, h264 1920x1080 + aac)
-- Next action: review the P9 worker, close P9, then the end-of-plan gate (plan-file disposition, PR title and body)
+- Current phase: none (all phases done)
+- Last verdict: P9 addressed; master D1-D9 met
+- Next action: end-of-plan gate (plan-file disposition, PR title and body)
 - Open decisions: none
 - PR: https://github.com/jorgepvenegas/Videohub/pull/3
 - Last updated: 2026-11-22
