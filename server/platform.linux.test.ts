@@ -1,28 +1,40 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { createPlatform } from './platform.ts';
+import type { RunResult } from './types.ts';
 
+type Meta = { dir?: boolean; dev?: number; uid?: number; mode?: number; text?: string; link?: string };
+type Files = Map<string, string | Meta>;
+interface HarnessOptions {
+  tools?: string[];
+  files?: Record<string, string | Meta>;
+  proc?: string[] | null;
+  run?: (file: string, args: string[], opts?: unknown) => RunResult | Promise<RunResult>;
+  env?: Record<string, string>;
+  uid?: number | null;
+  sync?: (file: string, args: string[], opts?: unknown) => string;
+  onDelay?: (files: Files) => void;
+}
 // Every command and file is fake: these Linux contracts run on any host.
-function harness({ tools = [], files: initial = {}, proc = null, run: answer, env = {}, uid = 1000, sync = () => '', onDelay } = {}) {
-  const files = new Map(Object.entries(initial)),
-    calls = [],
-    spawned = [],
-    priorities = [],
-    signals = [],
-    delays = [],
-    renames = [];
-  const error = code => Object.assign(new Error(code), { code });
+function harness({ tools = [], files: initial = {}, proc = null, run: answer, env = {}, uid = 1000, sync = () => '', onDelay }: HarnessOptions = {}) {
+  const files: Files = new Map(Object.entries(initial)),
+    calls: { file: string; args: string[]; opts?: unknown }[] = [],
+    spawned: { file: string; args: string[]; opts?: unknown }[] = [],
+    priorities: unknown[][] = [],
+    signals: unknown[][] = [],
+    delays: number[] = [],
+    renames: string[][] = [];
+  const error = (code: string) => Object.assign(new Error(code), { code });
   for (const f of ['/home/me', '/home/me/films', '/tmp', '/opt/videohub']) if (!files.has(f)) files.set(f, { dir: true, dev: 1 });
   for (const tool of tools) if (!files.has('/usr/bin/' + tool)) files.set('/usr/bin/' + tool, { text: 'native tool', dev: 1 });
-  const meta = f => {
+  const meta = (f: string): Meta => {
     if (!files.has(f)) throw error('ENOENT');
-    const m = files.get(f);
+    const m = files.get(f)!;
     return typeof m === 'string' ? { text: m } : m;
   };
-  const stat = f => {
+  const stat = (f: string) => {
     const m = meta(f);
     return {
       dev: m.dev ?? 1,
@@ -36,29 +48,29 @@ function harness({ tools = [], files: initial = {}, proc = null, run: answer, en
   };
   const fs = {
     constants: { X_OK: 1 },
-    existsSync: f => files.has(f),
+    existsSync: (f: string) => files.has(f),
     statSync: stat,
     lstatSync: stat,
-    accessSync: f => {
+    accessSync: (f: string) => {
       meta(f);
     },
-    realpathSync: f => meta(f).link || f,
-    readdirSync: f => {
+    realpathSync: (f: string) => meta(f).link || f,
+    readdirSync: (f: string) => {
       if (f === '/proc' && proc != null) return proc;
       throw error('ENOENT');
     },
-    readFileSync: f => meta(f).text || '',
-    mkdirSync: f => {
+    readFileSync: (f: string) => meta(f).text || '',
+    mkdirSync: (f: string) => {
       if (!files.has(f)) files.set(f, { dir: true, dev: f.startsWith('/media/') ? 2 : 1 });
     },
-    writeFileSync: (f, text, opts) => {
+    writeFileSync: (f: string, text: string, opts?: { flag?: string }) => {
       if (opts?.flag === 'wx' && files.has(f)) throw error('EEXIST');
       files.set(f, { text, dev: f.startsWith('/media/') ? 2 : 1 });
     },
-    unlinkSync: f => {
+    unlinkSync: (f: string) => {
       if (!files.delete(f)) throw error('ENOENT');
     },
-    renameSync: (source, dest) => {
+    renameSync: (source: string, dest: string) => {
       const m = meta(source);
       files.delete(source);
       files.set(dest, m);
@@ -72,8 +84,8 @@ function harness({ tools = [], files: initial = {}, proc = null, run: answer, en
     hubDir: '/opt/videohub',
     path: path.posix,
     env: { PATH: '/usr/bin', ...env },
-    fs,
-    os: { cpus: () => Array(8), freemem: () => 4096, setPriority: (...args) => priorities.push(args) },
+    fs: fs as never, // the fakes implement only the calls the module makes
+    os: { cpus: () => Array(8), freemem: () => 4096, setPriority: (...args: unknown[]) => priorities.push(args) } as never,
     run: async (file, args, opts) => {
       calls.push({ file, args, opts });
       return answer ? answer(file, args, opts) : { code: 0, stdout: '', stderr: '' };
@@ -85,17 +97,17 @@ function harness({ tools = [], files: initial = {}, proc = null, run: answer, en
       delays.push(ms);
       if (onDelay) onDelay(files);
     },
-    spawn: (file, args, opts) => {
-      const child = new EventEmitter();
+    spawn: ((file: string, args: string[], opts: unknown) => {
+      const child = new EventEmitter() as EventEmitter & { unref?: () => void };
       child.unref = () => {};
       spawned.push({ file, args, opts });
       queueMicrotask(() => child.emit('spawn'));
       return child;
-    }
+    }) as never
   });
   return { ...platform, files, calls, spawned, priorities, signals, delays, renames };
 }
-function procFiles(pid, ppid, name = 'node', cmd = 'node\0render.js\0', start = '12345') {
+function procFiles(pid: number, ppid: number, name = 'node', cmd = 'node\0render.js\0', start = '12345') {
   const fields = ['S', String(ppid), ...Array(17).fill('0'), start, '0', '1'];
   return {
     [`/proc/${pid}/stat`]: `${pid} (${name}) ${fields.join(' ')}`,
@@ -142,13 +154,13 @@ test('Linux falls back to aggregate ps tables with process identity when proc is
   const h = harness({
     run: (_file, args) => ({
       code: 0,
-      stdout: args.at(-1).includes('lstart')
+      stdout: args.at(-1)!.includes('lstart')
         ? ' 100 7 2048 Fri Nov 13 10:20:30 2026 /usr/bin/node\n 101 100 100 Fri Nov 13 10:20:31 2026 chromium\n'
         : ' 100 node render.js "a b"\n 101 chromium --headless\n',
       stderr: ''
     })
   });
-  const rows = await h.processList();
+  const rows = (await h.processList())!;
   assert.equal(rows.length, 2);
   assert.equal(rows[0].name, 'node');
   assert.equal(rows[0].cmd, 'node render.js "a b"');
@@ -169,7 +181,7 @@ test('Linux explicit browser override validates native executables and rejects S
     ['/custom/flatpak-browser', 'exec flatpak run org.chromium.Chromium'],
     ['/custom/snap-browser', 'exec snap run chromium'],
     ['/custom/directory', { dir: true }]
-  ]) {
+  ] as [string, string | Meta][]) {
     const h = harness({ tools: ['chromium'], files: { [file]: meta }, env: { VIDEOHUB_BROWSER: file } });
     assert.equal(h.findBrowser().path, '/usr/bin/chromium', file);
   }
@@ -200,12 +212,12 @@ test('Linux tree protection respects a sparse allowed CPU mask and restores its 
     ]
   );
   await h.setTreePriority(100, 'normal', null);
-  assert.deepEqual(h.calls.at(-1).args, ['-a', '-p', 'f0f', '102']);
+  assert.deepEqual(h.calls.at(-1)!.args, ['-a', '-p', 'f0f', '102']);
   assert.equal(h.capabilities().cpuAffinity, true);
   const noTool = harness({ proc: [] });
   await noTool.setTreePriority(100, 'low', 1);
   assert.deepEqual(noTool.priorities, [[100, 10]]);
-  assert.match(noTool.capabilities().cpuLimitReason, /taskset is missing/);
+  assert.match(noTool.capabilities().cpuLimitReason as string, /taskset is missing/);
 });
 
 test('Linux affinity cache is discarded when the operating system reuses a render PID', async () => {
@@ -217,12 +229,12 @@ test('Linux affinity cache is discarded when the operating system reuses a rende
     run: (_file, args) => ({ code: 0, stdout: args[0] === '-p' ? `pid 100's current affinity mask: ${original}\n` : '', stderr: '' })
   });
   await h.setTreePriority(100, 'idle', 1);
-  assert.deepEqual(h.calls.at(-1).args, ['-a', '-p', '800', '100']);
+  assert.deepEqual(h.calls.at(-1)!.args, ['-a', '-p', '800', '100']);
   for (const [file, text] of Object.entries(procFiles(100, 7, 'node', 'node\0other.js\0', '99999'))) h.files.set(file, text);
   original = '3';
   await h.setTreePriority(100, 'low', 1);
   assert.equal(h.calls.filter(c => c.args[0] === '-p').length, 2);
-  assert.deepEqual(h.calls.at(-1).args, ['-a', '-p', '2', '100']);
+  assert.deepEqual(h.calls.at(-1)!.args, ['-a', '-p', '2', '100']);
 });
 
 test('Linux protection reports failed native affinity commands for retry while keeping niceness best effort', async () => {
@@ -308,7 +320,7 @@ test('Linux ps fallback also rejects a PID reused during the Stop grace period',
     },
     run: (_file, args) => ({
       code: 0,
-      stdout: args.at(-1).includes('lstart') ? `100 7 2048 Fri Nov 13 10:20:${replaced ? '59' : '30'} 2026 node\n` : '100 node render.js\n',
+      stdout: args.at(-1)!.includes('lstart') ? `100 7 2048 Fri Nov 13 10:20:${replaced ? '59' : '30'} 2026 node\n` : '100 node render.js\n',
       stderr: ''
     })
   });
@@ -337,7 +349,7 @@ test('Linux file selection degrades to the parent folder and folder picker cance
   assert.deepEqual(h.spawned[0].args, ['/home/me/films']);
   assert.equal(h.spawned[0].file, 'xdg-open');
   assert.equal(await h.pickFolder({ start: '/home/me/films', title: 'Pick a film' }), null);
-  assert.deepEqual(h.calls.at(-1).args, ['--file-selection', '--directory', '--title=Pick a film', '--filename=/home/me/films/']);
+  assert.deepEqual(h.calls.at(-1)!.args, ['--file-selection', '--directory', '--title=Pick a film', '--filename=/home/me/films/']);
   assert.deepEqual(await harness().pickFolder(), { unsupported: true });
   const kde = harness({ tools: ['kdialog'], run: () => ({ code: 0, stdout: '/home/me/films\n', stderr: '' }) });
   assert.equal(await kde.pickFolder({ title: 'Pick' }), '/home/me/films');
@@ -368,9 +380,9 @@ test('Linux Trash fallback writes encoded restorable metadata and never overwrit
   const h = harness({ files: { [source]: { text: 'film' }, [root + '/files/a #é.mp4']: { text: 'older film' } } });
   assert.equal((await h.trash([source]))[0].ok, true);
   assert.deepEqual(h.renames, [[source, root + '/files/a #é.mp4.1']]);
-  const info = h.files.get(root + '/info/a #é.mp4.1.trashinfo').text;
+  const info = (h.files.get(root + '/info/a #é.mp4.1.trashinfo') as Meta).text!;
   assert.match(info, /^\[Trash Info\]\nPath=\/home\/me\/films\/a%20%23%C3%A9\.mp4\nDeletionDate=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\n$/);
-  assert.equal(h.files.get(root + '/files/a #é.mp4').text, 'older film');
+  assert.equal((h.files.get(root + '/files/a #é.mp4') as Meta).text!, 'older film');
 });
 
 test('Linux Trash prefers desktop tools and safely refuses an unsafe fallback directory', async () => {
@@ -382,13 +394,13 @@ test('Linux Trash prefers desktop tools and safely refuses an unsafe fallback di
   const unsafe = harness({ files: { [source]: 'film', '/home/me/.local/share/Trash': { dir: true, link: '/other' } } });
   const [r] = await unsafe.trash([source]);
   assert.equal(r.ok, false);
-  assert.match(r.error, /unsafe/);
+  assert.match(r.error as string, /unsafe/);
   assert.equal(unsafe.files.has(source), true);
   assert.equal(unsafe.renames.length, 0);
   const writable = harness({ files: { [source]: 'film', '/home/me/.local/share/Trash': { dir: true, mode: 0o40777 } } });
   const [denied] = await writable.trash([source]);
   assert.equal(denied.ok, false);
-  assert.match(denied.error, /unsafe/);
+  assert.match(denied.error as string, /unsafe/);
   assert.equal(writable.files.has(source), true);
   assert.equal(writable.renames.length, 0);
 });
@@ -404,7 +416,7 @@ test('Linux external Trash uses its mount and refuses unknown ownership instead 
   const h = harness({ files: fixture, run });
   assert.equal((await h.trash([source]))[0].ok, true);
   assert.deepEqual(h.renames, [[source, '/media/Film disk/.Trash-1000/files/film.mp4']]);
-  assert.match(h.files.get('/media/Film disk/.Trash-1000/info/film.mp4.trashinfo').text, /\nPath=film\.mp4\n/);
+  assert.match((h.files.get('/media/Film disk/.Trash-1000/info/film.mp4.trashinfo') as Meta).text!, /\nPath=film\.mp4\n/);
   const refused = harness({ files: fixture, run, uid: null });
   assert.equal((await refused.trash([source]))[0].ok, false);
   assert.equal(refused.files.has(source), true);
@@ -419,7 +431,7 @@ test('Linux launcher, shell and autostart entries keep arguments separate and id
   assert.deepEqual(h.spawned[0].args, ['--app=http://127.0.0.1:7799']);
   await h.setAutostart(true);
   assert.equal(await h.getAutostart(), true);
-  const entry = h.files.get('/home/me/.config/autostart/videohub.desktop').text;
+  const entry = (h.files.get('/home/me/.config/autostart/videohub.desktop') as Meta).text!;
   const node = '"' + process.execPath.replace(/[%]/g, '%%').replace(/[\\"$`]/g, '\\$&') + '"';
   assert.ok(entry.includes('Exec=' + node + ' "/opt/videohub/scripts/install.mjs" open --server\n'));
   assert.match(entry, /X-VideoHub-Install=\/opt\/videohub\n/);

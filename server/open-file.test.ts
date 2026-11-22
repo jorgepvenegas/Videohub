@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -32,15 +31,15 @@ test('folder action preserves the exact file selection intent for the native fil
 test('missing files and invalid actions return useful errors', () => {
   assert.throws(
     () => openPlan(path.join(dir, 'missing.mp4')),
-    e => e.code === 404
+    e => (e as { code?: number }).code === 404
   );
   assert.throws(
     () => openPlan(file, 'execute'),
-    e => e.code === 400
+    e => (e as { code?: number }).code === 400
   );
   assert.throws(
     () => openPlan('bad"path.mp4'),
-    e => e.code === 400
+    e => (e as { code?: number }).code === 400
   );
 });
 test('"file" opens only media; programs and shortcuts can only be shown in their folder', () => {
@@ -50,11 +49,11 @@ test('"file" opens only media; programs and shortcuts can only be shown in their
     try {
       assert.throws(
         () => openPlan(f),
-        e => e.code === 400
+        e => (e as { code?: number }).code === 400
       );
       assert.throws(
         () => openPlan(f, 'file'),
-        e => e.code === 400
+        e => (e as { code?: number }).code === 400
       );
       assert.equal(openPlan(f, 'folder').select, true);
     } finally {

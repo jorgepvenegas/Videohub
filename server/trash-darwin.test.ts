@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -22,6 +21,6 @@ test('real Finder moves a throwaway folder to the Trash', { skip }, async () => 
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'x.txt'), 'x');
   const [r] = await createPlatform().trash([dir]);
-  assert.equal(r.ok, true, r.error);
+  assert.equal(r.ok, true, r.error as string);
   assert.equal(fs.existsSync(dir), false);
 });

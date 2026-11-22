@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Where the global outputs folder is (config.outputsDir; the default is Documents\VideoHub\outputs, see config.js).
 // Its own tiny module so the scan can skip it without importing the linker.
 import path from 'node:path';

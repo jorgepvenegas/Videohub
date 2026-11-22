@@ -1,12 +1,13 @@
-// @ts-nocheck
 // Machine-local settings in data/config.json. Created on first run (or by setup: scripts/init-config.mjs), so the same
 // code works on any PC. Every folder VideoHub writes to has a default inside one workspace folder (baseDir: films,
 // outputs, sounds, thumbnails, archive; Documents\VideoHub unless setup chose another) and can be changed in Settings
 // or in data/config.json. See docs/MIGRATING.md for older installs.
 import fs from 'node:fs';
+import type { Dirent } from 'node:fs';
 import path from 'node:path';
 import { DATA_DIR, DESKTOP, DOCUMENTS, norm, readJson, writeJson } from './util.ts';
 import { ENCODERS } from './encoders.ts';
+import type { Config, Json, Root } from './types.ts';
 
 const FILE = path.join(DATA_DIR, 'config.json');
 
@@ -19,7 +20,7 @@ const SKIP = new Set(['node_modules', '.git', '.claude', 'VideoHub', '$RECYCLE.B
 // the workspace: the base folder for everything VideoHub creates by default. VIDEOHUB_BASE_DIR (tests and test hubs
 // point it at a scratch folder) → config.baseDir (chosen in setup) → Documents\VideoHub. Installs from before baseDir
 // existed have no key and keep Documents\VideoHub; their explicit folders are kept anyway (see config()).
-const okBase = b => (typeof b === 'string' && path.isAbsolute(b) ? b : null);
+const okBase = (b: unknown) => (typeof b === 'string' && path.isAbsolute(b) ? b : null);
 export const DEFAULT_BASE = () => path.join(DOCUMENTS, 'VideoHub');
 export const baseDir = () => process.env.VIDEOHUB_BASE_DIR || okBase(cfg ? cfg.baseDir : savedBase) || DEFAULT_BASE();
 export const defaultFilmsDir = () => path.join(baseDir(), 'films');
@@ -27,14 +28,14 @@ export const defaultFilmsDir = () => path.join(baseDir(), 'films');
 // Overridable with config.skipFolders.
 export const DEFAULT_SKIP_FOLDERS = ['tools', 'fonts', 'test', 'render', 'videos', 'thumbnails', 'assets'];
 
-function hasRenderCode(dir) {
+function hasRenderCode(dir: string) {
   try {
     return fs.readdirSync(dir).some(f => /^(render\.(m?js|py)|anim_render\.\w+|manifest\.json|index\.html|.*\.snipp)$/i.test(f));
   } catch {
     return false;
   }
 }
-function countMp4(dir) {
+function countMp4(dir: string) {
   try {
     return fs.readdirSync(dir).filter(f => /\.mp4$/i.test(f)).length;
   } catch {
@@ -45,13 +46,13 @@ function countMp4(dir) {
 // Desktop / Documents folders that look like video work: suggested in Settings, switched off until the user turns
 // them on. The default films folder (Documents\VideoHub\films) is a root from the start and is on.
 export function discoverRoots() {
-  const roots = [];
-  const add = (p, type, enabled) => {
+  const roots: Root[] = [];
+  const add = (p: string, type: Root['type'], enabled: boolean) => {
     if (fs.existsSync(p) && !roots.some(r => norm(r.path) === norm(p))) roots.push({ path: p, type, enabled });
   };
   const lower = norm;
   for (const top of [DESKTOP, DOCUMENTS]) {
-    let entries = [];
+    let entries: Dirent[] = [];
     try {
       entries = fs.readdirSync(top, { withFileTypes: true });
     } catch {}
@@ -67,7 +68,7 @@ export function discoverRoots() {
         add(p, 'project', false);
         continue;
       }
-      let subs = [];
+      let subs: Dirent[] = [];
       try {
         subs = fs.readdirSync(p, { withFileTypes: true }).filter(s => s.isDirectory() && !SKIP.has(s.name));
       } catch {}
@@ -106,7 +107,7 @@ export const DEFAULTS = (base = baseDir()) => ({
   // render.encoder: auto | nvenc | amf | qsv | x264, passed to render scripts as VIDEOHUB_ENCODER (server/encoders.js)
   render: { encoder: 'auto' }
 });
-function firstRoots() {
+function firstRoots(): Root[] {
   const films = defaultFilmsDir();
   try {
     fs.mkdirSync(films, { recursive: true });
@@ -114,15 +115,15 @@ function firstRoots() {
   return [{ path: films, type: 'container', enabled: true }, ...discoverRoots()];
 }
 
-let cfg = null,
-  savedBase = null;
-export function config() {
+let cfg: Config | null = null,
+  savedBase: string | null | undefined = null;
+export function config(): Config {
   if (cfg) return cfg;
   const saved = readJson(FILE, null);
   savedBase = saved && typeof saved === 'object' ? saved.baseDir : null;
   // an existing config keeps every value it has; keys it lacks get the defaults. Roots are never discovered again
   // for an existing config, so an older install keeps exactly its folders.
-  cfg = { ...DEFAULTS(), roots: [], ...(saved || {}) };
+  cfg = { ...DEFAULTS(), roots: [], ...(saved || {}) } as Config;
   if (!saved) {
     cfg.roots = firstRoots();
     if (!process.env.VIDEOHUB_BASE_DIR) cfg.baseDir = baseDir();
@@ -137,21 +138,21 @@ export function config() {
   return cfg;
 }
 // the shapes every route relies on (a "roots" that is not a list used to break every request until config.json was fixed by hand)
-function normalise(c, port) {
+function normalise(c: Config, port: number) {
   c.agentName = typeof c.agentName === 'string' && c.agentName.trim() ? c.agentName.trim().slice(0, 40) : 'Claude';
   c.roots = (Array.isArray(c.roots) ? c.roots : [])
     .filter(r => r && typeof r.path === 'string' && r.path)
-    .map(r => ({ ...r, type: ['container', 'project', 'media'].includes(r.type) ? r.type : 'container', enabled: r.enabled !== false }));
+    .map(r => ({ ...r, type: (['container', 'project', 'media'].includes(r.type) ? r.type : 'container') as Root['type'], enabled: r.enabled !== false }));
   c.thumbstudio = {
     ...defaultThumbstudioDirs(),
     ...(c.thumbstudio && typeof c.thumbstudio === 'object' && !Array.isArray(c.thumbstudio) ? c.thumbstudio : {})
   };
   c.port = /^\d{1,5}$/.test(String(c.port)) && +c.port > 0 && +c.port < 65536 ? +c.port : port;
-  const r = c.render && typeof c.render === 'object' && !Array.isArray(c.render) ? c.render : {};
-  c.render = { ...r, encoder: ENCODERS.includes(r.encoder) ? r.encoder : 'auto' };
+  const r: Record<string, unknown> = c.render && typeof c.render === 'object' && !Array.isArray(c.render) ? c.render : {};
+  c.render = { ...r, encoder: ENCODERS.includes(r.encoder as string) ? (r.encoder as string) : 'auto' };
   return c;
 }
-export function saveConfig(patch) {
+export function saveConfig(patch: Json): Config {
   const prev = config();
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) patch = {};
   if ('roots' in patch && !Array.isArray(patch.roots)) {

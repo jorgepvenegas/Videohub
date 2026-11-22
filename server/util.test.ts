@@ -1,25 +1,25 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import { readSource } from '../scripts/test-source.ts';
+import type { isInside } from './util.ts';
 
-const source = fs.readFileSync(new URL('./util.ts', import.meta.url), 'utf8');
+const source = readSource(new URL('./util.ts', import.meta.url));
 const code =
   source.slice(source.indexOf('function realNorm'), source.indexOf('// does a command line')).replace(/\bexport /g, '') + '\nglobalThis.check = isInside;';
-function harness(flavor, lookup, lstat = () => missing()) {
+function harness(flavor: 'posix' | 'win32', lookup: (file: string) => string, lstat: (file: string) => unknown = () => missing()) {
   const p = path[flavor],
-    calls = [];
-  const key = value => p.resolve(value);
-  const ctx = {
+    calls: string[] = [];
+  const key = (value: string) => p.resolve(value);
+  const ctx: Record<string, unknown> & { check?: typeof isInside } = {
     path: p,
     norm: key,
     pathKey: key,
     fs: {
       lstatSync: lstat,
       realpathSync: {
-        native: file => {
+        native: (file: string) => {
           calls.push(file);
           return lookup(file);
         }
@@ -28,13 +28,13 @@ function harness(flavor, lookup, lstat = () => missing()) {
   };
   vm.createContext(ctx);
   vm.runInContext(code, ctx);
-  return { check: ctx.check, calls };
+  return { check: ctx.check!, calls };
 }
 const missing = () => {
   throw Object.assign(new Error('missing fixture path'), { code: 'ENOENT' });
 };
 
-for (const flavor of ['posix']) {
+for (const flavor of ['posix'] as const) {
   const p = path[flavor],
     base = '/';
   const root = p.join(base, 'allowed'),
@@ -90,7 +90,7 @@ for (const flavor of ['posix']) {
   test(`${flavor}: inaccessible or otherwise unreadable paths fail closed`, () => {
     const child = p.join(root, 'film.mp4');
     for (const code of ['EACCES', 'EPERM', 'EIO']) {
-      const denied = file => {
+      const denied = (file: string) => {
         throw Object.assign(new Error('denied fixture path: ' + file), { code });
       };
       assert.equal(harness(flavor, file => (file === root ? root : denied(file))).check(child, root), false);

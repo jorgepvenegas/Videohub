@@ -1,23 +1,34 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import { readSource } from '../scripts/test-source.ts';
+import type { guardSettings, saveGuardSettings, guardTrack, guardUntrack, ensureGuard, quitGuard, guardState, guardCommand } from './guard.ts';
 
-const source = fs
-  .readFileSync(new URL('./guard.ts', import.meta.url), 'utf8')
+const source = readSource(new URL('./guard.ts', import.meta.url))
   .replace(/^import .+;\r?$/gm, '')
   .replace(/\bexport /g, '');
 const flush = async () => {
   for (let i = 0; i < 20; i++) await Promise.resolve();
 };
-function harness({ priority } = {}) {
-  const calls = [],
-    files = new Map(),
-    timers = [];
-  const ctx = {
-    fs: { readFileSync: file => files.get(file) || '', mkdirSync() {}, writeFileSync: (file, text) => files.set(file, text) },
+type Priority = (...args: unknown[]) => unknown;
+function harness({ priority }: { priority?: Priority } = {}) {
+  const calls: unknown[][] = [],
+    files = new Map<string, string>(),
+    timers: (() => void)[] = [];
+  const ctx: Record<string, unknown> & {
+    guard?: {
+      guardSettings: typeof guardSettings;
+      saveGuardSettings: typeof saveGuardSettings;
+      guardTrack: typeof guardTrack;
+      guardUntrack: typeof guardUntrack;
+      ensureGuard: typeof ensureGuard;
+      quitGuard: typeof quitGuard;
+      guardState: typeof guardState;
+      guardCommand: typeof guardCommand;
+    };
+  } = {
+    fs: { readFileSync: (file: string) => files.get(file) || '', mkdirSync() {}, writeFileSync: (file: string, text: string) => files.set(file, text) },
     os: { cpus: () => Array(8), freemem: () => 8 * 2 ** 30, totalmem: () => 16 * 2 ** 30 },
     path,
     dirs: { guard: path.resolve('.test-tmp', 'guard-fixture') },
@@ -27,13 +38,13 @@ function harness({ priority } = {}) {
     readJson: () => null,
     processAlive: () => true,
     getAutostart: async () => true,
-    setAutostart: async on => calls.push(['startup', on]),
-    setTreePriority: async (...args) => {
+    setAutostart: async (on: boolean) => calls.push(['startup', on]),
+    setTreePriority: async (...args: unknown[]) => {
       calls.push(['priority', ...args]);
       return priority?.(...args);
     },
-    killTree: async pid => calls.push(['kill', pid]),
-    setInterval: fn => {
+    killTree: async (pid: number) => calls.push(['kill', pid]),
+    setInterval: (fn: () => void) => {
       timers.push(fn);
       return { unref() {} };
     },
@@ -44,13 +55,13 @@ function harness({ priority } = {}) {
     source + '\nglobalThis.guard = {guardSettings,saveGuardSettings,guardTrack,guardUntrack,ensureGuard,quitGuard,guardState,guardCommand};',
     ctx
   );
-  return { ...ctx.guard, calls, timers, files };
+  return { ...ctx.guard!, calls, timers, files };
 }
 
 test('guard delegates autostart when settings are saved', async () => {
   const h = harness();
   assert.equal((await h.guardSettings()).Startup, true);
-  assert.equal((await h.guardSettings()).capabilities.cpuAffinity, true);
+  assert.equal((await h.guardSettings()).capabilities!.cpuAffinity, true);
   await h.saveGuardSettings({ CapActive: 50 });
   assert.deepEqual(h.calls, []);
   await h.saveGuardSettings({ Startup: false });
@@ -72,11 +83,11 @@ test('guard applies render priority and restores every core when protection ends
   await h.quitGuard();
   assert.deepEqual(h.calls.at(-1), ['priority', 42, 'normal', 8]);
   assert.equal(h.guardState().running, false);
-  assert.equal(h.guardState().capabilities.cpuAffinity, true);
+  assert.equal(h.guardState().capabilities!.cpuAffinity, true);
 });
 
 test('guard serializes native changes so a late slowdown cannot undo a requested return to normal', async () => {
-  const work = [],
+  const work: { args: unknown[]; resolve: (value?: unknown) => void }[] = [],
     h = harness({ priority: (...args) => new Promise(resolve => work.push({ args, resolve })) });
   h.guardTrack(42);
   await h.ensureGuard();
@@ -122,10 +133,10 @@ test('a closed child retires its guard record and a stale close cannot remove a 
   await flush();
   const second = h.guardTrack(42, { project: 'second' });
   await flush();
-  h.guardUntrack(42, first);
-  assert.equal(h.guardState().renders[0].project, 'second');
-  h.guardUntrack(42, second);
-  assert.equal(h.guardState().renders.length, 0);
+  h.guardUntrack(42, first!);
+  assert.equal(h.guardState().renders![0].project, 'second');
+  h.guardUntrack(42, second!);
+  assert.equal(h.guardState().renders!.length, 0);
   const calls = h.calls.length;
   h.guardCommand('kill', 42);
   h.timers[0]();

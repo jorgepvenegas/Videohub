@@ -1,38 +1,50 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { createPlatform } from './platform.ts';
+import type { RunResult } from './types.ts';
 
-function harness({ files: initial = {}, env = {}, answer, sync, uid = 501, hubDir = '/opt/VideoHub', priorityError = false, nodePath } = {}) {
-  const files = new Map(Object.entries(initial)),
-    calls = [],
-    syncCalls = [],
-    spawned = [],
-    priorities = [],
-    signals = [],
-    delays = [];
+type Meta = { text?: string; dir?: boolean; link?: string };
+type Answer = (file: string, args: string[], opts?: unknown) => RunResult | Promise<RunResult>;
+interface HarnessOptions {
+  files?: Record<string, string | Meta>;
+  env?: Record<string, string>;
+  answer?: Answer;
+  sync?: (file: string, args: string[], opts?: unknown) => string;
+  uid?: number | null;
+  hubDir?: string;
+  priorityError?: boolean;
+  nodePath?: string;
+}
+function harness({ files: initial = {}, env = {}, answer, sync, uid = 501, hubDir = '/opt/VideoHub', priorityError = false, nodePath }: HarnessOptions = {}) {
+  const files = new Map<string, string | Meta>(Object.entries(initial)),
+    calls: { file: string; args: string[]; opts?: unknown }[] = [],
+    syncCalls: { file: string; args: string[]; opts?: unknown }[] = [],
+    spawned: { file: string; args: string[]; opts?: unknown }[] = [],
+    priorities: unknown[][] = [],
+    signals: unknown[][] = [],
+    delays: number[] = [];
   let time = 1000,
     loaded = false;
   for (const name of ['/Users/me', '/Users/me/Films']) files.set(name, { dir: true });
   const missing = () => Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
-  const meta = f => {
+  const meta = (f: string): Meta => {
     if (!files.has(f)) throw missing();
-    const m = files.get(f);
+    const m = files.get(f)!;
     return typeof m === 'string' ? { text: m } : m;
   };
   const fs = {
     constants: { X_OK: 1 },
-    existsSync: f => files.has(f),
-    statSync: f => ({ size: meta(f).text?.length || 0, isDirectory: () => !!meta(f).dir, isFile: () => !meta(f).dir }),
-    accessSync: f => {
+    existsSync: (f: string) => files.has(f),
+    statSync: (f: string) => ({ size: meta(f).text?.length || 0, isDirectory: () => !!meta(f).dir, isFile: () => !meta(f).dir }),
+    accessSync: (f: string) => {
       meta(f);
     },
-    realpathSync: f => meta(f).link || f,
-    readFileSync: f => meta(f).text || '',
-    mkdirSync: f => files.set(f, { dir: true }),
-    writeFileSync: (f, text) => files.set(f, { text }),
+    realpathSync: (f: string) => meta(f).link || f,
+    readFileSync: (f: string) => meta(f).text || '',
+    mkdirSync: (f: string) => files.set(f, { dir: true }),
+    writeFileSync: (f: string, text: string) => files.set(f, { text }),
     readdirSync: () => {
       throw new Error('macOS must not scan /proc');
     }
@@ -45,18 +57,18 @@ function harness({ files: initial = {}, env = {}, answer, sync, uid = 501, hubDi
     hubDir,
     nodePath,
     path: path.posix,
-    fs,
+    fs: fs as never, // the fakes implement only the calls the module makes
     uid: () => uid,
     now: () => time,
     os: {
       cpus: () => Array(8),
       freemem: () => 1024,
       totalmem: () => 16 * 2 ** 30,
-      setPriority: (...args) => {
+      setPriority: (...args: unknown[]) => {
         priorities.push(args);
         if (priorityError) throw new Error('EPERM');
       }
-    },
+    } as never,
     run: async (file, args, opts) => {
       calls.push({ file, args, opts });
       if (answer) return answer(file, args, opts);
@@ -65,7 +77,7 @@ function harness({ files: initial = {}, env = {}, answer, sync, uid = 501, hubDi
         if (args[0] === 'bootstrap') loaded = true;
         if (args[0] === 'bootout') loaded = false;
       }
-      if (file === 'osascript' && args[1].includes('tell application "Finder"')) files.delete(args.at(-1));
+      if (file === 'osascript' && args[1].includes('tell application "Finder"')) files.delete(args.at(-1)!);
       return { code: 0, stdout: '', stderr: '' };
     },
     runSync: (file, args, opts) => {
@@ -74,13 +86,13 @@ function harness({ files: initial = {}, env = {}, answer, sync, uid = 501, hubDi
     },
     kill: (pid, signal) => signals.push([pid, signal]),
     delay: async ms => delays.push(ms),
-    spawn: (file, args, opts) => {
-      const child = new EventEmitter();
+    spawn: ((file: string, args: string[], opts: unknown) => {
+      const child = new EventEmitter() as EventEmitter & { unref?: () => void };
       child.unref = () => {};
       spawned.push({ file, args, opts });
       queueMicrotask(() => child.emit('spawn'));
       return child;
-    }
+    }) as never
   });
   return {
     ...platform,
@@ -91,10 +103,10 @@ function harness({ files: initial = {}, env = {}, answer, sync, uid = 501, hubDi
     priorities,
     signals,
     delays,
-    setTime: value => {
+    setTime: (value: number) => {
       time = value;
     },
-    setLoaded: value => {
+    setLoaded: (value: boolean) => {
       loaded = value;
     }
   };
@@ -112,7 +124,7 @@ test('macOS folders and browser discovery use system and user Applications indep
   assert.equal(h.findBrowser().path, edge);
   assert.equal(h.capabilities().cpuAffinity, false);
   assert.equal(h.capabilities().fileManager, 'Finder');
-  assert.match(h.capabilities().cpuLimitReason, /macOS.*CPU-core/);
+  assert.match(h.capabilities().cpuLimitReason as string, /macOS.*CPU-core/);
   assert.deepEqual(await h.gpuNames(), []);
 });
 
@@ -134,7 +146,7 @@ test('macOS launchers use a PATH node only when it is the running binary, never 
   });
   assert.equal(same.TOOLS.node, '/opt/homebrew/bin/node');
   await same.setAutostart(true);
-  assert.match(same.files.get('/Users/me/Library/LaunchAgents/com.videohub.hub.plist').text, /<array><string>\/opt\/homebrew\/bin\/node<\/string>/);
+  assert.match((same.files.get('/Users/me/Library/LaunchAgents/com.videohub.hub.plist') as Meta).text!, /<array><string>\/opt\/homebrew\/bin\/node<\/string>/);
   const shim = harness({
     nodePath: real,
     env: { PATH: '/Users/me/.asdf/shims' },
@@ -150,7 +162,7 @@ test('macOS login services find Homebrew media tools with a minimal PATH', async
   assert.equal(h.TOOLS.ffmpeg, '/opt/homebrew/bin/ffmpeg');
   assert.equal(h.TOOLS.ffprobe, '/usr/local/bin/ffprobe');
   await h.setAutostart(true);
-  const plist = h.files.get('/Users/me/Library/LaunchAgents/com.videohub.hub.plist').text;
+  const plist = (h.files.get('/Users/me/Library/LaunchAgents/com.videohub.hub.plist') as Meta).text!;
   assert.match(plist, /<key>PATH<\/key><string>\/usr\/bin:\/bin:\/opt\/homebrew\/bin:\/usr\/local\/bin:/);
 });
 
@@ -194,13 +206,13 @@ test('macOS Finder Trash passes unusual filenames as data and refuses failures w
   const failed = harness({ files: { [target]: 'film' }, answer: () => ({ code: 1, stdout: '', stderr: 'Not authorized to send Apple events' }) });
   const [r] = await failed.trash([target]);
   assert.equal(r.ok, false);
-  assert.match(r.error, /Automation permission/);
+  assert.match(r.error as string, /Automation permission/);
   assert.equal(failed.files.has(target), true);
   const other = harness({ files: { [target]: 'film' }, answer: () => ({ code: 1, stdout: '', stderr: "Finder got an error: Can't get POSIX file. (-1728)" }) });
   const [o] = await other.trash([target]);
   assert.equal(o.ok, false);
-  assert.match(o.error, /^Could not move to Trash: Finder got an error/);
-  assert.doesNotMatch(o.error, /Automation/);
+  assert.match(o.error as string, /^Could not move to Trash: Finder got an error/);
+  assert.doesNotMatch(o.error as string, /Automation/);
   assert.equal(other.files.has(target), true);
   assert.equal((await h.trash(['/']))[0].ok, false);
   assert.equal((await h.trash(['/Users/me']))[0].ok, false);
@@ -237,13 +249,13 @@ test('macOS process scan keeps app names with spaces and full argument strings',
   const h = harness({
     answer: (_file, args) => ({
       code: 0,
-      stdout: args.at(-1).includes('lstart')
+      stdout: args.at(-1)!.includes('lstart')
         ? ' 100 7 2048 Fri Nov 13 10:20:30 2026 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n 101 100 300 Fri Nov 13 10:20:31 2026 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Helper (Renderer)\n'
         : ' 100 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --headless --name="a b"\n 101 Google Chrome Helper (Renderer) --type=renderer\n',
       stderr: ''
     })
   });
-  const rows = await h.processList();
+  const rows = (await h.processList())!;
   assert.equal(rows.length, 2);
   assert.equal(rows[0].name, 'Google Chrome');
   assert.equal(rows[1].name, 'Google Chrome Helper (Renderer)');
@@ -266,7 +278,7 @@ test('macOS tree protection uses taskpolicy QoS and niceness without any CPU aff
       code: 0,
       stdout:
         file === 'ps'
-          ? args.at(-1).includes('lstart')
+          ? args.at(-1)!.includes('lstart')
             ? '100 7 2048 Fri Nov 13 10:20:30 2026 node\n101 100 300 Fri Nov 13 10:20:31 2026 ffmpeg\n'
             : '100 node render.js\n101 ffmpeg -i x\n'
           : '',
@@ -329,7 +341,7 @@ test('macOS disk information shares df byte conversion and Stop handles the full
       stdout:
         file === 'df'
           ? 'Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/disk1s1 10000 1000 9000 10% /Volumes/Film disk\n'
-          : args.at(-1).includes('lstart')
+          : args.at(-1)!.includes('lstart')
             ? '100 7 2048 Fri Nov 13 10:20:30 2026 node\n101 100 300 Fri Nov 13 10:20:31 2026 ffmpeg\n'
             : '100 node render.js\n101 ffmpeg\n',
       stderr: ''
@@ -353,17 +365,17 @@ test('macOS LaunchAgent autostart requires an owned plist and loaded service and
     h = harness({ hubDir: '/opt/VideoHub & review' });
   assert.equal(await h.getAutostart(), false);
   await h.setAutostart(true);
-  const plist = h.files.get(file).text;
+  const plist = (h.files.get(file) as Meta).text!;
   assert.match(plist, /<key>RunAtLoad<\/key><true\/>/);
   assert.match(plist, /<key>ProgramArguments<\/key><array>/);
   assert.match(plist, /<key>EnvironmentVariables<\/key><dict><key>PATH<\/key><string>\/opt\/homebrew\/bin:\/usr\/local\/bin:\/usr\/bin:/);
   assert.match(plist, /\/opt\/VideoHub &amp; review\/server\/hub.js/);
   assert.equal(await h.getAutostart(), true);
-  assert.deepEqual(h.calls.find(c => c.args[0] === 'bootstrap').args, ['bootstrap', 'gui/501', file]);
+  assert.deepEqual(h.calls.find(c => c.args[0] === 'bootstrap')!.args, ['bootstrap', 'gui/501', file]);
   await h.setAutostart(true);
   assert.equal(h.calls.filter(c => c.args[0] === 'bootstrap').length, 1);
   await h.setAutostart(false);
-  assert.deepEqual(h.calls.find(c => c.args[0] === 'bootout').args, ['bootout', 'gui/501', file]);
+  assert.deepEqual(h.calls.find(c => c.args[0] === 'bootout')!.args, ['bootout', 'gui/501', file]);
   assert.equal(h.files.has(file), false);
   assert.equal(await h.getAutostart(), false);
   const foreign = harness({ files: { [file]: 'another install' } });

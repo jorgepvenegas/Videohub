@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Files written by older (Turkish) versions are read with English values (server/legacy.js, ui/values.js).
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -21,7 +20,7 @@ import { normalizeBrief } from './thumbstudio/schema.js';
 
 const dir = path.resolve('.test-tmp', 'legacy-' + process.pid);
 fs.mkdirSync(dir, { recursive: true });
-const tr = s => JSON.parse(`"${s}"`); // keeps this file free of Turkish letters: 'ç' etc.
+const tr = (s: string) => JSON.parse(`"${s}"`); // keeps this file free of Turkish letters: 'ç' etc.
 
 test('legacy note statuses, kinds and authors map to English', () => {
   assert.equal(noteStatus(tr('a\\u00e7\\u0131k')), 'open');
@@ -63,11 +62,11 @@ test('an old notes.json and project.json are read with English values', () => {
   fs.writeFileSync(mf, '﻿' + JSON.stringify({ title: 'Old film', status: tr('onayland\\u0131'), render: { env: { DUR: '12' } } }));
   const notes = readNotes(nf);
   assert.deepEqual(
-    notes.map(n => n.status),
+    notes.map((n: { status: string }) => n.status),
     ['open', 'reopened', 'open']
   );
   assert.deepEqual(
-    notes.map(n => n.kind),
+    notes.map((n: { kind: string }) => n.kind),
     ['visual', 'general', 'timing']
   );
   assert.deepEqual(notes[0].history[0], { status: 'open', by: 'user' });
@@ -97,10 +96,10 @@ test('an old thumbnail brief is read with English statuses and font ids', () => 
   });
   assert.equal(b.status, 'generating');
   assert.deepEqual(
-    b.variants[0].notes.map(n => n.status),
+    b.variants[0].notes.map((n: { status: string }) => n.status),
     ['open', 'fixed']
   );
-  assert.equal(b.layers.find(l => l.type === 'text').font, 'youtube-bold');
+  assert.equal(b.layers.find((l: { type: string }) => l.type === 'text').font, 'youtube-bold');
 });
 
 test.after(() => {

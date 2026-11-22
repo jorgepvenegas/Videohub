@@ -1,9 +1,9 @@
-// @ts-nocheck
 // Programs that hold a lot of RAM next to a render (an Android emulator once held 7.4 GB of a 16 GB PC during a render).
 // Renders, system services, agent apps and VideoHub are left out; the user decides what to close.
 import { OS, processList } from './platform.ts';
+import type { ProcessRow, RamHog } from './types.ts';
 
-const NAMES = {
+const NAMES: Record<string, string> = {
   mumunxdevice: 'MuMuPlayer (Android emulator)',
   mumunxmain: 'MuMuPlayer (Android emulator)',
   mumuplayer: 'MuMuPlayer (Android emulator)',
@@ -48,7 +48,7 @@ const NAMES = {
   virtualboxvm: 'VirtualBox'
 };
 // Hide infrastructure rather than suggesting the user close it to free RAM.
-const SKIP_BY_OS = {
+const SKIP_BY_OS: Record<string, string[]> = {
   linux: [
     'systemd',
     'systemd-journald',
@@ -115,8 +115,8 @@ const SKIP_BY_OS = {
   ]
 };
 const SKIP = new Set(SKIP_BY_OS[OS] || []);
-const processKey = name => String(name || '').toLowerCase();
-const browserFamily = key =>
+const processKey = (name: unknown) => String(name || '').toLowerCase();
+const browserFamily = (key: string) =>
   /^(?:google[ -])?chrome(?: helper.*)?$/.test(key)
     ? 'chrome'
     : /^chromium(?:-browser| helper.*)?$/.test(key)
@@ -125,16 +125,16 @@ const browserFamily = key =>
         ? 'msedge'
         : null;
 
-let cache = { at: 0, list: [] },
-  running = null;
+let cache: { at: number; list: RamHog[] } = { at: 0, list: [] },
+  running: Promise<void> | null = null;
 
 async function scan() {
   try {
     const rows = await processList();
     if (!rows) return null;
-    const byPid = new Map(rows.map(r => [r.pid, r]));
+    const byPid = new Map(rows.map((r): [number, ProcessRow] => [r.pid, r]));
     // a browser process belongs to a headless render (or the VideoHub window) when the top process of its tree says so
-    const top = r => {
+    const top = (r: ProcessRow) => {
       let x = r,
         k = 0;
       while (k++ < 20) {
@@ -145,7 +145,7 @@ async function scan() {
       }
       return x;
     };
-    const groups = new Map();
+    const groups = new Map<string, RamHog>();
     for (const r of rows) {
       const key = processKey(r.name),
         family = browserFamily(key);
@@ -164,7 +164,7 @@ async function scan() {
 }
 
 // cached list of programs over minBytes; refreshes in the background when older than maxAgeMs
-export function ramHogs({ minBytes = 600 * 2 ** 20, maxAgeMs = 30e3 } = {}) {
+export function ramHogs({ minBytes = 600 * 2 ** 20, maxAgeMs = 30e3 }: { minBytes?: number; maxAgeMs?: number } = {}) {
   if (Date.now() - cache.at > maxAgeMs && !running)
     running = scan().then(l => {
       if (l) cache = { at: Date.now(), list: l };
@@ -174,7 +174,7 @@ export function ramHogs({ minBytes = 600 * 2 ** 20, maxAgeMs = 30e3 } = {}) {
 }
 
 // the same, fresh (waits for a scan up to ~20 s)
-export async function ramHogsNow(opts = {}) {
+export async function ramHogsNow(opts: { minBytes?: number; maxAgeMs?: number } = {}) {
   if (Date.now() - cache.at > 10e3) {
     if (!running)
       running = scan().then(l => {
@@ -186,9 +186,9 @@ export async function ramHogsNow(opts = {}) {
   return ramHogs({ ...opts, maxAgeMs: 1e9 });
 }
 
-const gb = b => (b / 2 ** 30).toFixed(1) + ' GB';
+const gb = (b: number) => (b / 2 ** 30).toFixed(1) + ' GB';
 // one sentence for the job log / Claude: big programs only (≥ 1.5 GB), or null
-export function ramNote(list, availMB) {
+export function ramNote(list: RamHog[], availMB?: number) {
   const big = list.filter(g => g.bytes >= 1.5 * 2 ** 30);
   if (!big.length) return null;
   return (

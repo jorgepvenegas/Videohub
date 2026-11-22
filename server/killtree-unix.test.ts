@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,7 +6,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createPlatform } from './platform.ts';
 
-const alive = pid => {
+const alive = (pid: number) => {
   try {
     process.kill(pid, 0);
     return true;
@@ -15,7 +14,7 @@ const alive = pid => {
     return false;
   }
 };
-const wait = async (cond, ms = 5000) => {
+const wait = async (cond: () => unknown, ms = 5000) => {
   for (const end = Date.now() + ms; Date.now() < end; await new Promise(r => setTimeout(r, 25))) if (await cond()) return true;
   return false;
 };
@@ -34,12 +33,12 @@ test('Unix Stop leaves neither the root nor relaunched detached children', async
   try {
     assert.ok(await wait(() => pids().length >= 1), 'first child started');
     const { killTree } = createPlatform({ delay: () => new Promise(r => setTimeout(r, 300)) });
-    await killTree(root.pid);
+    await killTree(root.pid as number);
     await new Promise(r => setTimeout(r, 500));
-    const all = [root.pid, ...pids()];
+    const all = [root.pid as number, ...pids()];
     assert.ok(await wait(() => all.every(p => !alive(p)), 1500), 'alive after Stop: ' + all.filter(alive).join(','));
   } finally {
-    for (const p of [root.pid, ...pids()])
+    for (const p of [root.pid as number, ...pids()])
       try {
         process.kill(p, 'SIGKILL');
       } catch {}

@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Video encoders for renders: which ones this PC can use (one tiny test encode each, cached) and the ffmpeg arguments
 // for each. Shared by the hub (Settings, render options, the env of render jobs) and setup (scripts/init-config.mjs).
 // The film render script (templates/new-film/render.js) carries its own copy of ENCODER_ARGS because films copy it;
@@ -6,12 +5,13 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import { spawn } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 export { gpuNames } from './platform.ts';
 import { gpuNames, OS } from './platform.ts';
 
 export const ENCODERS = ['auto', 'nvenc', 'amf', 'vaapi', 'qsv', 'videotoolbox', 'x264'];
-export const PROBE_ORDER = { linux: ['nvenc', 'vaapi', 'qsv'], darwin: ['videotoolbox'] }[OS] || []; // auto: the first that works, else x264
-export const LABELS = {
+export const PROBE_ORDER: string[] = ({ linux: ['nvenc', 'vaapi', 'qsv'], darwin: ['videotoolbox'] } as Record<string, string[]>)[OS] || []; // auto: the first that works, else x264
+export const LABELS: Record<string, string> = {
   videotoolbox: 'Mac graphics (VideoToolbox)',
   vaapi: 'Linux graphics (VA-API)',
   auto: 'Automatic (graphics card if it can, else processor)',
@@ -22,7 +22,7 @@ export const LABELS = {
 };
 // Candidate argument sets per encoder, best first (the probe keeps the first one the card accepts). Same picture
 // quality as x264 or better, measured against a lossless reference: see docs/RENDER-SPEED.md.
-export const ENCODER_ARGS = {
+export const ENCODER_ARGS: Record<string, string[][]> = {
   // measured on another PC with an NVIDIA card (VMAF 94.48 vs x264 94.25), not on the PC this was tested on;
   // -level 5.2 + a high maxrate avoid a ~40 Mbit/s ceiling on grainy 1080p60
   nvenc: [
@@ -74,9 +74,10 @@ export const ENCODER_ARGS = {
 
 // what to use: a named encoder if its probe passes, auto → the first GPU encoder that passes, otherwise x264.
 // probe(name) → the working argument list or null. Never throws; `why` says when a wish could not be met.
-export async function pickEncoder(want, probe) {
+type Probe = (name: string) => Promise<string[] | null | undefined>;
+export async function pickEncoder(want: string, probe: Probe) {
   want = ENCODERS.includes(want) ? want : 'auto';
-  const tryOne = async n => {
+  const tryOne = async (n: string) => {
     try {
       return await probe(n);
     } catch {
@@ -95,18 +96,18 @@ export async function pickEncoder(want, probe) {
   return { name: 'x264', args: ENCODER_ARGS.x264[0], why: null };
 }
 
-export function encoderCandidates(name, arch = os.arch()) {
+export function encoderCandidates(name: string, arch = os.arch()) {
   const candidates = ENCODER_ARGS[name] || [];
   return name === 'videotoolbox' && arch !== 'arm64' ? [...candidates].reverse() : candidates;
 }
 
 // one tiny encode (5 frames 640x360) per candidate; resolves to the working argument list or null
 export function probeWith(ffmpeg = 'ffmpeg') {
-  return name =>
-    new Promise(async resolve => {
+  return (name: string) =>
+    new Promise<string[] | null>(async resolve => {
       for (const args of encoderCandidates(name)) {
-        const ok = await new Promise(r => {
-          let c;
+        const ok = await new Promise<boolean>(r => {
+          let c: ChildProcess;
           try {
             c = spawn(
               ffmpeg,
@@ -155,8 +156,21 @@ export function probeWith(ffmpeg = 'ffmpeg') {
 
 // What this PC can use: { available: ['amf', 'x264'], best: 'amf', gpus: [...], at }. Cached in memory and in
 // cacheFile, keyed by the ffmpeg binary (path, size, date): a new ffmpeg or driver probe again with refresh.
-let mem = null;
-export async function detectEncoders({ ffmpeg = 'ffmpeg', cacheFile = null, refresh = false, probe = null, gpus = gpuNames } = {}) {
+interface EncoderInfo {
+  available: string[];
+  best: string;
+  gpus: Awaited<ReturnType<typeof gpuNames>>;
+  at: string;
+}
+interface DetectOptions {
+  ffmpeg?: string;
+  cacheFile?: string | null;
+  refresh?: boolean;
+  probe?: Probe | null;
+  gpus?: typeof gpuNames;
+}
+let mem: { key: string; v: EncoderInfo } | null = null;
+export async function detectEncoders({ ffmpeg = 'ffmpeg', cacheFile = null, refresh = false, probe = null, gpus = gpuNames }: DetectOptions = {}) {
   let key = ffmpeg;
   try {
     const s = fs.statSync(ffmpeg);
@@ -173,7 +187,7 @@ export async function detectEncoders({ ffmpeg = 'ffmpeg', cacheFile = null, refr
     } catch {}
   }
   const pr = probe || probeWith(ffmpeg),
-    available = [];
+    available: string[] = [];
   for (const n of PROBE_ORDER) if (await pr(n).catch(() => null)) available.push(n);
   available.push('x264');
   const v = { available, best: available[0], gpus: await gpus().catch(() => []), at: new Date().toISOString() };
@@ -187,5 +201,5 @@ export async function detectEncoders({ ffmpeg = 'ffmpeg', cacheFile = null, refr
 }
 
 // the environment a render job gets: the job's own VIDEOHUB_ENCODER wins, else the configured choice
-export const encoderEnv = (jobEnv = {}, configured = 'auto') =>
+export const encoderEnv = (jobEnv: Record<string, string | undefined> = {}, configured = 'auto') =>
   jobEnv.VIDEOHUB_ENCODER ? {} : { VIDEOHUB_ENCODER: ENCODERS.includes(configured) ? configured : 'auto' };

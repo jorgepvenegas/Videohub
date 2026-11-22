@@ -1,4 +1,3 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -12,7 +11,7 @@ test('the render script template and its example copy use the same encoder argum
     const src = fs.readFileSync(new URL(f, import.meta.url), 'utf8'),
       m = src.match(/const ENCODER_ARGS = (\{[\s\S]*?\n\});/);
     assert.ok(m, f + ' has ENCODER_ARGS');
-    const table = vm.runInNewContext('(' + m[1] + ')');
+    const table = vm.runInNewContext('(' + m![1] + ')');
     for (const n of Object.keys(ENCODER_ARGS)) assert.deepEqual(JSON.parse(JSON.stringify(table[n])), ENCODER_ARGS[n], `${f}: ${n}`);
     assert.match(src, /process\.env\.VIDEOHUB_ENCODER/);
   }
@@ -23,7 +22,7 @@ test('the render script template and its example copy use the same encoder argum
 });
 
 test('pickEncoder: auto takes the first GPU encoder whose probe works, else x264; a named one that fails falls back', async () => {
-  const probe = ok => async n => (ok.includes(n) ? ENCODER_ARGS[n].at(-1) : null);
+  const probe = (ok: string[]) => async (n: string) => (ok.includes(n) ? ENCODER_ARGS[n].at(-1) : null);
   assert.equal((await pickEncoder('auto', probe(['amf', 'qsv']))).name, PROBE_ORDER.find(n => ['amf', 'qsv'].includes(n)) || 'x264');
   assert.equal((await pickEncoder('auto', probe(['nvenc', 'amf']))).name, PROBE_ORDER.find(n => ['nvenc', 'amf'].includes(n)) || 'x264');
   const none = await pickEncoder('auto', probe([]));
@@ -32,7 +31,7 @@ test('pickEncoder: auto takes the first GPU encoder whose probe works, else x264
   assert.deepEqual(none.args, ENCODER_ARGS.x264[0]);
   const want = await pickEncoder('nvenc', probe(['amf']));
   assert.equal(want.name, 'x264');
-  assert.match(want.why, /nvenc is not available/);
+  assert.match(want.why as string, /nvenc is not available/);
   assert.equal((await pickEncoder('amf', probe(['amf']))).args.at(1), 'h264_amf');
   assert.equal(
     (
@@ -67,7 +66,7 @@ test('detectEncoders probes once and caches (memory and file, keyed by the ffmpe
     fs.renameSync(cacheFile, cacheFile + '.' + Date.now());
   } catch {}
   let calls = 0;
-  const probe = async n => {
+  const probe = async (n: string) => {
       calls++;
       return n === PROBE_ORDER[0] ? ['x'] : null;
     },
@@ -92,25 +91,25 @@ test('render jobs get the configured encoder unless the job sets its own', () =>
 });
 
 // the render script's own selection and ffmpeg arguments, with ffmpeg mocked (no encode runs)
-function renderScript(env, works) {
+function renderScript(env: Record<string, string>, works: string[]) {
   const src = fs.readFileSync(new URL('../templates/new-film/render.js', import.meta.url), 'utf8');
   const head = src.slice(0, src.indexOf('(async () => {')),
-    spawned = [],
-    probed = [];
+    spawned: string[][] = [],
+    probed: string[] = [];
   const cp = {
-    spawn: (cmd, args) => {
+    spawn: (cmd: string, args: string[]) => {
       spawned.push(args);
       return {};
     },
     execFileSync() {},
-    spawnSync: (cmd, args) => {
+    spawnSync: (cmd: string, args: string[]) => {
       const c = args[args.indexOf('-c:v') + 1];
       probed.push(c);
       return { status: works.some(w => c.includes(w)) ? 0 : 1 };
     }
   };
-  const ctx = {
-    require: m =>
+  const ctx: Record<string, unknown> & { api?: { pickEncoder: () => { name: string }; encoder: (...a: string[]) => void; setEnc: (e: unknown) => void } } = {
+    require: (m: string) =>
       m === 'child_process'
         ? cp
         : m === 'fs'
@@ -120,7 +119,7 @@ function renderScript(env, works) {
             : m === 'os'
               ? { homedir: () => 'X:\home' }
               : m === 'url'
-                ? { pathToFileURL: x => x }
+                ? { pathToFileURL: (x: unknown) => x }
                 : {},
     process: { env, argv: [] },
     console: { log() {}, error() {} },
@@ -130,7 +129,7 @@ function renderScript(env, works) {
   };
   vm.createContext(ctx);
   vm.runInContext(head + '\nglobalThis.api = { pickEncoder, encoder, setEnc: e => { ENC = e; } };', ctx);
-  return { ...ctx.api, spawned, probed };
+  return { ...ctx.api!, spawned, probed };
 }
 test('render.js: auto probes nvenc, amf, qsv in that order and falls back to x264; raw input with BT.601 conversion', () => {
   let r = renderScript({}, ['amf']);
@@ -148,7 +147,7 @@ test('render.js: auto probes nvenc, amf, qsv in that order and falls back to x26
   r.setEnc(r.pickEncoder());
   r.encoder('raw', 'c_000.mp4.tmp.mp4');
   const a = [...r.spawned[0]],
-    at = k => a[a.indexOf(k) + 1];
+    at = (k: string) => a[a.indexOf(k) + 1];
   assert.equal(at('-f'), 'rawvideo');
   assert.equal(at('-pix_fmt'), 'rgba');
   assert.equal(at('-s'), '1920x1080');
@@ -180,12 +179,12 @@ test('VAAPI render filtering keeps conversion and hardware upload in one filter 
 test('copied render scripts honor native browser overrides and discover macOS applications', () => {
   const source = fs.readFileSync(new URL('../templates/new-film/render.js', import.meta.url), 'utf8');
   const body = source.slice(source.indexOf('function browserPath()'), source.indexOf('const FFMPEG'));
-  function pick(env, present) {
+  function pick(env: Record<string, string>, present: string[]) {
     const files = new Set(present),
-      ctx = {
+      ctx: Record<string, unknown> & { browserPath?: () => string } = {
         fs: {
-          existsSync: p => files.has(p),
-          realpathSync: p => p,
+          existsSync: (p: string) => files.has(p),
+          realpathSync: (p: string) => p,
           statSync: () => ({ size: 100000, isFile: () => true }),
           accessSync() {},
           constants: { X_OK: 1 }
@@ -202,7 +201,7 @@ test('copied render scripts honor native browser overrides and discover macOS ap
       };
     vm.createContext(ctx);
     vm.runInContext(body, ctx);
-    return ctx.browserPath();
+    return ctx.browserPath!();
   }
   const mac = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   assert.equal(pick({ VIDEOHUB_BROWSER: '/native/browser' }, ['/native/browser', mac]), '/native/browser');

@@ -1,34 +1,39 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import { readSource } from '../scripts/test-source.ts';
 import { ENCODERS } from './encoders.ts';
-const fixture = (...parts) => path.resolve('.test-tmp', 'config-fixture', ...parts);
+import type { config, saveConfig, baseDir, defaultFilmsDir } from './config.ts';
+import type { Json } from './types.ts';
+const fixture = (...parts: string[]) => path.resolve('.test-tmp', 'config-fixture', ...parts);
 
 // config.js with in-memory files: never writes data/config.json
-function load(saved = { port: 7788, roots: [{ path: fixture('films'), type: 'container', enabled: true }] }, env = { VIDEOHUB_BASE_DIR: fixture('base') }) {
-  const code = fs
-    .readFileSync(new URL('./config.ts', import.meta.url), 'utf8')
+function load(
+  saved: Json = { port: 7788, roots: [{ path: fixture('films'), type: 'container', enabled: true }] },
+  env: Record<string, string> = { VIDEOHUB_BASE_DIR: fixture('base') }
+) {
+  const code = readSource(new URL('./config.ts', import.meta.url))
     .replace(/^import .+;\r?$/gm, '')
     .replace(/\bexport /g, '');
-  const written = [];
-  const ctx = {
+  const written: unknown[] = [];
+  const ctx: Record<string, unknown> & {
+    api?: { config: typeof config; saveConfig: typeof saveConfig; baseDir: typeof baseDir; defaultFilmsDir: typeof defaultFilmsDir };
+  } = {
     fs: { existsSync: () => false, readdirSync: () => [], mkdirSync() {} },
     path,
-    norm: p => path.resolve(p),
+    norm: (p: string) => path.resolve(p),
     DATA_DIR: fixture('data'),
     DESKTOP: fixture('desk'),
     DOCUMENTS: fixture('docs'),
     ENCODERS,
     process: { env },
     readJson: () => saved && JSON.parse(JSON.stringify(saved)),
-    writeJson: (f, d) => written.push(JSON.parse(JSON.stringify(d)))
+    writeJson: (f: string, d: unknown) => written.push(JSON.parse(JSON.stringify(d)))
   };
   vm.createContext(ctx);
   vm.runInContext(code + '\nglobalThis.api = { config, saveConfig, baseDir, defaultFilmsDir };', ctx);
-  return { ...ctx.api, written };
+  return { ...ctx.api!, written };
 }
 
 test('a bad POST /api/config body cannot break the roots, thumbstudio or port', () => {

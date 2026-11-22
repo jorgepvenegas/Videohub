@@ -1,19 +1,47 @@
-// @ts-nocheck
 // OS integration lives here so queue, cleanup and UI retain the same contracts.
 import fsDefault from 'node:fs';
 import osDefault from 'node:os';
 import pathDefault from 'node:path';
 import { spawn as spawnDefault, execFile, execFileSync } from 'node:child_process';
+import type { ExecFileOptions, ExecFileSyncOptions } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import type { ProcessRow, RunResult, TrashResult } from './types.ts';
 const install = pathDefault.resolve(pathDefault.dirname(fileURLToPath(import.meta.url)), '..');
-function runDefault(file, args, opts = {}) {
-  return new Promise(resolve =>
+function runDefault(file: string, args: string[], opts: ExecFileOptions = {}): Promise<RunResult> {
+  return new Promise<RunResult>(resolve =>
     execFile(file, args, { maxBuffer: 64 << 20, ...opts }, (e, stdout, stderr) =>
       resolve({ code: e?.code ?? 0, stdout: String(stdout || ''), stderr: String(stderr || '') })
     )
   );
 }
 // Dependencies are injectable: both OS contracts can be tested on any host.
+export interface PlatformDeps {
+  osName?: string;
+  env?: NodeJS.ProcessEnv;
+  home?: string;
+  temp?: string;
+  fs?: typeof fsDefault;
+  os?: typeof osDefault;
+  path?: typeof pathDefault;
+  spawn?: typeof spawnDefault;
+  run?: (file: string, args: string[], opts?: ExecFileOptions) => Promise<RunResult>;
+  runSync?: (file: string, args: string[], opts?: ExecFileSyncOptions) => string | Buffer;
+  hubDir?: string;
+  kill?: (pid: number, signal?: string | number) => unknown;
+  uid?: () => number | null;
+  delay?: (ms: number) => Promise<unknown>;
+  now?: () => number;
+  desktopDir?: string | null;
+  nodePath?: string;
+}
+interface Dirs {
+  home: string;
+  desktop: string;
+  documents: string;
+  config: string;
+  temp: string;
+  guard: string;
+}
 export function createPlatform({
   osName: OS = process.platform,
   env = process.env,
@@ -32,10 +60,10 @@ export function createPlatform({
   now = Date.now,
   desktopDir = null,
   nodePath = process.execPath
-} = {}) {
+}: PlatformDeps = {}) {
   const IS_MAC = OS === 'darwin',
     IS_LINUX = OS === 'linux';
-  const exists = f => {
+  const exists = (f: string) => {
     try {
       return fs.existsSync(f);
     } catch {
@@ -51,7 +79,7 @@ export function createPlatform({
         .concat(IS_MAC ? ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin'] : [])
     )
   ];
-  function findTool(name) {
+  function findTool(name: string): string | null {
     for (const d of toolDirs) {
       const f = path.resolve(d, name);
       try {
@@ -62,7 +90,7 @@ export function createPlatform({
     }
     return null;
   }
-  function userDir(kind) {
+  function userDir(kind: string) {
     if (!IS_MAC)
       try {
         const tool = findTool('xdg-user-dir');
@@ -79,9 +107,9 @@ export function createPlatform({
     documents: userDir('DOCUMENTS'),
     config: IS_MAC ? path.join(home, 'Library', 'Application Support', 'VideoHub') : path.join(env.XDG_CONFIG_HOME || path.join(home, '.config'), 'videohub'),
     temp
-  };
+  } as Dirs;
   dirs.guard = dirs.config;
-  function nativeExecutable(file) {
+  function nativeExecutable(file: string | null | undefined) {
     try {
       if (!file || !path.isAbsolute(file) || !fs.statSync(file).isFile()) return false;
       fs.accessSync(file, fs.constants?.X_OK ?? 1);
@@ -102,9 +130,9 @@ export function createPlatform({
       return nodePath;
     }
   };
-  const nativeBrowser = names => names.map(findTool).find(nativeExecutable) || null;
+  const nativeBrowser = (names: string[]) => names.map(findTool).find(nativeExecutable) || null;
   function findBrowser() {
-    const app = name =>
+    const app = (name: string) =>
       ['/Applications', path.join(home, 'Applications')].map(dir => path.join(dir, name + '.app', 'Contents', 'MacOS', name)).find(nativeExecutable) || null;
     const edge = IS_MAC ? app('Microsoft Edge') : nativeBrowser(['microsoft-edge', 'microsoft-edge-stable']),
       chrome = IS_MAC ? app('Google Chrome') : nativeBrowser(['google-chrome', 'google-chrome-stable']),
@@ -114,9 +142,9 @@ export function createPlatform({
   }
   const browser = findBrowser();
   const TOOLS = { ffmpeg: findTool('ffmpeg') || 'ffmpeg', ffprobe: findTool('ffprobe') || 'ffprobe', node: stableNode(), ...browser };
-  function launch(file, args) {
+  function launch(file: string, args: string[]): Promise<void> {
     if (env.VIDEOHUB_NO_WINDOW) return Promise.resolve();
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       try {
         const c = spawn(file, args, { detached: true, stdio: 'ignore' });
         c.once('error', reject);
@@ -129,11 +157,11 @@ export function createPlatform({
       }
     });
   }
-  function fileOpenPlan(target, { select = false } = {}) {
+  function fileOpenPlan(target: string, { select = false }: { select?: boolean; how?: string } = {}) {
     return IS_MAC ? { command: 'open', args: [...(select ? ['-R'] : []), target] } : { command: 'xdg-open', args: [select ? path.dirname(target) : target] };
   }
-  const openPath = target => launch(IS_MAC ? 'open' : 'xdg-open', [target]);
-  async function reveal(target, { select = false } = {}) {
+  const openPath = (target: string) => launch(IS_MAC ? 'open' : 'xdg-open', [target]);
+  async function reveal(target: string, { select = false }: { select?: boolean } = {}) {
     if (env.VIDEOHUB_NO_WINDOW) return;
     if (!IS_MAC && select && findTool('gdbus')) {
       const uri = 'file://' + target.split('/').map(encodeURIComponent).join('/');
@@ -154,13 +182,13 @@ export function createPlatform({
     const p = fileOpenPlan(target, { select });
     return launch(p.command, p.args);
   }
-  const openUrlWindow = url => {
+  const openUrlWindow = (url: string) => {
     const b = findBrowser().path;
     if (!b) return openPath(url);
     const appEnd = b.indexOf('.app/');
     return IS_MAC && appEnd >= 0 ? launch('open', ['-na', b.slice(0, appEnd + 4), '--args', '--app=' + url]) : launch(b, ['--app=' + url]);
   };
-  async function pickFolder({ title = 'Choose folder', start = '' } = {}) {
+  async function pickFolder({ title = 'Choose folder', start = '' }: { title?: string; start?: string } = {}) {
     if (IS_MAC) {
       if (env.VIDEOHUB_NO_WINDOW) return null;
       let initial = home;
@@ -177,7 +205,7 @@ export function createPlatform({
     if (env.VIDEOHUB_NO_WINDOW) return null;
     const r = zenity
       ? await run(zenity, ['--file-selection', '--directory', '--title=' + title, ...(start ? ['--filename=' + start.replace(/\/$/, '') + '/'] : [])])
-      : await run(kdialog, ['--getexistingdirectory', start || home, '--title', title]);
+      : await run(kdialog as string, ['--getexistingdirectory', start || home, '--title', title]);
     return r.code === 0 ? r.stdout.replace(/\r?\n$/, '') || null : null;
   }
   async function volumes() {
@@ -193,8 +221,8 @@ export function createPlatform({
           : [];
       });
   }
-  const encodePath = p => p.split('/').map(encodeURIComponent).join('/');
-  async function trashOne(source) {
+  const encodePath = (p: string) => p.split('/').map(encodeURIComponent).join('/');
+  async function trashOne(source: string) {
     const target = path.resolve(source);
     if (target === path.parse(target).root || target === home) throw new Error('Refusing to trash a filesystem root or home folder.');
     if (IS_MAC) {
@@ -214,7 +242,7 @@ export function createPlatform({
     for (const [name, args] of [
       ['gio', ['trash', '--', target]],
       ['trash-put', ['--', target]]
-    ]) {
+    ] as [string, string[]][]) {
       const tool = findTool(name);
       if (!tool) continue;
       const r = await run(tool, args);
@@ -224,7 +252,7 @@ export function createPlatform({
     // A rename is reversible and atomic on one filesystem. Never copy/unlink across devices.
     const parent = fs.statSync(path.dirname(target)),
       homeStat = fs.statSync(home);
-    let root,
+    let root: string,
       infoPath = target;
     if (parent.dev === homeStat.dev) root = path.join(env.XDG_DATA_HOME || path.join(home, '.local', 'share'), 'Trash');
     else {
@@ -243,7 +271,7 @@ export function createPlatform({
     }
     if (fs.statSync(files).dev !== parent.dev) throw new Error('Trash is on another filesystem; the item was left untouched.');
     const date = new Date(),
-      pad = n => String(n).padStart(2, '0'),
+      pad = (n: number) => String(n).padStart(2, '0'),
       deleted = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
     const base = path.basename(target);
     for (let i = 0; i < 10000; i++) {
@@ -254,7 +282,7 @@ export function createPlatform({
       try {
         fs.writeFileSync(metadata, `[Trash Info]\nPath=${encodePath(infoPath)}\nDeletionDate=${deleted}\n`, { flag: 'wx', mode: 0o600 });
       } catch (e) {
-        if (e.code === 'EEXIST') continue;
+        if ((e as NodeJS.ErrnoException).code === 'EEXIST') continue;
         throw e;
       }
       try {
@@ -269,26 +297,26 @@ export function createPlatform({
     }
     throw new Error('No free Trash entry; the item was left untouched.');
   }
-  async function trash(paths) {
-    const out = [];
+  async function trash(paths: (string | { path: string })[]): Promise<TrashResult[]> {
+    const out: TrashResult[] = [];
     for (const item of paths) {
       const target = typeof item === 'string' ? item : item.path;
       try {
         await trashOne(target);
         out.push({ path: target, ok: true, error: null });
       } catch (e) {
-        out.push({ path: target, ok: false, error: e.message });
+        out.push({ path: target, ok: false, error: (e as Error).message });
       }
     }
     return out;
   }
-  async function recycleStream(items, onItem) {
+  async function recycleStream(items: (string | { path: string })[], onItem: (item: string | { path: string }, code: number, error: string | null) => void) {
     for (const item of items) {
       const [r] = await trash([item]);
       onItem(item, r.ok ? 0 : -3, r.error);
     }
   }
-  function notify(title, body) {
+  function notify(title: string, body: string) {
     if (env.VIDEOHUB_NO_WINDOW) return;
     const tool = IS_MAC ? 'osascript' : findTool('notify-send');
     if (!tool) return;
@@ -299,31 +327,31 @@ export function createPlatform({
       Promise.resolve(run(tool, args)).catch(() => {});
     } catch {}
   }
-  async function psList() {
+  async function psList(): Promise<ProcessRow[] | null> {
     // Both fields may contain spaces. Query separately, with full width and a start identity to reject PID reuse.
     const flag = IS_MAC ? '-axo' : '-eo';
     const [table, commands] = await Promise.all([run('ps', ['-ww', flag, 'pid=,ppid=,rss=,lstart=,comm=']), run('ps', ['-ww', flag, 'pid=,args='])]);
     if (table.code !== 0) return null;
     const args = new Map(
       commands.code === 0
-        ? commands.stdout.split(/\r?\n/).flatMap(line => {
+        ? commands.stdout.split(/\r?\n/).flatMap((line): [number, string][] => {
             const m = line.match(/^\s*(\d+)\s+(.*)$/);
             return m ? [[+m[1], m[2]]] : [];
           })
         : []
     );
-    return table.stdout.split(/\r?\n/).flatMap(line => {
+    return table.stdout.split(/\r?\n/).flatMap((line): ProcessRow[] => {
       const m = line.match(/^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+\s+\S+\s+\d+\s+\S+\s+\d+)\s+(.+)$/);
       return m
         ? [{ pid: +m[1], ppid: +m[2], rssBytes: +m[3] * 1024, name: path.basename(m[5]), cmd: args.get(+m[1]) || '', start: m[4].replace(/\s+/g, ' ') }]
         : [];
     });
   }
-  async function processList() {
+  async function processList(): Promise<ProcessRow[] | null> {
     if (IS_MAC) return psList();
     try {
       const entries = fs.readdirSync('/proc').filter(n => /^\d+$/.test(n)),
-        rows = [];
+        rows: ProcessRow[] = [];
       for (const pid of entries) {
         try {
           const stat = String(fs.readFileSync('/proc/' + pid + '/stat', 'utf8')),
@@ -345,7 +373,7 @@ export function createPlatform({
       return psList();
     }
   }
-  function tree(rows, root) {
+  function tree(rows: ProcessRow[] | null, root: number) {
     const ids = new Set([root]);
     let n;
     do {
@@ -354,7 +382,7 @@ export function createPlatform({
     } while (ids.size > n);
     return [...ids];
   }
-  async function killTree(pid) {
+  async function killTree(pid: number | string) {
     pid = +pid;
     if (!Number.isSafeInteger(pid) || pid <= 1 || pid === process.pid) return;
     // Freeze the root first: render.js ignores SIGTERM and relaunches Chrome (own process group) when a child dies.
@@ -363,7 +391,7 @@ export function createPlatform({
     } catch {}
     const before = await processList(),
       ids = tree(before, pid).filter(id => id !== pid),
-      starts = new Map((before || []).map(p => [p.pid, p.start]));
+      starts = new Map((before || []).map((p): [number, string] => [p.pid, p.start]));
     try {
       kill(-pid, 'SIGTERM');
     } catch {}
@@ -373,7 +401,7 @@ export function createPlatform({
       } catch {}
     await delay(3000);
     const after = await processList();
-    const same = id => starts.get(id) != null && after?.some(p => p.pid === id && p.start === starts.get(id));
+    const same = (id: number) => starts.get(id) != null && after?.some(p => p.pid === id && p.start === starts.get(id));
     const surviving = ids.filter(same),
       root = after?.find(p => p.pid === pid);
     if (surviving.length && (!root || same(pid)))
@@ -389,15 +417,15 @@ export function createPlatform({
         kill(pid, 'SIGKILL');
       } catch {}
   }
-  const affinity = new Map();
-  async function setTreePriority(rootPid, level, cores) {
+  const affinity = new Map<number | string, { start: string; mask: bigint }>();
+  async function setTreePriority(rootPid: number | string, level: string, cores?: number | null) {
     const rows = await processList(),
       ids = tree(rows, +rootPid),
       taskset = IS_MAC ? null : findTool('taskset');
     const start = rows?.find(p => p.pid === +rootPid)?.start,
       cached = affinity.get(rootPid);
-    let original = start != null && cached?.start === start ? cached.mask : null,
-      failure = rows == null ? 'Could not read the render process tree.' : null;
+    let original: bigint | null = start != null && cached?.start === start ? cached.mask : null,
+      failure: string | null = rows == null ? 'Could not read the render process tree.' : null;
     if (taskset && original == null) {
       const r = await run(taskset, ['-p', String(rootPid)]),
         h = r.stdout.match(/mask:\s*([0-9a-f,]+)/i)?.[1]?.replaceAll(',', '');
@@ -419,7 +447,7 @@ export function createPlatform({
     }
     for (const pid of ids) {
       try {
-        os.setPriority(pid, { normal: 0, low: 10, idle: 19 }[level] ?? 0);
+        os.setPriority(pid, ({ normal: 0, low: 10, idle: 19 } as Record<string, number>)[level] ?? 0);
       } catch {}
       if (IS_MAC) {
         const r = await run('taskpolicy', [level === 'idle' ? '-b' : '-B', '-p', String(pid)]);
@@ -436,7 +464,7 @@ export function createPlatform({
   const startupFile = IS_MAC
     ? path.join(home, 'Library', 'LaunchAgents', 'com.videohub.hub.plist')
     : path.join(env.XDG_CONFIG_HOME || path.join(home, '.config'), 'autostart', 'videohub.desktop');
-  const desktopQuote = s =>
+  const desktopQuote = (s: string) =>
     '"' +
     String(s)
       .replace(/[%]/g, '%%')
@@ -444,7 +472,7 @@ export function createPlatform({
     '"';
   const desktopEntry = (server = false) =>
     `[Desktop Entry]\nType=Application\nName=VideoHub\nComment=Local video review studio\nExec=${desktopQuote(process.execPath)} ${desktopQuote(path.join(hubDir, 'scripts', 'install.mjs'))} open${server ? ' --server' : ''}\nIcon=${path.join(hubDir, 'ui', 'icon.svg')}\nTerminal=false\nCategories=AudioVideo;Video;\nX-VideoHub-Install=${hubDir}\n`;
-  const xml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  const xml = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
   const launchAgent = () =>
     `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>\n<key>Label</key><string>com.videohub.hub</string>\n<key>ProgramArguments</key><array><string>${xml(TOOLS.node)}</string><string>${xml(path.join(hubDir, 'server', 'hub.js'))}</string></array>\n<key>WorkingDirectory</key><string>${xml(hubDir)}</string>\n<key>EnvironmentVariables</key><dict><key>PATH</key><string>${xml(toolDirs.join(':'))}</string></dict>\n<key>RunAtLoad</key><true/>\n<key>VideoHubInstall</key><string>${xml(hubDir)}</string>\n</dict></plist>\n`;
   const ownsStartup = () => {
@@ -469,7 +497,7 @@ export function createPlatform({
       return false;
     }
   };
-  async function setAutostart(on) {
+  async function setAutostart(on: boolean) {
     if (exists(startupFile) && !ownsStartup()) throw new Error('Autostart belongs to another install; left unchanged.');
     if (IS_MAC) {
       const domain = launchDomain();
@@ -485,7 +513,7 @@ export function createPlatform({
           if (r.code !== 0) throw new Error('Could not disable login startup: ' + (r.stderr || 'launchctl bootout failed'));
         }
         const [r] = await trash([startupFile]);
-        if (!r.ok) throw new Error(r.error);
+        if (!r.ok) throw new Error(r.error as string);
       }
       return;
     }
@@ -494,17 +522,17 @@ export function createPlatform({
       fs.writeFileSync(startupFile, desktopEntry(true));
     } else if (ownsStartup()) {
       const [r] = await trash([startupFile]);
-      if (!r.ok) throw new Error(r.error);
+      if (!r.ok) throw new Error(r.error as string);
     }
   }
-  const shellCommand = cmd => ({ file: '/bin/sh', args: ['-c', cmd], opts: {} });
+  const shellCommand = (cmd: string) => ({ file: '/bin/sh', args: ['-c', cmd], opts: {} });
   const renderSpawnOptions = { detached: true };
   async function gpuNames() {
     if (IS_MAC) {
       const r = await run('system_profiler', ['SPDisplaysDataType', '-json']);
       if (r.code !== 0) return [];
       try {
-        return (JSON.parse(r.stdout).SPDisplaysDataType || []).map(g => g._name).filter(Boolean);
+        return (JSON.parse(r.stdout).SPDisplaysDataType || []).map((g: { _name?: string }) => g._name).filter(Boolean);
       } catch {
         return [];
       }
@@ -512,7 +540,7 @@ export function createPlatform({
     const tool = findTool('lspci');
     if (!tool) return [];
     const r = await run(tool, []);
-    return r.code === 0 ? r.stdout.split(/\r?\n/).filter(s => /VGA|3D controller|Display controller/i.test(s)) : [];
+    return r.code === 0 ? r.stdout.split(/\r?\n/).filter((s: string) => /VGA|3D controller|Display controller/i.test(s)) : [];
   }
   const capabilities = () => ({
     platform: OS,
@@ -526,9 +554,9 @@ export function createPlatform({
     fileManager: IS_MAC ? 'Finder' : 'file manager',
     browserWarning: IS_MAC ? null : 'Snap and Flatpak browsers are not supported for rendering; install a native Chrome or Chromium package.'
   });
-  const casePath = value => String(value),
-    pathKey = value => path.resolve(value);
-  let memoryCache = null;
+  const casePath = (value: unknown) => String(value),
+    pathKey = (value: string) => path.resolve(value);
+  let memoryCache: { at: number; bytes: number } | null = null;
   function availableMemory() {
     if (IS_LINUX)
       try {

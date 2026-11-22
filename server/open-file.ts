@@ -1,5 +1,5 @@
-// @ts-nocheck
 import fs from 'node:fs';
+import type { Stats } from 'node:fs';
 import path from 'node:path';
 import { fileOpenPlan, openPath, reveal } from './platform.ts';
 
@@ -24,11 +24,11 @@ export const OPENABLE = new Set([
   '.webp',
   '.gif'
 ]);
-export function openPlan(file, how = 'file') {
+export function openPlan(file: unknown, how = 'file') {
   if (typeof file !== 'string' || !file || /["\r\n\0]/.test(file)) throw Object.assign(new Error('Invalid file path'), { code: 400 });
   if (!['file', 'folder'].includes(how)) throw Object.assign(new Error('Invalid open action'), { code: 400 });
   const target = path.resolve(file);
-  let st;
+  let st: Stats;
   try {
     st = fs.statSync(target);
   } catch {
@@ -41,7 +41,7 @@ export function openPlan(file, how = 'file') {
   return { target, how, select, command, args };
 }
 
-export async function openFile(file, how) {
+export async function openFile(file: unknown, how?: string) {
   const plan = openPlan(file, how);
   if (!process.env.VIDEOHUB_NO_WINDOW) await (plan.how === 'folder' ? reveal(plan.target, { select: plan.select }) : openPath(plan.target));
   return { ok: true, path: plan.target, how: plan.how, select: plan.select };

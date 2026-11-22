@@ -1,4 +1,3 @@
-// @ts-nocheck
 // VideoHub's render protection, built into the hub (plain Node + OS tools; no helper program).
 // What protection still does:
 //  - every render VideoHub's queue starts gets a CPU limit (processor affinity: a share of the cores) and low priority;
@@ -9,10 +8,12 @@
 // What it no longer does: freeze (pause) a render, the Ctrl+Alt+End / Ctrl+Alt+Home hotkeys, and watching renders that
 // were started outside VideoHub's queue. The exported names stay the same, so the queue, cleanup and UI did not change.
 import fs from 'node:fs';
+import type { Stats } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { config } from './config.ts';
 import { readJson, processAlive } from './util.ts';
+import type { Json } from './types.ts';
 import { dirs, capabilities, availableMemory, getAutostart, setAutostart, setTreePriority, killTree } from './platform.ts';
 
 const RG = dirs.guard;
@@ -22,8 +23,14 @@ const MB = 1048576,
 // ---------- settings (settings.txt, key=value). VideoHub is its only UI.
 const SETTINGS = path.join(RG, 'settings.txt');
 const DEFAULTS = { CapActive: 90, CapIdle: 100, IdleMin: 2, PauseMB: 700, CriticalMB: 500, SlowCapPct: 5, LowPrio: 1 };
+interface GuardSettings extends Record<keyof typeof DEFAULTS, number> {
+  Startup?: boolean;
+  exe?: null;
+  builtIn?: boolean;
+  capabilities?: ReturnType<typeof capabilities>;
+}
 function readKv() {
-  const kv = {};
+  const kv: Record<string, string> = {};
   let txt = '';
   try {
     txt = fs.readFileSync(SETTINGS, 'utf8').replace(/^\uFEFF/, '');
@@ -36,8 +43,8 @@ function readKv() {
 }
 function current() {
   const kv = readKv(),
-    out = {};
-  for (const [k, d] of Object.entries(DEFAULTS)) out[k] = kv[k] != null && kv[k] !== '' && Number.isFinite(+kv[k]) ? +kv[k] : d;
+    out = {} as GuardSettings;
+  for (const [k, d] of Object.entries(DEFAULTS)) out[k as keyof typeof DEFAULTS] = kv[k] != null && kv[k] !== '' && Number.isFinite(+kv[k]) ? +kv[k] : d;
   return out;
 }
 let S = current();
@@ -49,7 +56,7 @@ export async function guardSettings() {
   out.capabilities = capabilities();
   return out;
 }
-export async function saveGuardSettings(patch) {
+export async function saveGuardSettings(patch: Json) {
   const kv = readKv();
   for (const k of Object.keys(DEFAULTS)) if (patch[k] != null) kv[k] = String(typeof patch[k] === 'boolean' ? (patch[k] ? 1 : 0) : Math.round(+patch[k]));
   fs.mkdirSync(RG, { recursive: true });
@@ -67,13 +74,26 @@ export async function saveGuardSettings(patch) {
 export const guardExe = () => null;
 
 // ---------- the renders VideoHub started (the queue tells us: guardTrack) and what was applied to them
-const tracked = new Map(); // root pid -> { rootPid, start, cwd, project, what, slow: null|'RAM'|'manual', applied, changedAt }
-let timer = null,
+const tracked = new Map<number, GuardRecord>(); // root pid -> { rootPid, start, cwd, project, what, slow: null|'RAM'|'manual', applied, changedAt }
+interface GuardRecord {
+  rootPid: number;
+  start: string;
+  cwd: string;
+  project: string;
+  what: string;
+  slow: null | 'RAM' | 'manual';
+  applied: string | null;
+  changedAt: number;
+  retired?: boolean;
+  pending?: boolean;
+  applying?: Promise<void> | null;
+}
+let timer: NodeJS.Timeout | null = null,
   lastRamChange = 0,
-  updated = null;
-export function guardTrack(pid, info = {}) {
+  updated: string | null = null;
+export function guardTrack(pid: number, info: { cwd?: string; project?: string; what?: string } = {}) {
   if (!pid) return;
-  const record = {
+  const record: GuardRecord = {
     rootPid: pid,
     start: new Date().toISOString(),
     cwd: info.cwd || '',
@@ -87,21 +107,21 @@ export function guardTrack(pid, info = {}) {
   if (timer) apply(record).catch(() => {});
   return record;
 }
-export function guardUntrack(pid, record) {
+export function guardUntrack(pid: number, record: GuardRecord) {
   if (record && tracked.get(pid) === record) {
     record.retired = true;
     tracked.delete(pid);
   }
 }
 
-const coresFor = pct => Math.max(1, Math.min(CORES, Math.round((CORES * Math.max(1, Math.min(100, pct))) / 100)));
-function wanted(r) {
+const coresFor = (pct: number) => Math.max(1, Math.min(CORES, Math.round((CORES * Math.max(1, Math.min(100, pct))) / 100)));
+function wanted(r: GuardRecord) {
   if (!timer) return { prio: 'Normal', cores: CORES }; // protection off (the hub is closing): everything back to normal
   if (r.slow) return { prio: 'Idle', cores: coresFor(S.SlowCapPct) };
   return { prio: S.LowPrio ? 'BelowNormal' : 'Normal', cores: coresFor(S.CapActive) };
 }
 // Apply once per change; processes the render starts later inherit the platform's limits.
-async function apply(r, force = false) {
+async function apply(r: GuardRecord, force = false): Promise<void> {
   if (force) r.applied = null;
   r.pending = true;
   if (r.applying) return r.applying;
@@ -112,7 +132,7 @@ async function apply(r, force = false) {
       const w = wanted(r),
         key = w.prio + '/' + w.cores;
       if (r.applied === key) continue;
-      await setTreePriority(r.rootPid, { Normal: 'normal', BelowNormal: 'low', Idle: 'idle' }[w.prio], w.cores);
+      await setTreePriority(r.rootPid, ({ Normal: 'normal', BelowNormal: 'low', Idle: 'idle' } as Record<string, string>)[w.prio], w.cores);
       r.applied = key;
     }
   })().finally(() => {
@@ -133,8 +153,8 @@ function tick() {
   if (!list.length || Date.now() - lastRamChange < 20e3) return; // one change at a time, then 20 s to settle (no ping-pong)
   const ram = list.filter(r => r.slow === 'RAM'),
     normal = list.filter(r => !r.slow);
-  let pick = null,
-    slow = null;
+  let pick: GuardRecord | null = null,
+    slow: 'RAM' | null = null;
   if (free < S.CriticalMB && normal.length) {
     pick = normal[0];
     slow = 'RAM';
@@ -188,9 +208,9 @@ export function guardState() {
 }
 
 // Renders page buttons and old callers. Freezing is gone: "pause" now slows the render down to the minimum instead.
-export function guardCommand(action, rootPid) {
-  const pick = rootPid ? [tracked.get(+rootPid)].filter(Boolean) : [...tracked.values()];
-  let note = null;
+export function guardCommand(action: string, rootPid?: number | string) {
+  const pick = rootPid ? ([tracked.get(+rootPid)].filter(Boolean) as GuardRecord[]) : [...tracked.values()];
+  let note: string | null = null;
   if (action === 'reload') {
     S = current();
     for (const r of tracked.values()) apply(r).catch(() => {});
@@ -239,7 +259,7 @@ export async function quitGuard() {
 
 // ---------- the old agent's history.log (renders it saw end, also outside the queue): still read, no longer written
 // "2026-10-23 18:07:04  BİTTİ     <session>  [<project>]  <what>  <dur>  %NN". Parsed once, kept by size+mtime.
-const parseLine = l => {
+const parseLine = (l: string) => {
   const m = l.match(/^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)\s+(\S+(?: \([^)]*\))?)\s+(.*)$/);
   if (!m) return null;
   const rest = m[3],
@@ -249,13 +269,13 @@ const parseLine = l => {
     event: m[2].trim(),
     session: pm ? rest.slice(0, pm.index).trim() : '',
     project: pm ? pm[1] : '',
-    detail: pm ? rest.slice(pm.index + pm[0].length).trim() : rest
+    detail: pm ? rest.slice((pm.index as number) + pm[0].length).trim() : rest
   };
 };
-let hist = null;
+let hist: { size: number; mtime: number; all: ReturnType<typeof parseLine>[] } | null = null;
 export function guardHistory(limit = 400) {
   const f = path.join(RG, 'history.log');
-  let st;
+  let st: Stats;
   try {
     st = fs.statSync(f);
   } catch {
@@ -277,7 +297,7 @@ export function snippRenders() {
   for (const r of config().roots) {
     if (r.enabled === false) continue;
     const dir = path.join(r.path, '.renders');
-    let files = [];
+    let files: string[] = [];
     try {
       files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
     } catch {
