@@ -104,8 +104,10 @@ function readConfig(file: string): Json {
 function entriesOf(agent: string, j: Json) {
   return (agent === 'claude' ? [j.mcpServers?.videohub] : [j.mcp?.servers?.videohub, j.mcp?.videohub]).filter(e => e != null);
 }
-function owns(entry: Json, mcp: string) {
-  return [...(Array.isArray(entry?.command) ? entry.command : []), ...(Array.isArray(entry?.args) ? entry.args : [])].some((p: unknown) => same(p, mcp));
+function owns(entry: Json, ...mcp: string[]) {
+  return [...(Array.isArray(entry?.command) ? entry.command : []), ...(Array.isArray(entry?.args) ? entry.args : [])].some((p: unknown) =>
+    mcp.some(m => same(p, m))
+  );
 }
 function save(file: string, j: Json) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -160,7 +162,8 @@ export async function integrateAgents({
   if (!['setup', 'refresh', 'uninstall'].includes(action)) throw new Error('Unknown agent action: ' + action);
   const actions: string[] = [],
     errors: string[] = [],
-    mcp = path.join(hub, 'server', 'mcp.ts');
+    mcp = path.join(hub, 'server', 'mcp.ts'),
+    mcpJs = path.join(hub, 'server', 'mcp.js');
   agents = [...new Set(agents.flatMap(a => String(a).split(',')).filter(Boolean))];
   if (agents.some(a => !['claude', 'opencode'].includes(a))) throw new Error('Agents must be claude or opencode');
   const say = (s: string) => actions.push((dryRun ? 'would ' : '') + s);
@@ -170,12 +173,14 @@ export async function integrateAgents({
     try {
       const j = readConfig(p.config),
         current = entriesOf(agent, j),
-        mine = current.length > 0 && current.every(e => owns(e, mcp)),
+        // an entry written by a JavaScript-era install names server/mcp.js; it is still this install's own
+        mine = current.length > 0 && current.every(e => owns(e, mcp, mcpJs)),
+        legacy = mine && !current.every(e => owns(e, mcp)),
         cli = find(agent, env);
       if (current.length && !mine) {
         say(`leave ${label} MCP entry belonging to another install unchanged`);
         if (action !== 'uninstall') continue;
-      } else if (action !== 'refresh' && (action !== 'uninstall' || mine)) {
+      } else if (action === 'refresh' ? legacy : action !== 'uninstall' || mine) {
         const remove = action === 'uninstall';
         say(`${remove ? 'remove' : 'register'} ${label} MCP server videohub (${p.config})`);
         if (!dryRun) {

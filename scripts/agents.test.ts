@@ -201,3 +201,95 @@ test('a rule block written with the old marker text is replaced on refresh', asy
   assert.match(text, /remove with uninstall\.sh/);
   assert.match(text, /Personal rule/);
 });
+// ---- an install from the JavaScript era registered server/mcp.js and wrote rules naming server/cli.js
+const legacyEntry = (agent: string, mcpFile: string) =>
+  agent === 'claude'
+    ? { mcpServers: { videohub: { type: 'stdio', command: 'node', args: [mcpFile], env: {} } } }
+    : { mcp: { servers: { videohub: { type: 'local', command: ['node', mcpFile], disabled: false } } } };
+const registered = (agent: string, config: string) => {
+  const j = JSON.parse(fs.readFileSync(config, 'utf8'));
+  return agent === 'claude' ? j.mcpServers.videohub.args : j.mcp.servers.videohub.command;
+};
+test('an own server/mcp.js entry is re-pointed to mcp.ts on setup and refresh; another install is left alone', async () => {
+  for (const agent of ['claude', 'opencode']) {
+    for (const action of ['setup', 'refresh']) {
+      const o = scratch(),
+        p = agentPaths(agent, o),
+        oldMcp = path.join(hub, 'server', 'mcp.js');
+      write(p.config, JSON.stringify(legacyEntry(agent, oldMcp)));
+      const r = await integrateAgents({ ...o, action, agents: [agent], globalRule: false });
+      assert.deepEqual(r.errors, []);
+      assert.ok(registered(agent, p.config).includes(path.join(hub, 'server', 'mcp.ts')), agent + ' ' + action);
+      assert.ok(!registered(agent, p.config).includes(oldMcp), agent + ' ' + action);
+    }
+    const o = scratch(),
+      p = agentPaths(agent, o),
+      foreign = JSON.stringify(legacyEntry(agent, '/other-install/server/mcp.js'));
+    write(p.config, foreign);
+    const r = await integrateAgents({ ...o, action: 'refresh', agents: [agent], globalRule: false });
+    assert.deepEqual(r.errors, []);
+    assert.equal(fs.readFileSync(p.config, 'utf8'), foreign);
+  }
+});
+test('refresh keeps an entry that already names mcp.ts and registers nothing when there is none', async () => {
+  const o = scratch(),
+    p = agentPaths('opencode', o),
+    text = JSON.stringify(legacyEntry('opencode', path.join(hub, 'server', 'mcp.ts')));
+  write(p.config, text);
+  await integrateAgents({ ...o, action: 'refresh', agents: ['opencode'], globalRule: false });
+  assert.equal(fs.readFileSync(p.config, 'utf8'), text);
+  const none = scratch();
+  await integrateAgents({ ...none, action: 'refresh', agents: ['claude'], globalRule: false });
+  assert.equal(fs.existsSync(agentPaths('claude', none).config), false);
+});
+test('the agent CLI removes an own mcp.js entry and adds mcp.ts on refresh', async () => {
+  const o = scratch(),
+    p = agentPaths('opencode', o),
+    calls: string[][] = [];
+  write(p.config, JSON.stringify(legacyEntry('opencode', path.join(hub, 'server', 'mcp.js'))));
+  const r = await integrateAgents({
+    ...o,
+    action: 'refresh',
+    agents: ['opencode'],
+    find: () => 'opencode',
+    globalRule: false,
+    run: (_f: string, a: string[]) => {
+      calls.push(a);
+      return { status: 0, stdout: a.includes('list') ? 'videohub connected' : '' };
+    }
+  });
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(calls[0], ['mcp', 'remove', 'videohub', '--global']);
+  assert.deepEqual(calls[1], ['mcp', 'add', 'videohub', '--global', '--', 'node', path.join(hub, 'server', 'mcp.ts')]);
+});
+test("uninstall removes an own server/mcp.js entry and keeps another install's", async () => {
+  for (const agent of ['claude', 'opencode']) {
+    const o = scratch(),
+      p = agentPaths(agent, o);
+    write(p.config, JSON.stringify({ keep: 1, ...legacyEntry(agent, path.join(hub, 'server', 'mcp.js')) }));
+    const r = await integrateAgents({ ...o, action: 'uninstall', agents: [agent] });
+    assert.deepEqual(r.errors, []);
+    const j = JSON.parse(fs.readFileSync(p.config, 'utf8'));
+    assert.equal(j.keep, 1);
+    assert.deepEqual(agent === 'claude' ? j.mcpServers : j.mcp.servers, {});
+    const other = scratch(),
+      q = agentPaths(agent, other),
+      foreign = JSON.stringify(legacyEntry(agent, '/other-install/server/mcp.js'));
+    write(q.config, foreign);
+    await integrateAgents({ ...other, action: 'uninstall', agents: [agent] });
+    assert.equal(fs.readFileSync(q.config, 'utf8'), foreign);
+  }
+});
+test('an own rule block naming server/cli.js is refreshed to cli.ts', async () => {
+  for (const agent of ['claude', 'opencode']) {
+    const o = scratch(),
+      p = agentPaths(agent, o);
+    write(p.rule, 'Personal rule\n\n<!-- videohub:begin -->\nnode "' + hub + '/server/cli.js" hub_live\n<!-- videohub:end -->\n');
+    const r = await integrateAgents({ ...o, action: 'refresh', agents: [agent] });
+    assert.deepEqual(r.errors, []);
+    const text = fs.readFileSync(p.rule, 'utf8');
+    assert.ok(text.includes('Personal rule'));
+    assert.ok(text.includes(hub + '/server/cli.ts'));
+    assert.ok(!text.includes('cli.js'));
+  }
+});
