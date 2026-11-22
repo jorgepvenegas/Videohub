@@ -2,11 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 import { Writable } from 'node:stream';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { renderInfo, filmKind, projectsIn } from './scan.ts';
 import { pageOf, serve, liveCapable } from './live.ts';
 import { readScript } from './util.ts';
+import { readSource } from '../scripts/test-source.ts';
+import { ENCODERS } from './encoders.ts';
 import { sourceRevision, invalidateSource } from './source-revision.ts';
 import type { Project } from './types.ts';
 
@@ -133,4 +136,39 @@ test('a change to a .ts file changes the live source revision; a legacy .js file
     invalidateSource(p);
     assert.notEqual(sourceRevision(p).revision, first, ext);
   }
+});
+
+test('root discovery treats a folder whose only film code is render.ts as a project, and two such subfolders as a container', () => {
+  const desk = path.join(ROOT, 'discover', 'desk'),
+    docs = path.join(ROOT, 'discover', 'docs');
+  fs.rmSync(path.join(ROOT, 'discover'), { recursive: true, force: true });
+  for (const [dir, file] of [
+    [path.join(desk, 'single'), 'render.ts'],
+    [path.join(desk, 'many', 'a'), 'render.ts'],
+    [path.join(desk, 'many', 'b'), 'render.ts'],
+    [path.join(desk, 'empty'), 'notes.txt']
+  ]) {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, file), 'x');
+  }
+  fs.mkdirSync(docs, { recursive: true });
+  const code = readSource(new URL('./config.ts', import.meta.url))
+    .replace(/^import .+;\r?$/gm, '')
+    .replace(/\bexport /g, '');
+  const ctx: Record<string, unknown> & { discover?: () => { path: string; type: string }[] } = {
+    fs,
+    path,
+    norm: (p: string) => path.resolve(p),
+    DATA_DIR: path.join(ROOT, 'discover', 'data'),
+    DESKTOP: desk,
+    DOCUMENTS: docs,
+    ENCODERS,
+    process: { env: { VIDEOHUB_BASE_DIR: path.join(ROOT, 'discover', 'base') } },
+    readJson: () => null,
+    writeJson() {}
+  };
+  vm.createContext(ctx);
+  vm.runInContext(code + '\nglobalThis.discover = discoverRoots;', ctx);
+  const found = Object.fromEntries(ctx.discover!().map(r => [path.basename(r.path), r.type]));
+  assert.deepEqual(found, { single: 'project', many: 'container' });
 });

@@ -30,7 +30,7 @@ export const DEFAULT_SKIP_FOLDERS = ['tools', 'fonts', 'test', 'render', 'videos
 
 function hasRenderCode(dir: string) {
   try {
-    return fs.readdirSync(dir).some(f => /^(render\.(m?js|py)|anim_render\.\w+|manifest\.json|index\.html|.*\.snipp)$/i.test(f));
+    return fs.readdirSync(dir).some(f => /^(render\.(m?js|ts|py)|anim_render\.\w+|manifest\.json|index\.html|.*\.snipp)$/i.test(f));
   } catch {
     return false;
   }
