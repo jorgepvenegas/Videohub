@@ -1,7 +1,7 @@
 # Master Plan — TypeScript migration
 
 - Plan ID: `typescript-migration`
-- Master version: 49
+- Master version: 50
 - Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
@@ -162,6 +162,7 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L35 | 2026-11-22 | P6 | P7,P8 | Stripped-source identity is proven by parsing both sides with rolldown parseSync and comparing ASTs without positions (.test-tmp/p6-strip/cmp.mjs); coordinator re-ran it from the S1 commit: 24 modules, 0 different | note | P7 and P8 use the AST comparison instead of a whitespace diff | open |
 | L36 | 2026-11-22 | P6 | P9 | Prose comments inside converted files still name old .js files (e.g. mixer.js), and docs/ARCHITECTURE.md:38 and docs/PROJECT-CONTRACT.md:4 name old review paths | note | P9 sweeps .js path mentions in comments and docs | open |
 | L37 | 2026-11-22 | P6 | P6 | S1 also touched ui/review.css (comment paths) and a specifier literal in soundenv.test.ts; S3 changed drafts.test.ts to read notes.ts via readSource; all specifier/comment/test-read only | phase-amend | Accepted at coordinator review; recorded in P6 section 9 | open |
+| L38 | 2026-11-22 | P7 | P7,P8,P9 | Coordinator's P6 AST re-check loop ran under zsh without word splitting and wrote 23 empty ui__review__*.ts files into the repo root; git add -A committed them in 8241300 and lint failed with no-empty-file. P7 worker stopped at entry conditions | plan-defect | Removed with git rm (files created by the coordinator this session); coordinator re-runs lint after its own commits and stages explicit paths instead of git add -A | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
