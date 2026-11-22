@@ -1,27 +1,37 @@
-// @ts-nocheck
 // Per-shot sound levels from VideoHub's scene editor (tweaks.json "sound": [{ shot, t0, t1, music, sfx, vo, all }],
 // film seconds, 1 = unchanged). Shared by VideoHub (server/sound.js) and engines that build their own mix
 // (3D studio engine/audio/vhsound.mjs is a copy of this file).
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import type { Json } from './types.ts';
+
+// A tweaks.json "sound" level entry or "audio" clip: stored JSON the user and the page edit, narrowed field by field below.
+export type SoundEntry = Record<string, Json>;
+export type Clip = Record<string, Json>;
+// A decoded WAV: sample rate, one Float32Array per channel and the bit depth to write it back with.
+export interface Wav {
+  sr: number;
+  ch: Float32Array[];
+  bits?: number;
+}
 
 // a level curve over film time for one channel: 1 outside the shots, the shot's level inside, 0.12 s ramps at the edges
-export function soundEnv(entries, key, ramp = 0.12) {
+export function soundEnv(entries: SoundEntry[] | null | undefined, key: string, ramp = 0.12): ((t: number) => number) | null {
   const E = (entries || []).filter(e => e && e[key] != null && Math.abs(+e[key] - 1) > 1e-3 && +e.t1 > +e.t0);
   if (!E.length) return null;
-  const sm = (a, b, t) => {
+  const sm = (a: number, b: number, t: number) => {
     const u = Math.min(1, Math.max(0, (t - a) / (b - a)));
     return u * u * (3 - 2 * u);
   };
-  const w = (e, t) => {
+  const w = (e: SoundEntry, t: number) => {
     const r = +e.fade > 0 ? +e.fade : ramp;
     return sm(e.t0 - r, e.t0 + r, t) * (1 - sm(e.t1 - r, e.t1 + r, t));
   };
   // old entries add up (unchanged); "duck:" ranges multiply, so a duck over a lowered film never reaches silence
-  const isDuck = e => String(e.shot || '').startsWith('duck:'),
+  const isDuck = (e: SoundEntry) => String(e.shot || '').startsWith('duck:'),
     A = E.filter(e => !isDuck(e)),
     D = E.filter(isDuck);
-  return t => {
+  return (t: number) => {
     let g = 1;
     for (const e of A) g += w(e, t) * (+e[key] - 1);
     g = Math.max(0, g);
@@ -29,9 +39,9 @@ export function soundEnv(entries, key, ramp = 0.12) {
     return Math.max(0, g);
   };
 }
-export const soundKey = entries =>
+export const soundKey = (entries: SoundEntry[] | null | undefined) =>
   JSON.stringify(
-    (entries || []).map(e => [
+    (entries || []).map((e: SoundEntry) => [
       e.shot,
       +(+e.t0).toFixed(3),
       +(+e.t1).toFixed(3),
@@ -44,12 +54,12 @@ export const soundKey = entries =>
   );
 
 // ---- WAV (PCM 16 / 24 / 32-bit, float 32) → { sr, ch: [Float32Array…], bits, float }
-export function readWav(file) {
+export function readWav(file: string): Wav {
   const b = fs.readFileSync(file);
   if (b.toString('ascii', 0, 4) !== 'RIFF' || b.toString('ascii', 8, 12) !== 'WAVE') throw new Error('Not a WAV file: ' + file);
   let o = 12,
-    fmt = null,
-    data = null;
+    fmt: { tag: number; nch: number; sr: number; bits: number } | null = null,
+    data: { o: number; n: number } | null = null;
   while (o + 8 <= b.length) {
     const id = b.toString('ascii', o, o + 4),
       n = b.readUInt32LE(o + 4);
@@ -71,7 +81,7 @@ export function readWav(file) {
     }
   return { sr: fmt.sr, ch, bits: float ? 16 : Math.min(24, fmt.bits) };
 }
-export function writeWav(file, { sr, ch, bits = 16 }) {
+export function writeWav(file: string, { sr, ch, bits = 16 }: Wav) {
   const B = bits === 24 ? 3 : 2,
     n = ch[0].length,
     nc = ch.length,
@@ -102,13 +112,13 @@ export function writeWav(file, { sr, ch, bits = 16 }) {
 }
 // put tmp in place of file: a rename (a new file, never written through a hard link); it can fail while
 // someone reads the file (the preview streaming it), so retry a moment, then write over it in place
-export function replaceFile(tmp, file) {
+export function replaceFile(tmp: string, file: string) {
   for (let k = 0; k < 6; k++) {
     try {
       fs.renameSync(tmp, file);
       return;
     } catch (e) {
-      if (!['EPERM', 'EBUSY', 'EACCES'].includes(e.code)) throw e;
+      if (!['EPERM', 'EBUSY', 'EACCES'].includes((e as NodeJS.ErrnoException).code!)) throw e;
     }
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 120);
   }
@@ -119,7 +129,7 @@ export function replaceFile(tmp, file) {
 // the mix with the levels on: from the untouched mix P and (when there) its music / sfx stems. The mix of a
 // spotlight score is p·(vo + music + sfx) (p < 1 only when it was turned down to a 0.95 peak), so
 // vo = P/p − music − sfx and p comes from P's correlation with the stems (the voice is independent of them).
-export function remix(P, stems, entries) {
+export function remix(P: Wav, stems: { music?: Wav; sfx?: Wav } | null | undefined, entries: SoundEntry[] | null | undefined) {
   const g = { music: soundEnv(entries, 'music'), sfx: soundEnv(entries, 'sfx'), vo: soundEnv(entries, 'vo'), all: soundEnv(entries, 'all') };
   const sr = P.sr,
     n = P.ch[0].length,
@@ -171,20 +181,21 @@ export function remix(P, stems, entries) {
 // ---- added sound clips (Nov 6): tweaks.json "audio": { clips: [{ id, name, src, t, gain, fin, fout, trim, len, loop, mute }] }
 // src is relative to tweaks.json's folder (vhaudio/<file>) or a VideoHub library path (absolute, checked by the hub).
 // Clips are mixed on top of the finished mix (after the per-shot levels), so they are never turned down by them.
-export const clipsOf = tweaks => ((tweaks && tweaks.audio && tweaks.audio.clips) || []).filter(c => c && c.src && !c.mute && Number.isFinite(+c.t));
+export const clipsOf = (tweaks: Json): Clip[] =>
+  ((tweaks && tweaks.audio && tweaks.audio.clips) || []).filter((c: Clip) => c && c.src && !c.mute && Number.isFinite(+c.t));
 // a key of what the mix was built with: the per-shot levels and (when there) the clips — the same string as before
 // when there are no clips, so mixes made earlier are not rebuilt for nothing
-export const mixKey = (entries, clips) =>
+export const mixKey = (entries: SoundEntry[] | null | undefined, clips?: Clip[] | null) =>
   soundKey(entries) +
   (clips && clips.length
-    ? '|' + JSON.stringify(clips.map(c => [c.src, +c.t, c.gain ?? 1, c.fin ?? 0, c.fout ?? 0, c.trim ?? 0, c.len ?? null, !!c.loop]))
+    ? '|' + JSON.stringify(clips.map((c: Clip) => [c.src, +c.t, c.gain ?? 1, c.fin ?? 0, c.fout ?? 0, c.trim ?? 0, c.len ?? null, !!c.loop]))
     : '');
 
-const decoded = new Map(); // file|mtime|sr|nc → channels (the hub lives long; one decode per file)
-export function decodeAudio(file, sr, nc, ffmpeg = 'ffmpeg') {
+const decoded = new Map<string, Float32Array[]>(); // file|mtime|sr|nc → channels (the hub lives long; one decode per file)
+export function decodeAudio(file: string, sr: number, nc: number, ffmpeg = 'ffmpeg'): Float32Array[] {
   const st = fs.statSync(file),
     k = `${file}|${st.mtimeMs}|${sr}|${nc}`;
-  if (decoded.has(k)) return decoded.get(k);
+  if (decoded.has(k)) return decoded.get(k)!;
   const r = spawnSync(ffmpeg, ['-v', 'error', '-i', file, '-f', 'f32le', '-acodec', 'pcm_f32le', '-ac', String(nc), '-ar', String(sr), '-'], {
     maxBuffer: 2 * 1024 * 1024 * 1024 - 1
   });
@@ -193,13 +204,13 @@ export function decodeAudio(file, sr, nc, ffmpeg = 'ffmpeg') {
   const n = Math.floor(f.length / nc),
     ch = Array.from({ length: nc }, () => new Float32Array(n));
   for (let i = 0; i < n; i++) for (let c = 0; c < nc; c++) ch[c][i] = f[i * nc + c];
-  if (decoded.size > 40) decoded.delete(decoded.keys().next().value);
+  if (decoded.size > 40) decoded.delete(decoded.keys().next().value!);
   decoded.set(k, ch);
   return ch;
 }
 // mix the clips into { sr, ch } in place; resolve(src) gives the file path. Overs are soft-limited (only the samples
 // above 0.98 bend, the rest of the mix keeps its level)
-export function mixClips(mix, clips, resolve, ffmpeg) {
+export function mixClips(mix: Wav, clips: Clip[], resolve: (src: string) => string | null | undefined, ffmpeg?: string): number {
   const { sr } = mix,
     nc = mix.ch.length,
     n = mix.ch[0].length;

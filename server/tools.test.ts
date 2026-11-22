@@ -1,7 +1,7 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 
 // tools.js talks to the hub over HTTP; a fake hub answers /api/ping and /api/config so no real hub is touched
@@ -18,8 +18,8 @@ const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify(req.url === '/api/config' ? cfg : { ok: true }));
 });
-await new Promise(r => server.listen(0, '127.0.0.1', r));
-process.env.VIDEOHUB_PORT = String(server.address().port);
+await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
+process.env.VIDEOHUB_PORT = String((server.address() as AddressInfo).port);
 process.env.VIDEOHUB_DATA_DIR ||= path.resolve('.test-tmp', 'tools-data');
 const { TOOLS } = await import('./tools.ts');
 test.after(() => server.close());

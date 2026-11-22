@@ -1,4 +1,3 @@
-// @ts-nocheck
 // The tools agents use (through mcp.js, or `node server/cli.ts <tool> '<json>'` without MCP).
 // They talk to the hub over http://127.0.0.1:7788 and start it when it is not running.
 // Status inputs accept the English values and, as aliases, the Turkish words older versions used.
@@ -7,6 +6,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { HUB_DIR, DATA_DIR, readJson } from './util.ts';
+import type { Json } from './types.ts';
 import {
   NOTE_STATUSES,
   NOTE_STATUS_ALIASES,
@@ -20,8 +20,16 @@ import {
 
 // renders and versions made through these tools are labelled "Claude"; the tools never look at which chat called them
 const BY_AGENT = { title: (readJson(path.join(DATA_DIR, 'config.json'), {}) || {}).agentName || 'Claude' };
-const PORT = +process.env.VIDEOHUB_PORT || (readJson(path.join(DATA_DIR, 'config.json'), {}) || {}).port || 7788; // env: talk to a test hub
+const PORT = +process.env.VIDEOHUB_PORT! || (readJson(path.join(DATA_DIR, 'config.json'), {}) || {}).port || 7788; // env: talk to a test hub
 const BASE = `http://127.0.0.1:${PORT}`;
+
+// What a tool receives: MCP validates it with the tool's zod schema, the CLI passes parsed JSON through unchecked.
+type ToolArgs = Record<string, Json>;
+export interface Tool {
+  description: string;
+  schema: z.ZodRawShape;
+  run(a: ToolArgs): Promise<string>;
+}
 
 async function ping() {
   try {
@@ -41,7 +49,7 @@ async function ensureHub() {
   }
   throw new Error('Could not start the VideoHub server (' + BASE + ').');
 }
-async function call(method, p, body, timeoutMs = 120e3) {
+async function call(method: string, p: string, body?: unknown, timeoutMs = 120e3): Promise<Json> {
   await ensureHub();
   const r = await fetch(BASE + p, {
     method,
@@ -54,19 +62,19 @@ async function call(method, p, body, timeoutMs = 120e3) {
   return j;
 }
 
-const TC = s => {
+const TC = (s: number) => {
   const m = Math.floor(s / 60),
     r = s - m * 60;
   return `${m}:${r.toFixed(2).padStart(5, '0')}`;
 };
-const GB = b => (b >= 1073741824 ? (b / 1073741824).toFixed(1) + ' GB' : Math.round(b / 1048576) + ' MB');
-async function resolve(projectArg) {
+const GB = (b: number) => (b >= 1073741824 ? (b / 1073741824).toFixed(1) + ' GB' : Math.round(b / 1048576) + ' MB');
+async function resolve(projectArg?: string): Promise<Json> {
   const q = projectArg || process.cwd();
   const p = await call('GET', '/api/find?q=' + encodeURIComponent(q));
   if (Array.isArray(p.notes)) p.notes.forEach(normalizeNote);
   return p;
 }
-const FAM = {
+const FAM: Record<string, string> = {
   A: 'chunked (partial re-renders available)',
   B: 'worker parts',
   C: 'segments',
@@ -77,15 +85,15 @@ const FAM = {
   code: 'code (no chunked render script)',
   other: 'other'
 };
-const isOpen = n => isOpenNote({ status: noteStatus(n.status) });
+const isOpen = (n: Json) => isOpenNote({ status: noteStatus(n.status) });
 
 // a thumbnail by project + id, or by its id alone (then the hub searches every project)
-async function thumbLoc(a) {
+async function thumbLoc(a: ToolArgs): Promise<{ pid: string; dir: string }> {
   if (!a.id) throw new Error('id is required (the thumbnail id, e.g. 20261104-k3f9)');
   if (a.project && a.project !== '_') {
     const p = await resolve(a.project);
     const list = await call('GET', '/api/thumbstudio/list?project=' + encodeURIComponent(p.id));
-    const t = (list || []).find(x => x.id === a.id);
+    const t = (list || []).find((x: Json) => x.id === a.id);
     if (!t) throw new Error(`Project "${p.title}" has no thumbnail ${a.id}.`);
     return { pid: p.id, dir: t.dir };
   }
@@ -93,7 +101,7 @@ async function thumbLoc(a) {
   return { pid: t.pid, dir: t.dir };
 }
 
-export const TOOLS = {
+export const TOOLS: Record<string, Tool> = {
   hub_live: {
     description:
       "Open the film in VideoHub's live preview WITHOUT RENDERING: it plays straight from its code, the user watches and leaves notes, and the preview reloads itself when the code changes. Call this as soon as a new film (or a big change) plays, BEFORE any render; then stop and wait for the user's notes. Render only when the user asks. If the page lacks window.renderOut(t) + window.READY, it says why.",
@@ -101,7 +109,7 @@ export const TOOLS = {
       project: z.string().optional().describe('Project folder, name or id. Default: the working folder.'),
       open: z.boolean().optional().describe('false = only check, do not open a window')
     },
-    run: async a => {
+    run: async (a: ToolArgs) => {
       const p = await resolve(a.project);
       const li = await call('GET', `/api/project/${p.id}/live`); // also starts watching the code for changes
       if (!li.ok)
@@ -124,8 +132,8 @@ export const TOOLS = {
     schema: {},
     run: async () => {
       const c = await call('GET', '/api/config');
-      const roots = (c.roots || []).filter(r => r.enabled !== false);
-      const films = (roots.find(r => r.type === 'container') || {}).path;
+      const roots = (c.roots || []).filter((r: Json) => r.enabled !== false);
+      const films = (roots.find((r: Json) => r.type === 'container') || {}).path;
       return [
         `Workspace: ${c.workspace}`,
         films
@@ -136,8 +144,8 @@ export const TOOLS = {
         roots.length > 1
           ? 'Other watched folders: ' +
             roots
-              .filter(r => r.path !== films)
-              .map(r => `${r.path} (${r.type})`)
+              .filter((r: Json) => r.path !== films)
+              .map((r: Json) => `${r.path} (${r.type})`)
               .join(', ')
           : '',
         "Keep each film self-contained in its own folder (code, audio, render/); never put one film's files into another film's folder."
@@ -169,7 +177,7 @@ export const TOOLS = {
         })
         .optional()
     },
-    run: async a => {
+    run: async (a: ToolArgs) => {
       let p = await resolve(a.project);
       if (a.set) {
         const set = { ...a.set };
@@ -190,7 +198,10 @@ export const TOOLS = {
         vs.length
           ? 'Latest versions: ' +
             vs
-              .map(v => `v${v.v} ${v.file}${v.changedRanges ? ` (changed: ${v.changedRanges.map(([x, y]) => TC(x) + '–' + TC(y)).join(', ')})` : ''}`)
+              .map(
+                (v: Json) =>
+                  `v${v.v} ${v.file}${v.changedRanges ? ` (changed: ${v.changedRanges.map(([x, y]: [number, number]) => TC(x) + '–' + TC(y)).join(', ')})` : ''}`
+              )
               .join(' | ')
           : '',
         `Notes: ${open.length} open / ${(p.notes || []).length} total${open.length ? ' → get them with hub_notes' : ''}`
@@ -211,10 +222,10 @@ export const TOOLS = {
         .describe('open = open + reopened (default)'),
       take: z.boolean().optional().describe('Mark the returned open notes "claude" (default true)')
     },
-    run: async a => {
+    run: async (a: ToolArgs) => {
       const p = await resolve(a.project);
       const st = a.status ? (a.status === 'all' ? 'all' : noteStatus(a.status)) : 'open';
-      const notes = (p.notes || []).filter(n => st === 'all' || (st === 'open' ? isOpen(n) : n.status === st)).sort((x, y) => x.t - y.t);
+      const notes = (p.notes || []).filter((n: Json) => st === 'all' || (st === 'open' ? isOpen(n) : n.status === st)).sort((x: Json, y: Json) => x.t - y.t);
       if (!notes.length) return `No ${st === 'open' ? 'open ' : ''}notes on "${p.title}".`;
       if (a.take !== false) for (const n of notes) if (isOpen(n)) await call('POST', `/api/project/${p.id}/note/${n.id}`, { status: 'claude', by: 'claude' });
       const lines = [`"${p.title}" (${p.path}) — ${notes.length} note${notes.length === 1 ? '' : 's'}:`];
@@ -231,7 +242,7 @@ export const TOOLS = {
         if (n.images?.end) lines.push(`   last frame of the range: ${n.images.end}`);
         if (n.reply) lines.push(`   your previous reply: ${n.reply}`);
       }
-      const liveN = notes.filter(n => n.file === '~live').length;
+      const liveN = notes.filter((n: Json) => n.file === '~live').length;
       if (liveN)
         lines.push(
           '',
@@ -254,7 +265,7 @@ export const TOOLS = {
       status: z.enum(['claude', 'fixed', 'open', ...NOTE_STATUS_ALIASES]).optional(),
       reply: z.string().optional()
     },
-    run: async a => {
+    run: async (a: ToolArgs) => {
       const p = await resolve(a.project);
       const n = await call('POST', `/api/project/${p.id}/note/${a.id}`, { status: a.status ? noteStatus(a.status) : undefined, reply: a.reply, by: 'claude' });
       return `#${n.id} → ${n.status}${n.reply ? ' · ' + n.reply : ''}`;
@@ -281,7 +292,7 @@ export const TOOLS = {
       note: z.string().optional().describe('Version description'),
       wait: z.boolean().optional()
     },
-    run: async a => {
+    run: async (a: ToolArgs) => {
       const p = await resolve(a.project);
       const j = await call('POST', '/api/jobs', {
         project: p.id,
@@ -298,7 +309,7 @@ export const TOOLS = {
         session: BY_AGENT
       });
       const head =
-        `Job ${j.id} queued (position ${j.position}) · ${j.mode}${j.chunks ? ` · ${j.chunks.length} chunk${j.chunks.length === 1 ? '' : 's'} (${j.chunks.join(',')}) = ${j.changedRanges.map(([x, y]) => TC(x) + '–' + TC(y)).join(', ')}` : ''}` +
+        `Job ${j.id} queued (position ${j.position}) · ${j.mode}${j.chunks ? ` · ${j.chunks.length} chunk${j.chunks.length === 1 ? '' : 's'} (${j.chunks.join(',')}) = ${j.changedRanges.map(([x, y]: [number, number]) => TC(x) + '–' + TC(y)).join(', ')}` : ''}` +
         (j.ramNote ? `\n${j.ramNote} → Tell the user this in one sentence; never close the program yourself.` : '');
       if (j.needsApproval)
         return (
@@ -315,14 +326,14 @@ export const TOOLS = {
   hub_job: {
     description: 'The state of a render job. wait=true waits until it ends (at most ~9 min); call again if it has not ended.',
     schema: { id: z.string(), wait: z.boolean().optional() },
-    run: async a => {
+    run: async (a: ToolArgs) => {
       const j = await call('GET', `/api/jobs/${a.id}` + (a.wait ? '?wait=540' : ''), null, 600e3);
       const parts = [
         `Job ${j.id}: ${j.state}${j.state === 'running' ? ` ${Math.round((j.progress || 0) * 100)}%` : ''}${j.state === 'queued' && j.waiting ? ` (waiting: ${j.waiting})` : ''}`
       ];
       if (j.output)
         parts.push(
-          `Output: ${j.output} (v${j.version})${j.changedRanges ? ` · changed: ${j.changedRanges.map(([x, y]) => TC(x) + '–' + TC(y)).join(', ')}` : ''}${j.durationSec ? ` · took ${j.durationSec} s` : ''}`
+          `Output: ${j.output} (v${j.version})${j.changedRanges ? ` · changed: ${j.changedRanges.map(([x, y]: [number, number]) => TC(x) + '–' + TC(y)).join(', ')}` : ''}${j.durationSec ? ` · took ${j.durationSec} s` : ''}`
         );
       if (j.ramNote && j.state !== 'done') parts.push(j.ramNote);
       if (j.error) parts.push('Error: ' + j.error);
@@ -346,7 +357,7 @@ export const TOOLS = {
       notes: z.array(z.number()).optional(),
       kind: z.enum(['final', 'preview']).optional()
     },
-    run: async a => {
+    run: async (a: ToolArgs) => {
       const p = await resolve(a.project);
       const r = await call('POST', `/api/project/${p.id}/version`, { ...a, session: BY_AGENT });
       return `Registered: v${r.v} ${r.file}`;
@@ -356,13 +367,13 @@ export const TOOLS = {
   hub_cleanup: {
     description: "List the files of this project that can safely be removed (a list only; the user decides on VideoHub's Disk page).",
     schema: { project: z.string().optional() },
-    run: async a => {
+    run: async (a: ToolArgs) => {
       const p = await resolve(a.project);
       const d = await call('GET', `/api/project/${p.id}`);
       if (!d.cleanup.length) return 'Nothing to clean up.';
       return [
-        `"${p.title}" — ${GB(d.cleanup.reduce((s, c) => s + c.size, 0))} can be cleaned up:`,
-        ...d.cleanup.map(c => `- ${GB(c.size)} ${c.path} — ${c.reason}`),
+        `"${p.title}" — ${GB(d.cleanup.reduce((s: number, c: Json) => s + c.size, 0))} can be cleaned up:`,
+        ...d.cleanup.map((c: Json) => `- ${GB(c.size)} ${c.path} — ${c.reason}`),
         "Tell the user to approve it on VideoHub's Disk page (Trash / archive). Never delete these yourself."
       ].join('\n');
     }
@@ -373,7 +384,7 @@ export const TOOLS = {
     schema: {
       project: z.string().optional().describe('Project folder, name or id. Empty: every thumbnail (projects + shared).')
     },
-    run: async a => {
+    run: async (a: ToolArgs) => {
       let pId = null;
       if (a.project && a.project !== '_') {
         const p = await resolve(a.project);
@@ -400,7 +411,7 @@ export const TOOLS = {
       project: z.string().optional().describe('Project folder, name or id. For a shared thumbnail "_" or leave empty.'),
       id: z.string().describe('Thumbnail id (e.g. 20261104-k3f9)')
     },
-    run: async a => {
+    run: async (a: ToolArgs) => {
       const { pid: pId } = await thumbLoc(a);
       const brief = await call('GET', `/api/thumbstudio/${pId}/${a.id}`);
       const folder = (await thumbLoc(a)).dir;
@@ -412,7 +423,7 @@ export const TOOLS = {
       const hasSketch = fs.existsSync(sketchPath);
 
       // open notes on the variants
-      const openNotes = [];
+      const openNotes: Json[] = [];
       for (const v of brief.variants || []) {
         for (const n of v.notes || []) {
           if (noteStatus(n.status) === 'open') openNotes.push({ vid: v.id, ...n });
@@ -420,10 +431,10 @@ export const TOOLS = {
       }
 
       const { generatePrompt } = await import('./thumbstudio/prompt.ts');
-      const gp = generatePrompt(brief),
+      const gp: Json = generatePrompt(brief),
         prompt = gp.prompt,
         summary = gp.summary || gp.summaryTr;
-      const mark = f => (fs.existsSync(f) ? '✓ (exists)' : '✗ (not exported yet)');
+      const mark = (f: string) => (fs.existsSync(f) ? '✓ (exists)' : '✗ (not exported yet)');
 
       const parts = [
         `=== VIDEOHUB THUMBNAIL BRIEF: "${brief.title || 'Untitled'}" (${brief.format || '16:9'}) ===`,
@@ -447,7 +458,7 @@ export const TOOLS = {
         }
       }
 
-      const refs = (brief.refs || []).filter(r => r.file);
+      const refs = (brief.refs || []).filter((r: Json) => r.file);
       if (refs.length) {
         parts.push('\n--- Reference files (full paths) ---');
         for (const r of refs) parts.push(`- [${r.role}] ${path.join(folder, r.file)}${r.note ? ' — ' + r.note : ''}`);
@@ -510,7 +521,7 @@ export const TOOLS = {
       parent: z.string().optional().describe('The variant id this fixes (e.g. v1_2)'),
       fixes: z.array(z.number()).optional().describe('Ids of the variant notes this answers (e.g. [1, 2])')
     },
-    run: async a => {
+    run: async (a: ToolArgs) => {
       const { pid: pId } = await thumbLoc(a);
       const res = await call('POST', `/api/thumbstudio/${pId}/${a.id}/variant`, {
         file: a.file,

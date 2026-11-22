@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Same tools as the MCP server, for sessions that do not have it:
 //   node server/cli.ts hub_notes '{"project":"C:\\path\\to\\film"}'
 //   node server/cli.ts list
@@ -19,6 +18,6 @@ try {
   const args = json ? JSON.parse(json) : {};
   console.log(await TOOLS[name].run(args));
 } catch (e) {
-  console.error('Error:', e.message || e);
+  console.error('Error:', (e as Error).message || e);
   process.exitCode = 1;
 }

@@ -4,7 +4,7 @@ import { readSource } from '../../scripts/test-source.ts';
 import { soundEnv, applyOps, opsToward, clipPlan } from './soundenv.js';
 
 const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
-// server/vhsound.ts is read with its types stripped to whitespace (soundenv.js has none until P6), so whitespace is normalized before comparing
+// server/vhsound.ts is read with its types stripped to whitespace (soundenv.js has none until P6), so whitespace, and the parentheses a typed single arrow parameter needs, are normalized before comparing
 const fnText = (file, name) => {
   const s = readSource(new URL(file, import.meta.url)).replace(/\r\n/g, '\n'),
     i = s.indexOf('export function ' + name + '(');
@@ -12,6 +12,7 @@ const fnText = (file, name) => {
   const j = s.indexOf('\n}\n', i);
   return s
     .slice(i, j + 2)
+    .replace(/\(\s*(\w+)\s*\)\s*=>/g, '$1 =>')
     .replace(/\s+/g, ' ')
     .replace(/ ?([()[\]{},;]) ?/g, '$1');
 };
