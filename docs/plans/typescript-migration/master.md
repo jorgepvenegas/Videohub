@@ -91,7 +91,7 @@ flowchart LR
 | P4 | Installer, scripts and upgrade path to TS | `scripts/` and the lifecycle entry points are `.ts`; shell scripts gate Node ≥ 22.18; setup registers `.ts` entries; update from a JS-era install stops the old hub and re-points MCP and login items | P3 | done | [plan](phases/04-installer-scripts-and-upgrade-path-to-ts/plan.md) |
 | P5 | Vite UI build and app shell to TS | Vite builds `ui/` into ignored output that the hub serves; setup/update run the build; top-level `ui/*.js` modules (`app`, `agent`, `values`, `system`, `outputs-panel`, `render-status`) and their tests are converted | P4 | done | [plan](phases/05-vite-ui-build-and-app-shell-to-ts/plan.md) |
 | P6 | Review UI to TS | `ui/review/` and `ui/review.js` are `.ts` and build with Vite; review pages work in a scratch hub | P5 | done | [plan](phases/06-review-ui-to-ts/plan.md) |
-| P7 | Thumbnail studio UI to TS | `ui/thumbstudio/` (and the server tests importing it) are `.ts`; the thumbnail studio works in a scratch hub | P5 | in_progress | [plan](phases/07-thumbnail-studio-ui-to-ts/plan.md) |
+| P7 | Thumbnail studio UI to TS | `ui/thumbstudio/` (and the server tests importing it) are `.ts`; the thumbnail studio works in a scratch hub | P5 | done | [plan](phases/07-thumbnail-studio-ui-to-ts/plan.md) |
 | P8 | Engine hooks and film starter to TS | `engine-hooks/` build to stable `.js` paths; the film starter and example are `render.ts`/`make-audio.ts`/`film.ts`; hub live preview and `render.ts` serve stripped `film.ts`; `render.js` films still work | P4,P5 | planned | pending |
 | P9 | Strict repo-wide, no JS left, docs | `allowJs` removed, strict repo-wide, a test fails on any tracked JS file, CLAUDE.md/docs/skill/README updated; full D1–D9 verification | P6,P7,P8 | planned | pending |
 
@@ -196,12 +196,13 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 | P4 | 2026-11-21 | addressed | A1, A2, A3, A4, A5, A6, A7 | 10ad620 | [report](phases/04-installer-scripts-and-upgrade-path-to-ts/plan.md) |
 | P5 | 2026-11-22 | addressed | A1, A2, A3, A4, A5, A6 | 1660e85 | [report](phases/05-vite-ui-build-and-app-shell-to-ts/plan.md) |
 | P6 | 2026-11-22 | addressed | A1, A2, A3, A4, A5 | 8241300 | [report](phases/06-review-ui-to-ts/plan.md) |
+| P7 | 2026-11-22 | addressed | A1, A2, A3, A4, A5 | 7a1a29a | [report](phases/07-thumbnail-studio-ui-to-ts/plan.md) |
 
 ## 12. Resume brief
 
-- Current phase: P7 (plan not yet written; P8 is also unblocked)
-- Last verdict: P6 addressed
-- Next action: write the P7 plan (apply L28, L29, L32-L35 and earlier rows), then ask for approval
+- Current phase: P8 (plan not yet written)
+- Last verdict: P7 addressed
+- Next action: write the P8 plan (apply L28, L34, L35, L40, L42 and earlier rows), then ask for approval
 - Open decisions: none
 - PR: https://github.com/jorgepvenegas/Videohub/pull/3
 - Last updated: 2026-11-22
