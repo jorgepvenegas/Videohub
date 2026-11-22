@@ -9,8 +9,8 @@
 - Approved at: 2026-11-22
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: p10-worker
+- Implemented at: 2026-11-22
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -158,7 +158,7 @@ Commit after each step with subject `P10:` followed by the step title, and push.
   3. A throwaway script under `.test-tmp/p10-browser/` drives the repo's `puppeteer-core` with the installed Chrome, headless and muted. It opens `#/` and each film's `#/review/PROJECT_ID/~live` page without `?play=1`, collects console errors and failed requests, and confirms that each live page reports `window.READY` and draws a frame. It clicks nothing and plays nothing.
   4. Check through the hub API that the TS films' detected script is `render.ts` and the legacy film's is `render.js`. Stop the hub and record the evidence and the L3 warning counts.
 - Acceptance:
-  - [ ] Zero console errors and zero failed requests on all four pages; all three films are live-capable; scripts detected as above; nothing played or rendered
+  - [x] Zero console errors and zero failed requests on all four pages; all three films are live-capable; scripts detected as above; nothing played or rendered
 - Verification: the recorded script output; `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty at the end
 - Rollback: n/a (scratch only)
 
@@ -183,11 +183,11 @@ Commit after each step with subject `P10:` followed by the step title, and push.
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] One stripping helper in `server/util.ts` is reused by scan, live and serve; the render script's page server reuses the existing `frameServer`
-- [ ] Names and structure state intent; comments explain only non-obvious reasons (why the page is served over http, why requires are typed)
-- [ ] Every new test fails if the behavior it covers breaks (revert checks in §9)
-- [ ] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`, plus `pnpm build`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency (two small follow-up fixes found by the checks: the snap mode and the live hook detection, both recorded in section 9)
+- [x] One stripping helper in `server/util.ts` (`readScript`) is reused by scan, live (its `read`, hence pageOf, sizeOf, hasHook, and `serve`) and jobs; the render script's page server reuses the existing `frameServer`
+- [x] Names and structure state intent; comments explain only non-obvious reasons (why the page is served over http, why requires are typed, why `headless: 'new'` is cast, why one `any`)
+- [x] Every new test fails if the behavior it covers breaks (revert checks in section 9; the S2 page-server check is a scratch script, not a committed test, see the discovery in section 10)
+- [x] Master standards commands pass: `pnpm format:check`, `pnpm lint` (0 errors, 148 warnings, unchanged), `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test` (321 tests, 320 pass, 0 fail, 1 skipped), plus `pnpm build`
 
 ## 8. Risks and unknowns
 
@@ -240,36 +240,51 @@ S4 (2026-11-22):
 
 S1 follow-up (2026-11-22, found in S5): the scratch hub listed `hello-film` and `new-film` as not live-capable (`live: false` in `/api/projects`), while the legacy film was capable. Cause: `hasHook` in `server/live.ts` followed only `.js`/`.mjs` script tags and `src/` files, so a page loading `film.ts` never showed its `window.renderOut`. The S1 tests covered script detection, `pageOf` and serving, but not the hook. Fixed in `server/live.ts` (both patterns also accept `.ts`; comment updated) with a new test in `server/film-ts.test.ts` (a page loading `film.ts`, one loading `film.js`, one whose `.ts` has no hook, and a hook in `src/main.ts`); with the live.ts change reverted the test fails on its first assertion. Standards: format, lint (0 errors, 148 warnings), typecheck, build clean; `pnpm test` 321 tests, 320 pass, 0 fail.
 
+S5 (2026-11-22):
+- Scratch base `.test-tmp/p10-hub/` (kept in place for S6, hub stopped): `base/films/hello-film` (copy of `examples/hello-film`, id `b722b528f0c5`, `.videohub/project.json` from the example's `videohub-project.json` as the installer does), `base/films/new-film` (copy of `templates/new-film`, id `96cfaa70e095`; `make-audio.ts` run in it, then the length set with `node server/cli.ts hub_project` with `set.render.workers 2` and `env.DUR 10`, the way its README says), `base/films/hello-legacy` (`git archive 0e18934 examples/hello-film`, id `0f42bd1cce93`, still `render.js`, `film.js`, `make-audio.js`). Scratch covers: `data/thumbs/live-ID.jpg` for the three ids, made with ffmpeg (L34). `data/config.json` pins port 7799 and the one root `base/films`.
+- Start command (rule 1; also saved as `.test-tmp/p10-hub/start-hub.sh`, which runs from the repo folder): `env -i HOME=.test-tmp/p10-hub/home XDG_CONFIG_HOME=.test-tmp/p10-hub/home/.config XDG_DATA_HOME=.test-tmp/p10-hub/home/.local/share TMPDIR=TMP=TEMP=.test-tmp/p10-hub/tmp PATH=.test-tmp/p4-bin:/usr/bin:/bin VIDEOHUB_PORT=7799 VIDEOHUB_DATA_DIR=.test-tmp/p10-hub/data VIDEOHUB_BASE_DIR=.test-tmp/p10-hub/base VIDEOHUB_GUARD=off VIDEOHUB_JOBS=off VIDEOHUB_NO_WINDOW=1 /Users/jorge/.asdf/installs/nodejs/24.16.0/bin/node server/hub.ts` (all paths absolute in the script; `p4-bin` holds symlinks to node, ffmpeg, ffprobe, git, pnpm and no `claude` or `opencode`). The script reads `VIDEOHUB_JOBS` from its caller with default `off`, so S6 starts it with `VIDEOHUB_JOBS=on .test-tmp/p10-hub/start-hub.sh`. Log: `.test-tmp/p10-hub/hub.log`; the pid file `.test-tmp/p10-hub/pid` is the one process started.
+- First run exposed the hook detection gap (S1 follow-up above): `/api/projects` showed `live` false for both `.ts` films. After the fix and a hub restart: `hello-film render.ts live=True`, `new-film render.ts live=True`, `hello-legacy render.js live=True`.
+- Browser check `.test-tmp/p10-browser/check.mjs` (puppeteer-core 25 with the installed Google Chrome, headless, `--mute-audio`, scratch profile; run with the real node binary under `env -i`, scratch HOME and TMPDIR): opened `#/` and `#/review/ID/~live` for the three films without `?play=1`; clicked nothing; counted console errors and warnings, page errors, failed requests, HTTP 400 and above, and `play`/`playing` events. Output: all four pages `ok`; in every film frame `READY: true`, canvas `1920x1080`, `drawn: true`, `hasRenderOut: true`; each review page showed one `VIDEO paused=true`; `plays: []` on all pages; `total problems ... 0`. `/api/jobs` was `[]`, and no `render` folder exists in any scratch film.
+- Hub stopped with `kill` of the pid I started; `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty. L3: `pnpm lint` 0 errors, 148 warnings (the count was 148 before S4 and after; none new in the film scripts beyond the catch-parameter and no-unused-expressions rules those files already had as JavaScript).
+- The hub prints one `ExperimentalWarning: stripTypeScriptTypes` to its stderr on Node 24.16 the first time a `.ts` film script is read; nothing reaches the browser console.
+
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
 
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-22
+- Session: p10-worker (steps S1 to S5; S6 belongs to the coordinator and the user)
+- Verdict: partial (S6 pending)
+- Steps complete: S1, S2, S3, S4, S5 (commits e762929, 4152faf, 713ddba, b9b398a snap fix, f493078, d6e13d2 hook fix)
+- Verification run: `pnpm install --frozen-lockfile` (up to date), `pnpm format:check` (clean), `pnpm lint` (0 errors, 148 warnings), `pnpm typecheck`, `pnpm build`, `pnpm test` (321 tests, 320 pass, 0 fail, 1 skipped); `cmp` of the two `render.ts`; AST comparison of the six scripts (0 differences); scratch `make-audio.ts` runs; S2 page-server unit check; S5 browser check with the scratch hub (0 problems on four pages); `lsof` on 7799 empty.
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | pending | |
-| A2 | pending | |
-| A3 | pending | |
-| A4 | pending | |
-| A5 | pending | |
-| A6 | pending | |
-| D1 (master) | pending | |
-| D2 (master) | pending | |
-| D3 (master) | pending | |
-| D4 (master) | pending | |
-| D7 (master) | pending | |
-| D8 (master) | pending | |
+| A1 | met | `git ls-files templates examples` has no `.js`; `cmp templates/new-film/render.ts examples/hello-film/render.ts` identical; `git show -M --summary 713ddba` shows 6 renames; `git log --follow --oneline templates/new-film/render.ts` 10 commits |
+| A2 | met | `pnpm typecheck` clean with no `moduleDetection` change; `grep -l "@ts-nocheck"` over both folders prints nothing; AST comparison of all six scripts against b9b398a gives `different: 0`, with a negative control that does produce a DIFF (section 9, S4) |
+| A3 | met | `pnpm test` 321 tests, 320 pass, 0 fail (baseline 312 pass); new tests in `server/film-ts.test.ts` and `server/jobs.test.ts` each fail with their change reverted (section 9, S1 and the hook follow-up); the queued-command test is a pin that passes before and after because `recipe` already used the detected script |
+| A4 | met | `pnpm lint` 0 errors (148 warnings, unchanged); `pnpm format:check` exits 0 |
+| A5 | met | S5: library and live review pages of `hello-film`, `new-film` and `hello-legacy` load with zero console errors, page errors, failed requests and play events; each film frame reports `READY`, a 1920x1080 canvas and a drawn frame; scripts detected as `render.ts`, `render.ts`, `render.js`; no job, no render folder |
+| A6 | pending | S6, user gate |
+| D1 (master) | met | This phase's share: no `.js` is tracked under `templates/` or `examples/`, and `git ls-files '*.js' '*.mjs' '*.cjs' '*.jsx'` prints nothing now. D stays open until P9 |
+| D2 (master) | met | This phase's share: both film folders type-check strictly under the root config (no `@ts-nocheck`). D stays open until P9 |
+| D3 (master) | met | This phase's share: lint 0 errors and format clean with the six scripts as TypeScript. D stays open until P9 |
+| D4 (master) | met | This phase's share: 320 passing tests, above the 312 floor, with the new `.ts` and legacy tests. D stays open until P9 |
+| D7 (master) | pending | S6, user gate (the example and starter previews are verified; the user review and the one queued render are not) |
+| D8 (master) | met | This phase's share: `render.js`/`film.js` films still preview (the `hello-legacy` copy in the S5 browser check, live-capable, `render.js` detected) and queue (the queued-command test for a legacy film). D stays open until P9 |
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| P10-1 | The S2 change broke `node render.ts snap ...` (the page URL needs the server, snap passed none). Found while typing; fixed in b9b398a; snap itself was not run (it launches a browser) | note | P10 | Fixed; AST baseline moved to b9b398a (section 9) |
+| P10-2 | `hasHook` in `server/live.ts` followed only `.js`/`.mjs`, so `.ts` films were not live-capable. Found by the S5 check; fixed in d6e13d2 with a test | note | P10 | Fixed (section 9) |
+| P10-3 | More `.js`-only patterns remain that matter for `.ts` films: `server/source-revision.ts:15` (the code-file pattern behind the live revision, so editing `film.ts` may not change the revision or trigger the reload), `server/live.ts:334` (the watcher's extension filter), `server/scan.ts:320,331,387` (`render\.(m?js|py)` as film markers for discovery; a film with `render.ts` but no `index.html` is not recognized). `source-revision.ts` is outside this plan's file list, so none of these was changed | phase-amend | P10 (or a new phase) | Coordinator decision: amend P10 with these files and tests, then re-run S5 and check reload after editing `film.ts` in the scratch hub |
+| P10-4 | The starter's page server (`serveFolder`) has no committed test; the plan allowed a scratch script (`.test-tmp/p10-server/check.mjs`). A committed test would extract it from `render.ts` by markers like `encoders.test.ts` does | phase-amend | P10 | Coordinator decision: add a test file entry to S2 |
+| P10-5 | `stripTypeScriptTypes` prints an ExperimentalWarning to stderr on Node 24.16, once per process (hub, render script). On 22.18 L24 saw none | note | P9 or later | None written; harmless to the browser console, but visible in render job logs |
+| P10-6 | `ui/review/renderbtn.ts:63` toast text says "no render script (render.js)"; with `render.ts` as the default it should name both | note | P9 or later | None written (user-visible text, outside P10 files) |
+| P10-7 | The page server is now required for every render: if listening on 127.0.0.1 fails, the render fails (before, it fell back to PNG screenshots with the page on `file://`) | note | P10 | Recorded in section 9 (S2); no action |
 
-**Master updates written:** none yet
-**Next-phase updates written:** none yet
-**Remaining work and handoff:** none yet
+**Master updates written:** none (master.md is owned by the coordinator)
+**Next-phase updates written:** none
+**Remaining work and handoff:** S6, run by the coordinator after the user's review. Scratch hub: `VIDEOHUB_JOBS=on /Users/jorge/code/Videohub/.test-tmp/p10-hub/start-hub.sh` (section 9, S5; port 7799, hub stopped now). Project ids: example copy `b722b528f0c5` (`hello-film`), starter film `96cfaa70e095` (`new-film`), legacy copy `0f42bd1cce93` (`hello-legacy`). Ask the user to open http://127.0.0.1:7799, watch the example copy and the new film in live preview, and leave notes; queue exactly one render of `hello-film` only on the user's explicit request, then run ffprobe on the output (about 10 s, video and audio streams). Open decisions for the coordinator before S6: P10-3 and P10-4 above.
