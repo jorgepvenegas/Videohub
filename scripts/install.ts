@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Thin shell entry points share their decisions here; runtime helpers never install OS packages silently.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -5,9 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
 import * as platformDefault from '../server/platform.ts';
-import { initConfig, state, checkWorkspace } from './init-config.mjs';
+import { initConfig, state, checkWorkspace } from './init-config.ts';
 import { detectEncoders } from '../server/encoders.ts';
-import { detectAgents, integrateAgents } from './agents.mjs';
+import { detectAgents, integrateAgents } from './agents.ts';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BOOLS = new Set(['watch-found', 'gpu-encoder', 'global-rule', 'shortcut', 'startup', 'example']);
 export function parseOptions(args) {
@@ -425,7 +426,7 @@ export async function runInstaller(
           '\nset -euo pipefail\nexport PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"\nexec ' +
           shellQuote(platform.TOOLS.node) +
           ' ' +
-          shellQuote(path.join(hub, 'scripts', 'install.mjs')) +
+          shellQuote(path.join(hub, 'scripts', 'install.ts')) +
           ' open "$@"\n'
         : '# VideoHub install: ' + hub + '\n' + platform.desktopEntry(false);
       for (const f of [...(platform.IS_MAC ? [] : [entryFile]), ...(makeShortcut ? [desktopFile] : [])]) {

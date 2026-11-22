@@ -471,7 +471,7 @@ export function createPlatform({
       .replace(/[\\"$`]/g, '\\$&') +
     '"';
   const desktopEntry = (server = false) =>
-    `[Desktop Entry]\nType=Application\nName=VideoHub\nComment=Local video review studio\nExec=${desktopQuote(process.execPath)} ${desktopQuote(path.join(hubDir, 'scripts', 'install.mjs'))} open${server ? ' --server' : ''}\nIcon=${path.join(hubDir, 'ui', 'icon.svg')}\nTerminal=false\nCategories=AudioVideo;Video;\nX-VideoHub-Install=${hubDir}\n`;
+    `[Desktop Entry]\nType=Application\nName=VideoHub\nComment=Local video review studio\nExec=${desktopQuote(process.execPath)} ${desktopQuote(path.join(hubDir, 'scripts', 'install.ts'))} open${server ? ' --server' : ''}\nIcon=${path.join(hubDir, 'ui', 'icon.svg')}\nTerminal=false\nCategories=AudioVideo;Video;\nX-VideoHub-Install=${hubDir}\n`;
   const xml = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
   const launchAgent = () =>
     `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>\n<key>Label</key><string>com.videohub.hub</string>\n<key>ProgramArguments</key><array><string>${xml(TOOLS.node)}</string><string>${xml(path.join(hubDir, 'server', 'hub.ts'))}</string></array>\n<key>WorkingDirectory</key><string>${xml(hubDir)}</string>\n<key>EnvironmentVariables</key><dict><key>PATH</key><string>${xml(toolDirs.join(':'))}</string></dict>\n<key>RunAtLoad</key><true/>\n<key>VideoHubInstall</key><string>${xml(hubDir)}</string>\n</dict></plist>\n`;

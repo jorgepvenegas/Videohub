@@ -711,7 +711,7 @@ setInterval(async () => {
   if (!GUARD_OFF) await quitGuard().catch(() => {});
   process.exit(0);
 }, 20e3).unref();
-// "Start at login" (node scripts/install.mjs open --server at log-in): the hub stays on, so the render protection runs from the start
+// "Start at login" (node scripts/install.ts open --server at log-in): the hub stays on, so the render protection runs from the start
 if (!GUARD_OFF)
   alwaysOn()
     .then(on => {

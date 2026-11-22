@@ -1,6 +1,7 @@
+// @ts-nocheck
 // Builds the folder to drag into GitHub's "Add files via upload" page, from the last commit (git archive: the
 // right line endings, nothing local such as data\ or node_modules\).
-//   node scripts/make-upload.mjs [target folder]      default: VideoHub-upload next to this repo
+//   node scripts/make-upload.ts [target folder]      default: VideoHub-upload next to this repo
 // The browser upload takes at most 100 files at a time and drops names that start with a dot, so the target gets
 // part-1, part-2 … (each under 100 files, same sub-folders): open a part, select everything inside, drag it in,
 // commit, then the next part. It stops if a tracked file would be dropped by the browser.
@@ -8,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { droppedByBrowser } from './upload-rules.mjs';
+import { droppedByBrowser } from './upload-rules.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.resolve(process.argv[2] || path.join(root, '..', 'VideoHub-upload'));

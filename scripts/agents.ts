@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Agent integration is shared by both installers. Never replace another install's entry or unreadable config.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -275,7 +276,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       val = key => options[key];
     if (val('--help')) {
       console.log(
-        'Usage: node scripts/agents.mjs [--detect] [--action setup|refresh|uninstall] [--agents claude,opencode] [--hub PATH] [--global-rule yes|no] [--dry-run]'
+        'Usage: node scripts/agents.ts [--detect] [--action setup|refresh|uninstall] [--agents claude,opencode] [--hub PATH] [--global-rule yes|no] [--dry-run]'
       );
     } else if (val('--detect')) console.log(JSON.stringify({ agents: detectAgents() }));
     else {

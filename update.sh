@@ -11,4 +11,4 @@ if (( node_major < 22 || (node_major == 22 && node_minor < 18) )); then
   printf '%s\n' "Node.js 22.18 or newer is required (found $node_version). Upgrade Node.js, then run update.sh again." >&2
   exit 1
 fi
-exec node scripts/install.mjs update "$@"
+exec node scripts/install.ts update "$@"

@@ -433,6 +433,6 @@ test('Linux launcher, shell and autostart entries keep arguments separate and id
   assert.equal(await h.getAutostart(), true);
   const entry = (h.files.get('/home/me/.config/autostart/videohub.desktop') as Meta).text!;
   const node = '"' + process.execPath.replace(/[%]/g, '%%').replace(/[\\"$`]/g, '\\$&') + '"';
-  assert.ok(entry.includes('Exec=' + node + ' "/opt/videohub/scripts/install.mjs" open --server\n'));
+  assert.ok(entry.includes('Exec=' + node + ' "/opt/videohub/scripts/install.ts" open --server\n'));
   assert.match(entry, /X-VideoHub-Install=\/opt\/videohub\n/);
 });

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // pnpm test: every node:test suite, with VideoHub's default folders pointed at .test-tmp (tests never create
 // Documents/VideoHub on the machine running them).
 import { spawnSync } from 'node:child_process';

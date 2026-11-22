@@ -1,9 +1,10 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { initConfig, state, checkWorkspace, installExample, HUB } from './init-config.mjs';
+import { initConfig, state, checkWorkspace, installExample, HUB } from './init-config.ts';
 import { spawnSync } from 'node:child_process';
 
 // every test in its own scratch folder under .test-tmp: never the real data\config.json or Documents
@@ -152,7 +153,7 @@ test('example CLI honors --data and --dry-run, and missing workspace values fail
     dataDir = path.join(d, 'data'),
     ws = path.join(d, 'Work');
   initConfig({ dataDir, workspace: ws, hubDir, discover: none });
-  const cmd = path.join(HUB, 'scripts', 'init-config.mjs'),
+  const cmd = path.join(HUB, 'scripts', 'init-config.ts'),
     env = {
       ...process.env,
       HOME: d,

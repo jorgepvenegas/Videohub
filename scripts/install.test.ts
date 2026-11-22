@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,7 +6,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { parseOptions, runInstaller, stopInstalledHub, validateUpdatePaths } from './install.mjs';
+import { parseOptions, runInstaller, stopInstalledHub, validateUpdatePaths } from './install.ts';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const write = (f, t = '{}') => {
   fs.mkdirSync(path.dirname(f), { recursive: true });
@@ -289,7 +290,7 @@ test('macOS setup creates a quoted executable Desktop command and Library instal
   assert.ok(text.startsWith('#!/bin/bash\n'));
   assert.ok(text.includes('# VideoHub install: ' + o.hub + '\n'));
   assert.ok(text.includes('/opt/homebrew/bin:/usr/local/bin:$PATH'));
-  assert.ok(text.includes("exec '/opt/homebrew/bin/node' '" + path.join(o.hub, 'scripts', 'install.mjs').replaceAll("'", "'\\''") + '\' open "$@"'));
+  assert.ok(text.includes("exec '/opt/homebrew/bin/node' '" + path.join(o.hub, 'scripts', 'install.ts').replaceAll("'", "'\\''") + '\' open "$@"'));
   assert.ok(fs.statSync(command).mode & 0o111);
   assert.ok(fs.existsSync(path.join(o.home, 'Library', 'Application Support', 'VideoHub', 'install.json')));
   assert.equal(fs.existsSync(path.join(o.home, '.local', 'share', 'applications')), false);

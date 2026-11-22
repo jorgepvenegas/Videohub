@@ -1,4 +1,4 @@
-// Machine-local settings in data/config.json. Created on first run (or by setup: scripts/init-config.mjs), so the same
+// Machine-local settings in data/config.json. Created on first run (or by setup: scripts/init-config.ts), so the same
 // code works on any PC. Every folder VideoHub writes to has a default inside one workspace folder (baseDir: films,
 // outputs, sounds, thumbnails, archive; Documents\VideoHub unless setup chose another) and can be changed in Settings
 // or in data/config.json. See docs/MIGRATING.md for older installs.

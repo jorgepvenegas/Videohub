@@ -1,3 +1,4 @@
+// @ts-nocheck
 // The repo is published by dragging files into GitHub's browser upload, which drops every name that starts with a dot.
 // Nothing VideoHub needs may have such a name, or it goes missing on GitHub without any error.
 import test from 'node:test';
@@ -5,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { droppedByBrowser, ALLOWED_DOT_FILES } from './upload-rules.mjs';
+import { droppedByBrowser, ALLOWED_DOT_FILES } from './upload-rules.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // .agents and .claude hold local agent skills, not part of the distribution.

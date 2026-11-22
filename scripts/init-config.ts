@@ -1,13 +1,14 @@
+// @ts-nocheck
 // Setup's helper for data/config.json: setup.sh asks the questions, this file decides and writes (so the logic lives
 // next to server/config.js and is unit-tested in scripts/init-config.test.js). It never moves or deletes a folder,
 // never overwrites a value an existing config.json has and never replaces a config it cannot read.
 //
-//   node scripts/init-config.mjs --state                      what is decided already, the defaults, folders found (JSON)
-//   node scripts/init-config.mjs --check <folder>             can this folder be the workspace? {ok, why}
-//   node scripts/init-config.mjs --detect [--refresh]         encoders this PC can use (server/encoders.js, cached)
-//   node scripts/init-config.mjs [--workspace <folder>] [--watch <folder>]... [--encoder auto|nvenc|amf|qsv|x264]
+//   node scripts/init-config.ts --state                      what is decided already, the defaults, folders found (JSON)
+//   node scripts/init-config.ts --check <folder>             can this folder be the workspace? {ok, why}
+//   node scripts/init-config.ts --detect [--refresh]         encoders this PC can use (server/encoders.js, cached)
+//   node scripts/init-config.ts [--workspace <folder>] [--watch <folder>]... [--encoder auto|nvenc|amf|qsv|x264]
 //                                [--dry-run]                  write config.json (+ create the workspace folders)
-//   node scripts/init-config.mjs --example                    copy examples\hello-film into the films folder (once)
+//   node scripts/init-config.ts --example                    copy examples\hello-film into the films folder (once)
 //   --data <folder>  another data folder than <VideoHub>\data (tests)
 import fs from 'node:fs';
 import path from 'node:path';

@@ -1,10 +1,11 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { parseJsonc, integrateAgents, agentPaths, detectAgents, parseAgentOptions } from './agents.mjs';
+import { parseJsonc, integrateAgents, agentPaths, detectAgents, parseAgentOptions } from './agents.ts';
 const hub = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = () => {
   const home = path.join(hub, '.test-tmp', 'agents-' + randomUUID());
