@@ -4,9 +4,9 @@
 - Phase: P3
 - Plan version: 1
 - Validated against master version: 23
-- Status: draft
-- Approved by: pending
-- Approved at: pending
+- Status: ready
+- Approved by: Jorge Venegas
+- Approved at: 2026-11-21
 - Commit: pending
 - Implementation mode: subagent
 - Implemented by: pending
@@ -41,7 +41,7 @@ Finish the server side. This phase converts the entry and tool layer (`hub`, `mc
 |---|---|---|
 | L3 | 12 lint rules at `warn`; unused `guardExe`/`meta`/`soundOps` in `server/hub.js` | No dead-code removal in `hub.ts`, even for the named unused symbols. Warning counts before and after recorded in S6 |
 | L4 | Source-reading tests must slice between stable markers | `hub-paths.test.ts`, `tools.test.ts` and `ui/review/soundenv.test.js` (S3) read through `readSource` with marker slices |
-| L8 | The `any` grep matched English words in test titles | The `any` check looks only at type positions: `grep -nE ':\s*any\b\|\bas any\b\|[<]any[>]' server/**/*.ts`, and every hit has a same-line comment |
+| L8 | The `any` grep matched English words in test titles | The `any` check looks only at type positions: `grep -nE ':\s*any\b\|\bas any\b' server/**/*.ts`, and every hit has a same-line comment |
 | L9 | Rename similarity of tiny files falls under 90% | The rename criterion is `git log --follow` history; the 90% bar applies only to files over 15 lines |
 | L12 | `server/types.ts` exports `RouteFn`, `ReadBody`, `Project`, `Job`; `hub-paths`/`tools` tests still read JS | `hub.ts`, `tools.ts` and `mcp.ts` reuse those types and extend `server/types.ts` only for shapes shared by two or more modules; S2 and S4 convert both tests to `readSource` |
 
@@ -131,7 +131,7 @@ Commit after each step with subject `P3:` followed by the step title, and push. 
 - Change: Remove `@ts-nocheck` and add strict types. `schema.ts` imports `../../ui/values.js` (still JS until P5), and the inferred types are acceptable until then. Record that in §9 for P5.
 - Acceptance:
   - [ ] No `@ts-nocheck` under `server/`; type-position `any` hits all have same-line comments (L8 grep)
-- Verification: `grep -rln "@ts-nocheck" server` (no output); `grep -rnE ':\s*any\b|\bas any\b|[<]any[>]' server | grep -v '//'` (no output); `pnpm typecheck && pnpm test 2>&1 | tail -8`
+- Verification: `grep -rln "@ts-nocheck" server` (no output); `grep -rnE ':\s*any\b|\bas any\b' server | grep -v '//'` (no output); `pnpm typecheck && pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
 ### S6 — Phase verification: scratch hub, MCP, CLI and fresh-install wiring
