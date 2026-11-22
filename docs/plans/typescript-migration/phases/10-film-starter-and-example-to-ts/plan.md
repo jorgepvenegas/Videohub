@@ -134,7 +134,7 @@ Commit after each step with subject `P10:` followed by the step title, and push.
 - Files: the 6 renames in §3 (temporary first-line `// @ts-nocheck`); both `index.html` and `package.json`; `templates/new-film/README.md`; `server/encoders.test.ts` and the identity test; `server/live.ts` (comment paths); `tsconfig.json` (only if needed, see §3)
 - Change: Pure rename plus file-name updates. Grep the repo (excluding `docs/`, `README.md`, `CLAUDE.md`, `AGENTS.md` and `skill/`, which are P9) for other mentions of the six files and report any that are not comments.
 - Acceptance:
-  - [ ] `git log --follow` tracks all 6; template and example `render.ts` are byte-identical; `pnpm build`, `pnpm typecheck` and `pnpm test` pass
+  - [x] `git log --follow` tracks all 6; template and example `render.ts` are byte-identical; `pnpm build`, `pnpm typecheck` and `pnpm test` pass
 - Verification: `git show -M --summary HEAD | grep -c '^ rename'` (6); `git ls-files templates examples | grep -E '\.js$'` (empty); `cmp templates/new-film/render.ts examples/hello-film/render.ts`; `pnpm build && pnpm typecheck && pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -222,6 +222,11 @@ S2 (2026-11-22):
 - Unit-level check, no browser and no render: `.test-tmp/p10-server/check.mjs` extracts `MIME` and `serveFolder` from `templates/new-film/render.js` by markers, runs them on a real loopback server over a scratch folder with the real node binary (scratch HOME and TMPDIR). It asserts: `index.html` served as HTML; `.ts` served as JavaScript without types; `/../`, `%2e%2e` and nested `..` refused; a symlink to a file outside refused (403); missing file, directory, `/` and `%00` return 404; POST returns 405; an enum `.ts` returns 500. Revert check: removing the inside-the-folder test fails the symlink assertion. Output: `serveFolder ok`.
 - `cmp templates/new-film/render.js examples/hello-film/render.js` identical; `pnpm format:check`, `lint` (0 errors), `typecheck`, `build` clean; `pnpm test` 319 pass, 0 fail.
 - Observation: on Node 24.16 `stripTypeScriptTypes` prints an ExperimentalWarning to stderr once per process (here in the render script and in the hub). L24 saw none on 22.18.
+
+S3 (2026-11-22):
+- Six `git mv` renames (each file gets a first-line `// @ts-nocheck`); both `index.html` script tags, both `package.json` scripts and the starter README file names updated with minimal text edits (running oxfmt over a folder had also reformatted HTML, JSON and Markdown; those were restored and redone by hand, so the diff holds only the name changes). `server/encoders.test.ts` reads the render scripts through `readSource` (stripped) and keeps a raw byte comparison for the identity test; comments in `server/encoders.ts` and `server/live.ts` name `render.ts`.
+- Grep outside docs, README, CLAUDE.md, AGENTS.md and skill for the six old names: remaining non-comment mentions are `ui/review/renderbtn.ts:63` (toast text: "no render script (render.js)") and the fallback strings `'render.js'` in `server/jobs.ts` and `server/live.ts` that are intended (legacy default). `ui/review/renderbtn.test.ts`, `server/jobs.test.ts` and the platform tests use `render.js` as sample legacy data. Comments only: `server/janitor.ts:382`, `server/jobs.ts:867`, `server/outputs.ts:157`, `server/platform.ts:388`, `server/scenes.ts:4`.
+- Verification: `git diff --cached -M --summary | grep -c rename` = 6; `git ls-files templates examples | grep -E '\.js$'` empty; `cmp` of the two `render.ts` identical; format, lint (0 errors), typecheck, build clean; `pnpm test` 319 pass, 0 fail. `moduleDetection` not needed yet (the files are `@ts-nocheck`); evidence for S4 follows below.
 
 ## 10. Closeout
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Hello, VideoHub — a 10-second example film written as code.
 //
 // The VideoHub contract (docs/PROJECT-CONTRACT.md) in three lines:

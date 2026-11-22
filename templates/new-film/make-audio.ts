@@ -1,4 +1,5 @@
-﻿// Writes a placeholder audio/mix.wav (a quiet chord bed, synthesized in code) so the film plays with sound in VideoHub's
+// @ts-nocheck
+// Writes a placeholder audio/mix.wav (a quiet chord bed, synthesized in code) so the film plays with sound in VideoHub's
 // live preview from the first minute. Replace it with your real mix (voice-over + music + effects) as audio/mix.wav.
 //   node make-audio.js            (DUR env = length in seconds, default 10)
 'use strict';

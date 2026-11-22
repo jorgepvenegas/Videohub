@@ -1,3 +1,4 @@
+// @ts-nocheck
 // A new film, written as code. Start here; see docs/PROJECT-CONTRACT.md (VideoHub folder) for the rules.
 //
 //   window.renderOut(t)  must draw second t of the film synchronously on the fixed-size canvas (#c, 1920x1080)

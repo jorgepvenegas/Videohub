@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Renders the film to MP4 in 2-second chunks with headless Edge/Chrome (puppeteer-core) + ffmpeg.
 //
 //   node render.js [workers]          → render/chunks/c_000.mp4 … (+ render/video.mp4 and render/<name>.mp4 when run by hand)

@@ -1,6 +1,6 @@
 import { norm } from './util.ts';
 // Live preview: play a film straight from its code, no render. Our films draw any moment with
-// window.renderOut(t) on fixed-size canvases and set window.READY; render.js only screenshots that.
+// window.renderOut(t) on fixed-size canvases and set window.READY; render.ts only screenshots that.
 // Here the hub serves the project's page at /live/<id>/..., says where its audio is, and tells open
 // players when the code changed so they can reload in place.
 import fs from 'node:fs';
@@ -56,7 +56,7 @@ const read = (f: string) => {
   }
 };
 
-// the page render.js opens (PAGE env, a goto(.../x.html) or path.resolve('x.html')), else index.html
+// the page render.ts (or a legacy render.js) opens (PAGE env, a goto(.../x.html) or path.resolve('x.html')), else index.html
 export function pageOf(p: Project, rc: Json, meta: Json): string | null {
   if (meta.live?.page) return meta.live.page;
   if (rc.env?.PAGE) return rc.env.PAGE;

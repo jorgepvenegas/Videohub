@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
+import { readSource } from '../scripts/test-source.ts';
 import { ENCODERS, ENCODER_ARGS, PROBE_ORDER, pickEncoder, detectEncoders, encoderEnv, encoderCandidates } from './encoders.ts';
 
 // the film render script carries its own copy of the table (films copy the script): both must say the same
 test('the render script template and its example copy use the same encoder arguments as the hub', () => {
-  for (const f of ['../templates/new-film/render.js', '../examples/hello-film/render.js']) {
-    const src = fs.readFileSync(new URL(f, import.meta.url), 'utf8'),
+  for (const f of ['../templates/new-film/render.ts', '../examples/hello-film/render.ts']) {
+    const src = readSource(new URL(f, import.meta.url)),
       m = src.match(/const ENCODER_ARGS = (\{[\s\S]*?\n\});/);
     assert.ok(m, f + ' has ENCODER_ARGS');
     const table = vm.runInNewContext('(' + m![1] + ')');
@@ -16,8 +17,8 @@ test('the render script template and its example copy use the same encoder argum
     assert.match(src, /process\.env\.VIDEOHUB_ENCODER/);
   }
   assert.equal(
-    fs.readFileSync(new URL('../templates/new-film/render.js', import.meta.url), 'utf8'),
-    fs.readFileSync(new URL('../examples/hello-film/render.js', import.meta.url), 'utf8')
+    fs.readFileSync(new URL('../templates/new-film/render.ts', import.meta.url), 'utf8'),
+    fs.readFileSync(new URL('../examples/hello-film/render.ts', import.meta.url), 'utf8')
   );
 });
 
@@ -92,7 +93,7 @@ test('render jobs get the configured encoder unless the job sets its own', () =>
 
 // the render script's own selection and ffmpeg arguments, with ffmpeg mocked (no encode runs)
 function renderScript(env: Record<string, string>, works: string[]) {
-  const src = fs.readFileSync(new URL('../templates/new-film/render.js', import.meta.url), 'utf8');
+  const src = readSource(new URL('../templates/new-film/render.ts', import.meta.url));
   const head = src.slice(0, src.indexOf('(async () => {')),
     spawned: string[][] = [],
     probed: string[] = [];
@@ -131,7 +132,7 @@ function renderScript(env: Record<string, string>, works: string[]) {
   vm.runInContext(head + '\nglobalThis.api = { pickEncoder, encoder, setEnc: e => { ENC = e; } };', ctx);
   return { ...ctx.api!, spawned, probed };
 }
-test('render.js: auto probes nvenc, amf, qsv in that order and falls back to x264; raw input with BT.601 conversion', () => {
+test('render.ts: auto probes nvenc, amf, qsv in that order and falls back to x264; raw input with BT.601 conversion', () => {
   let r = renderScript({}, ['amf']);
   assert.equal(r.pickEncoder().name, 'amf');
   assert.deepEqual(r.probed, ['h264_nvenc', 'h264_amf']);
@@ -177,7 +178,7 @@ test('VAAPI render filtering keeps conversion and hardware upload in one filter 
 });
 
 test('copied render scripts honor native browser overrides and discover macOS applications', () => {
-  const source = fs.readFileSync(new URL('../templates/new-film/render.js', import.meta.url), 'utf8');
+  const source = readSource(new URL('../templates/new-film/render.ts', import.meta.url));
   const body = source.slice(source.indexOf('function browserPath()'), source.indexOf('const FFMPEG'));
   function pick(env: Record<string, string>, present: string[]) {
     const files = new Set(present),

@@ -1,4 +1,5 @@
-﻿// Writes audio/mix.wav: the film's sound, synthesized in code (no downloaded assets) — a soft pad that changes chord
+// @ts-nocheck
+// Writes audio/mix.wav: the film's sound, synthesized in code (no downloaded assets) — a soft pad that changes chord
 // with each scene, a typing tick under the title, little "pops" when the shapes land and a bell at the outro.
 //   node make-audio.js            (DUR env = length in seconds, default 10)
 // VideoHub's live preview plays audio/mix.wav next to the picture; renders put the same file under the video.
