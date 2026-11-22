@@ -153,5 +153,5 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 - Last verdict: none
 - Next action: user reviews master and P1 plan; on approval run `approve docs/plans/typescript-migration P1`
 - Open decisions: none
-- PR: none
+- PR: https://github.com/jorgepvenegas/Videohub/pull/3
 - Last updated: 2026-11-21
