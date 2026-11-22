@@ -155,7 +155,7 @@ Commit after each step with subject `P10:` followed by the step title, and push.
 - Files: `server/source-revision.ts`, `server/live.ts` (watcher filter), `server/scan.ts` (film markers), `ui/review/renderbtn.ts` (toast text only); tests in `server/film-ts.test.ts`, `server/source-revision.test.ts` or `server/scan-cache.test.ts`
 - Change: Added at plan v2 (phase-amend from the S5 review). Count `.ts` files as film code in the source revision and the live watcher, and `render.ts` as a film marker in `scan.ts`, next to the existing `.js`/`.mjs` patterns. The toast names "render.ts or render.js". Legacy `.js` films behave exactly as before. Tests fail without the change: a `.ts` change bumps the source revision; `render.ts` alone marks a folder as a code film, including the container check.
 - Acceptance:
-  - [ ] New tests pass and each fails against the reverted change (recorded in §9); existing tests unchanged
+  - [x] New tests pass and each fails against the reverted change (recorded in §9); existing tests unchanged
 - Verification: `node --test` on the changed test files; `pnpm typecheck && pnpm build && pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -259,6 +259,12 @@ S5 (2026-11-22):
 - Browser check `.test-tmp/p10-browser/check.mjs` (puppeteer-core 25 with the installed Google Chrome, headless, `--mute-audio`, scratch profile; run with the real node binary under `env -i`, scratch HOME and TMPDIR): opened `#/` and `#/review/ID/~live` for the three films without `?play=1`; clicked nothing; counted console errors and warnings, page errors, failed requests, HTTP 400 and above, and `play`/`playing` events. Output: all four pages `ok`; in every film frame `READY: true`, canvas `1920x1080`, `drawn: true`, `hasRenderOut: true`; each review page showed one `VIDEO paused=true`; `plays: []` on all pages; `total problems ... 0`. `/api/jobs` was `[]`, and no `render` folder exists in any scratch film.
 - Hub stopped with `kill` of the pid I started; `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty. L3: `pnpm lint` 0 errors, 148 warnings (the count was 148 before S4 and after; none new in the film scripts beyond the catch-parameter and no-unused-expressions rules those files already had as JavaScript).
 - The hub prints one `ExperimentalWarning: stripTypeScriptTypes` to its stderr on Node 24.16 the first time a `.ts` film script is read; nothing reaches the browser console.
+
+S4b (2026-11-22):
+- `.ts` added next to `.js`/`.mjs` in: `server/source-revision.ts` (the code-file pattern), `server/live.ts` (the watcher's extension filter), `server/scan.ts` (`FILM_MARK`, the `code` check in `filmKind`, and the skipped-helper-folder check in `projectsIn`), and the toast in `ui/review/renderbtn.ts` ("render.ts or render.js"; its test only feeds `render.js` as data, so it needed no change). `filmKind` and `projectsIn` are now exported for the tests (new exports only).
+- Tests added to `server/film-ts.test.ts` (2): `render.ts` alone marks a folder as a code film (and a skipped helper folder name such as `assets` stays a project only with its own render script; `render.js` and a no-script folder behave as before), and a change to `film.ts` or `film.js` changes the source revision. Revert checks, each alone: `source-revision.ts` pattern without `ts` fails the revision test; `FILM_MARK` without `ts` fails the marker test; the `filmKind` code check without `ts` fails it; the `projectsIn` skip check without `ts` fails it. The watcher filter has no unit test (it needs a live `fs.watch`); the S5 reload check covers it.
+- Result: format, lint (0 errors, 148 warnings), typecheck, build clean; `pnpm test` 323 tests, 322 pass, 0 fail.
+- Not changed, outside S4b's list: `server/config.ts` `hasRenderCode` (line 31) still matches only `render.(m?js|py)`; it decides which discovered folders count as film folders or containers (`server/config.ts:67,75`), so a folder holding only `.ts` films is not auto-detected as a root (see the discovery in section 10).
 
 ## 10. Closeout
 

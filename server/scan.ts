@@ -317,9 +317,9 @@ function studioScenes(d: string, mk: Mk) {
 // video: editor sources, voice/transcript steps of pipelines, text-only and picture-only folders, engines, backups.)
 // Yes when VideoHub can play or render it (render script, make.mjs, a page, a .snipp, at the top or one folder down),
 // when it is a film being started (STATE.md) or when the user left notes on it.
-const FILM_MARK = /^(render\.(m?js|py)|make\.mjs|index\.html|.*\.snipp|STATE\.md)$/i;
+const FILM_MARK = /^(render\.(m?js|ts|py)|make\.mjs|index\.html|.*\.snipp|STATE\.md)$/i;
 const NOT_INSIDE = /^(node_modules|render|out|output|audio|snaps.*|qa|frames?|\.git|\.videohub|chunks.*)$/i;
-function filmKind(dir: string) {
+export function filmKind(dir: string) {
   let ents: Dirent[] = [];
   try {
     ents = fs.readdirSync(dir, { withFileTypes: true });
@@ -328,7 +328,7 @@ function filmKind(dir: string) {
   }
   const has = (list: Dirent[]) => list.some(e => e.isFile() && FILM_MARK.test(e.name));
   if (has(ents))
-    return ents.some(e => /^(render\.(m?js|py)|make\.mjs|index\.html)$/i.test(e.name))
+    return ents.some(e => /^(render\.(m?js|ts|py)|make\.mjs|index\.html)$/i.test(e.name))
       ? 'code'
       : ents.some(e => /\.snipp$/i.test(e.name))
         ? 'snipp'
@@ -358,7 +358,7 @@ const EMPTY: Record<string, string> = {
   notes: 'no video yet'
 };
 
-function projectsIn(root: Root): ProjectBase[] {
+export function projectsIn(root: Root): ProjectBase[] {
   const out: ProjectBase[] = [];
   const rp = root.path;
   const globalThumb = norm(config().thumbstudio?.globalDir || '');
@@ -384,7 +384,7 @@ function projectsIn(root: Root): ProjectBase[] {
       continue;
     }
     if (inner.length === 0) continue;
-    if (root.type === 'container' && skip.has(e.name.toLowerCase()) && !inner.some(f => /^render\.(m?js|py)$/.test(f))) continue;
+    if (root.type === 'container' && skip.has(e.name.toLowerCase()) && !inner.some(f => /^render\.(m?js|ts|py)$/.test(f))) continue;
     if (root.type !== 'media' && isStudio(p)) {
       out.push(...studioScenes(p, mk));
       continue;

@@ -331,7 +331,7 @@ export function watch(p: Project, onChange: (ev: { project: string; files: strin
         !name ||
         SKIP.test(name) ||
         /(^|[\\/])tweaks\.json$/i.test(name) ||
-        !/\.(m?js|html|css|json|glsl|frag|vert|png|jpe?g|webp|svg|wav|mp3|woff2?|ttf|otf|glb|gltf|bin)$/i.test(name)
+        !/\.(m?js|ts|html|css|json|glsl|frag|vert|png|jpe?g|webp|svg|wav|mp3|woff2?|ttf|otf|glb|gltf|bin)$/i.test(name)
       )
         return;
       if (/\.(vhtmp|vhorig\.wav)$/i.test(name) || (quiet.get(norm(path.resolve(root, name))) || 0) > Date.now()) return;

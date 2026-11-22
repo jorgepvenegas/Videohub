@@ -12,7 +12,7 @@ const cache = new Map<string, SourceRev>(),
   gens = new Map<string, number>(),
   watched = new Set<string>();
 const skip = /^(node_modules|\.git|\.videohub|render|out|chunks.*|snaps|qa|profiles?|tmp|audio|fonts|vh2d|vhaudio)$/i;
-const code = /\.(?:m?js|html|css|json|glsl|frag|vert)$/i;
+const code = /\.(?:m?js|ts|html|css|json|glsl|frag|vert)$/i;
 // tweaks.json is edited live by the review page without a reload (live.watch ignores it too); counting it made
 // the open page's revision stale after every edit, so its cover save got a 409.
 const notCode = /^tweaks\.json$/i;

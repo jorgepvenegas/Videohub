@@ -4,9 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Writable } from 'node:stream';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { renderInfo } from './scan.ts';
+import { renderInfo, filmKind, projectsIn } from './scan.ts';
 import { pageOf, serve, liveCapable } from './live.ts';
 import { readScript } from './util.ts';
+import { sourceRevision, invalidateSource } from './source-revision.ts';
 import type { Project } from './types.ts';
 
 const ROOT = path.resolve('.test-tmp', 'film-ts');
@@ -101,4 +102,35 @@ test('a film is live-capable when its page loads the renderOut hook from a .ts o
   assert.equal(capable('hook-js', dirs.js, 'render.js'), true);
   assert.equal(capable('hook-none', dirs.none, 'render.ts'), false);
   assert.equal(capable('hook-src', dirs.src, 'render.ts'), true);
+});
+
+test('render.ts alone marks a folder as a code film, also inside a skipped helper folder name', () => {
+  assert.equal(filmKind(film('mark-ts', { 'render.ts': ANNOTATED })), 'code');
+  assert.equal(filmKind(film('mark-js', { 'render.js': PLAIN })), 'code');
+  assert.equal(filmKind(film('mark-none', { 'notes.txt': 'x' })), null);
+  const root = path.join(ROOT, 'container');
+  fs.rmSync(root, { recursive: true, force: true });
+  for (const [dir, file] of [
+    ['assets', 'render.ts'],
+    ['fonts', 'render.js'],
+    ['tools', 'notes.txt']
+  ]) {
+    fs.mkdirSync(path.join(root, dir), { recursive: true });
+    fs.writeFileSync(path.join(root, dir, file), 'x');
+  }
+  const names = projectsIn({ path: root, type: 'container', enabled: true } as never)
+    .map(p => p.name)
+    .sort();
+  assert.deepEqual(names, ['assets', 'fonts']); // a skipped helper name stays a project only with its own render script
+});
+
+test('a change to a .ts file changes the live source revision; a legacy .js file behaves as before', () => {
+  for (const ext of ['ts', 'js']) {
+    const dir = film('rev-' + ext, { ['film.' + ext]: 'v1' });
+    const p = { path: dir, id: 'rev-' + ext } as never;
+    const first = sourceRevision(p).revision;
+    fs.writeFileSync(path.join(dir, 'film.' + ext), 'version2');
+    invalidateSource(p);
+    assert.notEqual(sourceRevision(p).revision, first, ext);
+  }
 });

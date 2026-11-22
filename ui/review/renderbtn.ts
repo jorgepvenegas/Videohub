@@ -60,7 +60,7 @@ export function createRenderButton(p: Json, { notes }: Json) {
     const ro = await api(`/api/project/${id}/render-options`).catch(() => ({}));
     const canFull = !!(p.studio || ro.script || rc.script);
     if (!canFull) {
-      toast(`This project has no render script (render.js) that VideoHub can run. Ask ${agentName()} to render it.`, true);
+      toast(`This project has no render script (render.ts or render.js) that VideoHub can run. Ask ${agentName()} to render it.`, true);
       return;
     }
     const fixed = notes()
