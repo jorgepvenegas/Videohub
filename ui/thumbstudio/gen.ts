@@ -5,7 +5,7 @@ import { agentName } from '../agent.ts';
 import { h, api, toast, confirmBox, AGO } from '../app.ts';
 import type { Json } from '../app.ts';
 
-const fileUrl = (pid: Json, tid: Json, f: Json, v: Json) =>
+const fileUrl = (pid: Json, tid: Json, f: Json, v?: Json) =>
   `/api/thumbstudio/${pid}/${tid}/file?f=${encodeURIComponent(f)}${v ? '&v=' + encodeURIComponent(v) : ''}`;
 const NOTE_TR: Record<string, string> = {
   open: 'open',

@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { agentName } from '../agent.ts';
 // VideoHub · Thumbnail Studio Editor Shell (#/thumbstudio/<pid>/<tid>)
 import { h, api, toast, confirmBox, pill, onHubEvent } from '../app.ts';
+import type { Json } from '../app.ts';
 import { History } from './history.ts';
 import { drawScene, renderExportCanvases, setImageLoadHandler, isOverlayLayer } from './scene.ts';
 import { generatePrompt } from './prompt.ts';
@@ -29,12 +29,12 @@ import { hitTestLightGizmo, computeAzimuthFromPointer } from './light.ts';
 import { applyPerspectiveLock } from './camera.ts';
 import { openTemplatePickerModal, openSaveTemplateModal, applyClientTemplateSlots } from './templates.ts';
 
-export async function renderEditor(page, pid, tid) {
+export async function renderEditor(page: Json, pid: Json, tid: Json) {
   // Load brief from server
   let brief;
   try {
     brief = await api(`/api/thumbstudio/${pid}/${tid}`);
-  } catch (err) {
+  } catch (err: Json) {
     page.append(
       h(
         'div',
@@ -66,7 +66,7 @@ export async function renderEditor(page, pid, tid) {
     tool: 'select', // select | object | zone
     zoom: 1.0,
     pan: { x: 0, y: 0 },
-    activeGuides: [],
+    activeGuides: [] as { type: string; pos: number }[],
     saveStatus: 'saved' // saved | saving | error
   };
 
@@ -101,7 +101,7 @@ export async function renderEditor(page, pid, tid) {
     modeBtn('final', 'Final (4)')
   );
 
-  function modeBtn(mode, label) {
+  function modeBtn(mode: Json, label: Json) {
     return h(
       'button',
       {
@@ -113,18 +113,18 @@ export async function renderEditor(page, pid, tid) {
     );
   }
 
-  function setViewMode(mode) {
+  function setViewMode(mode: Json) {
     state.viewMode = mode;
-    root.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+    root.querySelectorAll<HTMLElement>('.mode-btn').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
     if (mode === 'final') {
-      const sel = state.brief.layers.find(l => l.id === state.selectedLayerId);
+      const sel = state.brief.layers.find((l: Json) => l.id === state.selectedLayerId);
       if (sel && !isOverlayLayer(sel)) state.selectedLayerId = null;
     }
     redrawCanvas();
     updateInspector(true);
   }
 
-  function applyTemplateToBrief(tpl, slots) {
+  function applyTemplateToBrief(tpl: Json, slots: Json) {
     const applied = applyClientTemplateSlots(tpl, slots);
     state.selectedLayerId = null;
     updateBrief(applied);
@@ -211,7 +211,7 @@ export async function renderEditor(page, pid, tid) {
   toolBtn('trace', '🖼 Trace underlay', 'Add a reference thumbnail underlay');
   toolBtn('background', '🌄 Background', 'Add a background');
 
-  function toolBtn(toolId, label, tooltip) {
+  function toolBtn(toolId: Json, label: Json, tooltip: Json) {
     const btn = h(
       'button',
       {
@@ -231,7 +231,7 @@ export async function renderEditor(page, pid, tid) {
           } else if (toolId === 'trace') {
             promptTraceUnderlay();
           } else if (toolId === 'background') {
-            const hasBg = state.brief.layers.some(l => l.type === 'background');
+            const hasBg = state.brief.layers.some((l: Json) => l.type === 'background');
             if (hasBg) toast('A background already exists');
             else addLayer(createBackgroundLayer(state.brief.layers), true);
           } else if (toolId === 'pen') {
@@ -255,7 +255,7 @@ export async function renderEditor(page, pid, tid) {
     const input = h('input', { type: 'file', accept: 'image/png, image/jpeg, image/webp', style: { display: 'none' } });
     document.body.append(input);
     input.onchange = () => {
-      const file = input.files[0];
+      const file = input.files![0]; // the change event fires with a file chosen
       if (!file) return;
       const reader = new FileReader();
       reader.onload = async () => {
@@ -264,7 +264,7 @@ export async function renderEditor(page, pid, tid) {
           const r = await api(`/api/thumbstudio/${pid}/${tid}/ref`, { method: 'POST', body: { name: file.name, data: reader.result, trace: true } });
           addLayer(createTraceLayer(state.brief.layers, { file: r.file, name: 'Trace underlay: ' + file.name }), true);
           toast('Trace underlay added (not sent to AI)');
-        } catch (e) {
+        } catch (e: Json) {
           toast('Could not load trace underlay: ' + e.message, true);
         }
       };
@@ -285,7 +285,7 @@ export async function renderEditor(page, pid, tid) {
   const canvas = document.createElement('canvas');
   canvas.tabIndex = 0;
   canvas.setAttribute('aria-label', 'Thumbnail canvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d')!; // a fresh canvas always has a 2d context
   canvasContainer.append(canvas);
   canvasViewport.append(canvasContainer);
   centerCol.append(canvasViewport);
@@ -406,8 +406,8 @@ export async function renderEditor(page, pid, tid) {
     onOpen: vid => openViewer(vid)
   });
   centerCol.append(strip.el);
-  let viewer = null;
-  function openViewer(vid) {
+  let viewer: Json = null;
+  function openViewer(vid: Json) {
     viewer = openVariantViewer({
       pid,
       tid,
@@ -426,7 +426,7 @@ export async function renderEditor(page, pid, tid) {
           await api(`/api/thumbstudio/${pid}/${tid}/variant/${v.id}/marked`, { method: 'POST', body: { data: marked } });
           await sendToClaude(); // exports, then copies the message: Claude fixes this variant from its notes
           return true;
-        } catch (e) {
+        } catch (e: Json) {
           toast('Could not prepare the fix: ' + e.message, true);
           return false;
         }
@@ -435,7 +435,7 @@ export async function renderEditor(page, pid, tid) {
   }
 
   // server-owned fields (variants, choice, final, status) come from the server, the rest stays the editor's
-  function mergeServer(b) {
+  function mergeServer(b: Json) {
     if (!b) return;
     for (const k of SERVER_KEYS) serverFields[k] = b[k];
     Object.assign(state.brief, serverFields);
@@ -451,7 +451,7 @@ export async function renderEditor(page, pid, tid) {
       mergeServer(await api(`/api/thumbstudio/${pid}/${tid}`));
     } catch {}
   }
-  const unsubHub = onHubEvent('thumbstudio', ev => {
+  const unsubHub = onHubEvent('thumbstudio', (ev: Json) => {
     if (!ev || ev.tid !== tid) return;
     if (['variant', 'variant-removed', 'note', 'final', 'exported'].includes(ev.type) || (ev.type === 'saved' && ev.brief)) {
       if (ev.type === 'saved' && ev.brief) mergeServer(ev.brief);
@@ -465,12 +465,12 @@ export async function renderEditor(page, pid, tid) {
   });
 
   // ---------- export (layout/sketch/depth PNGs + prompt.txt + brief.md)
-  const fileUrlOf = f => tsFileUrl(pid, tid, f);
+  const fileUrlOf = (f: Json) => tsFileUrl(pid, tid, f);
   async function flushSave() {
     clearTimeout(saveTimer);
     await api(`/api/thumbstudio/${pid}/${tid}`, { method: 'PUT', body: state.brief });
   }
-  async function doExport(say) {
+  async function doExport(say: Json) {
     try {
       await flushSave();
       await document.fonts?.ready;
@@ -479,7 +479,7 @@ export async function renderEditor(page, pid, tid) {
       if (r.brief) state.brief.exported = r.brief.exported;
       if (say) toast('Exported: layout.png, sketch.png, depth.png, prompt.txt, brief.md');
       return r;
-    } catch (e) {
+    } catch (e: Json) {
       toast('Could not export: ' + e.message, true);
       throw e;
     }
@@ -511,20 +511,23 @@ export async function renderEditor(page, pid, tid) {
     });
   }
 
-  let finalPanel = null,
+  let finalPanel: Json = null,
     inspectorKey = '';
-  function updateInspector(force) {
+  function updateInspector(force?: boolean) {
     const scrollTop = inspectorPanel.scrollTop;
     const scrollLeft = inspectorPanel.scrollLeft;
     const active = document.activeElement;
     promptBox.hidden = state.viewMode === 'final'; // the final has its own panel; the prompt does not change there
     updatePromptPreview();
     // Continuous editing keeps its DOM node; selects and checkboxes must refresh dependent fields.
-    const typing = inspectorBody.contains(active) && active.matches('textarea, input:not([type=checkbox]):not([type=radio]):not([type=button])');
+    // contains() is false for null, so active is an element once it is true
+    const typing = inspectorBody.contains(active) && (active as Element).matches('textarea, input:not([type=checkbox]):not([type=radio]):not([type=button])');
     const key = state.viewMode === 'final' ? 'final' : 'edit:' + state.selectedLayerId;
     if (typing && !force && key === inspectorKey) return;
     const focusIndex =
-      key === inspectorKey && inspectorBody.contains(active) ? [...inspectorBody.querySelectorAll('input, textarea, select, button')].indexOf(active) : -1;
+      key === inspectorKey && inspectorBody.contains(active)
+        ? [...inspectorBody.querySelectorAll('input, textarea, select, button')].indexOf(active as Element)
+        : -1;
     inspectorKey = key;
     try {
       if (state.viewMode === 'final') {
@@ -544,13 +547,13 @@ export async function renderEditor(page, pid, tid) {
       }
       finalPanel = null;
       renderInspector(inspectorBody, state.brief, state.selectedLayerId, {
-        onLayerChange: patch => updateSelectedLayer(patch),
-        onBriefChange: patch => updateBrief(patch),
-        onDuplicate: lid => duplicateLayer(lid),
-        onDelete: lid => deleteLayer(lid)
+        onLayerChange: (patch: Json) => updateSelectedLayer(patch),
+        onBriefChange: (patch: Json) => updateBrief(patch),
+        onDuplicate: (lid: Json) => duplicateLayer(lid),
+        onDelete: (lid: Json) => deleteLayer(lid)
       });
     } finally {
-      if (focusIndex >= 0) inspectorBody.querySelectorAll('input, textarea, select, button')[focusIndex]?.focus({ preventScroll: true });
+      if (focusIndex >= 0) inspectorBody.querySelectorAll<HTMLElement>('input, textarea, select, button')[focusIndex]?.focus({ preventScroll: true });
       inspectorPanel.scrollTop = scrollTop;
       inspectorPanel.scrollLeft = scrollLeft;
     }
@@ -605,7 +608,7 @@ export async function renderEditor(page, pid, tid) {
           {
             class: 'layer-title ellip',
             title: layer.name,
-            ondblclick: e => {
+            ondblclick: (e: Json) => {
               e.stopPropagation();
               renameLayerPrompt(layer);
             }
@@ -618,7 +621,7 @@ export async function renderEditor(page, pid, tid) {
           {
             class: 'layer-btn',
             title: layer.hidden ? 'Show' : 'Hide',
-            onclick: e => {
+            onclick: (e: Json) => {
               e.stopPropagation();
               mutateLayer(layer.id, { hidden: !layer.hidden });
             }
@@ -630,7 +633,7 @@ export async function renderEditor(page, pid, tid) {
           {
             class: 'layer-btn',
             title: layer.locked ? 'Unlock' : 'Lock',
-            onclick: e => {
+            onclick: (e: Json) => {
               e.stopPropagation();
               mutateLayer(layer.id, { locked: !layer.locked });
             }
@@ -643,7 +646,7 @@ export async function renderEditor(page, pid, tid) {
     list.scrollTop = scrollTop;
   }
 
-  function renameLayerPrompt(layer) {
+  function renameLayerPrompt(layer: Json) {
     const input = h('input', { type: 'text', value: layer.name });
     confirmBox('Rename layer', input, 'Save').then(ok => {
       if (ok && input.value.trim()) {
@@ -653,7 +656,7 @@ export async function renderEditor(page, pid, tid) {
   }
 
   // ---------- Mutation & History Helpers
-  function addLayer(newLayer, atBottom = false) {
+  function addLayer(newLayer: Json, atBottom = false) {
     const prev = JSON.parse(JSON.stringify(state.brief.layers));
     const next = [...prev];
     if (atBottom) next.unshift(newLayer);
@@ -677,8 +680,8 @@ export async function renderEditor(page, pid, tid) {
     onStateChanged();
   }
 
-  function mutateLayer(layerId, patch) {
-    const prevLayer = state.brief.layers.find(l => l.id === layerId);
+  function mutateLayer(layerId: Json, patch: Json) {
+    const prevLayer = state.brief.layers.find((l: Json) => l.id === layerId);
     if (!prevLayer) return;
 
     const prevClone = { ...prevLayer };
@@ -686,12 +689,12 @@ export async function renderEditor(page, pid, tid) {
 
     history.push({
       undo: () => {
-        const l = state.brief.layers.find(x => x.id === layerId);
+        const l = state.brief.layers.find((x: Json) => x.id === layerId);
         if (l) Object.assign(l, prevClone);
         onStateChanged();
       },
       redo: () => {
-        const l = state.brief.layers.find(x => x.id === layerId);
+        const l = state.brief.layers.find((x: Json) => x.id === layerId);
         if (l) Object.assign(l, nextClone);
         onStateChanged();
       }
@@ -701,13 +704,13 @@ export async function renderEditor(page, pid, tid) {
     onStateChanged();
   }
 
-  function updateSelectedLayer(patch) {
+  function updateSelectedLayer(patch: Json) {
     if (!state.selectedLayerId) return;
     mutateLayer(state.selectedLayerId, patch);
   }
 
-  function duplicateLayer(layerId) {
-    const orig = state.brief.layers.find(l => l.id === layerId);
+  function duplicateLayer(layerId: Json) {
+    const orig = state.brief.layers.find((l: Json) => l.id === layerId);
     if (!orig || orig.type === 'background') return;
 
     const copy = JSON.parse(JSON.stringify(orig));
@@ -718,12 +721,12 @@ export async function renderEditor(page, pid, tid) {
     addLayer(copy);
   }
 
-  function deleteLayer(layerId) {
-    const layer = state.brief.layers.find(l => l.id === layerId);
+  function deleteLayer(layerId: Json) {
+    const layer = state.brief.layers.find((l: Json) => l.id === layerId);
     if (!layer || layer.type === 'background' || layer.locked) return;
 
     const prev = JSON.parse(JSON.stringify(state.brief.layers));
-    const next = prev.filter(l => l.id !== layerId);
+    const next = prev.filter((l: Json) => l.id !== layerId);
 
     history.push({
       undo: () => {
@@ -743,7 +746,7 @@ export async function renderEditor(page, pid, tid) {
     onStateChanged();
   }
 
-  function updateBrief(patch) {
+  function updateBrief(patch: Json) {
     const prev = JSON.parse(JSON.stringify(state.brief));
     const next = { ...state.brief, ...patch };
 
@@ -782,7 +785,7 @@ export async function renderEditor(page, pid, tid) {
   }
 
   // ---------- Autosave logic (800ms debounce)
-  let saveTimer = null;
+  let saveTimer: Json = null;
   function triggerAutosave() {
     saveIndicator.textContent = '⏳ Saving…';
     saveIndicator.style.color = 'var(--accent)';
@@ -796,7 +799,7 @@ export async function renderEditor(page, pid, tid) {
         saveIndicator.textContent = '✓ Saved';
         saveIndicator.style.color = 'var(--green)';
         saveTimer = null;
-      } catch (e) {
+      } catch (e: Json) {
         saveIndicator.textContent = '⚠ Save failed';
         saveIndicator.style.color = 'var(--red)';
       }
@@ -814,16 +817,16 @@ export async function renderEditor(page, pid, tid) {
 
   // ---------- Canvas Interactive Drag / Resize / Rotate
   let isInteracting = false;
-  let interactionMode = null; // 'move' | 'resize' | 'rotate' | 'pen'
-  let activeHandle = null;
-  let activeStroke = null;
+  let interactionMode: Json = null; // 'move' | 'resize' | 'rotate' | 'pen'
+  let activeHandle: Json = null;
+  let activeStroke: Json = null;
   let dragStart = { x: 0, y: 0 };
-  let initialLayerSnapshot = null;
-  let initialLayersArray = null;
-  let initialLight = null;
-  let activePointerId = null;
+  let initialLayerSnapshot: Json = null;
+  let initialLayersArray: Json = null;
+  let initialLight: Json = null;
+  let activePointerId: Json = null;
 
-  function getCanvasCoords(e) {
+  function getCanvasCoords(e: Json) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -861,7 +864,7 @@ export async function renderEditor(page, pid, tid) {
       return;
     }
 
-    const selectedLayer = state.brief.layers.find(l => l.id === state.selectedLayerId);
+    const selectedLayer = state.brief.layers.find((l: Json) => l.id === state.selectedLayerId);
     const handle = hitTestHandle(x, y, selectedLayer, canvas.width, canvas.height);
 
     if (handle) {
@@ -926,7 +929,7 @@ export async function renderEditor(page, pid, tid) {
 
     if (!isInteracting) {
       // Update cursor based on hover
-      const selectedLayer = state.brief.layers.find(l => l.id === state.selectedLayerId);
+      const selectedLayer = state.brief.layers.find((l: Json) => l.id === state.selectedLayerId);
       const handle = hitTestHandle(x, y, selectedLayer, canvas.width, canvas.height);
       if (handle) {
         canvas.style.cursor = handle.cursor;
@@ -939,7 +942,7 @@ export async function renderEditor(page, pid, tid) {
       return;
     }
 
-    const currentLayer = state.brief.layers.find(l => l.id === state.selectedLayerId);
+    const currentLayer = state.brief.layers.find((l: Json) => l.id === state.selectedLayerId);
     if (!currentLayer) return;
 
     const dx = (x - dragStart.x) / canvas.width;
@@ -951,7 +954,7 @@ export async function renderEditor(page, pid, tid) {
 
       // Snapping (Alt disables snap)
       if (!e.altKey) {
-        const others = state.brief.layers.filter(l => l.id !== currentLayer.id);
+        const others = state.brief.layers.filter((l: Json) => l.id !== currentLayer.id);
         const snap = snapLayerBounds(nextX, nextY, currentLayer.w, currentLayer.h, others, canvas.width, canvas.height);
         nextX = snap.snappedX;
         nextY = snap.snappedY;
@@ -1017,7 +1020,7 @@ export async function renderEditor(page, pid, tid) {
     }
   });
 
-  const endInteraction = e => {
+  const endInteraction = (e: Json) => {
     if (activePointerId !== null && e.pointerId !== activePointerId) return;
     const wasInteracting = isInteracting;
     const mode = interactionMode,
@@ -1040,9 +1043,9 @@ export async function renderEditor(page, pid, tid) {
 
     if (mode === 'pen') {
       if (stroke && stroke.pts.length > 1) {
-        let sketchLayer = state.brief.layers.find(l => l.id === state.selectedLayerId && l.type === 'sketch');
+        let sketchLayer = state.brief.layers.find((l: Json) => l.id === state.selectedLayerId && l.type === 'sketch');
         if (!sketchLayer) {
-          sketchLayer = state.brief.layers.find(l => l.type === 'sketch');
+          sketchLayer = state.brief.layers.find((l: Json) => l.type === 'sketch');
         }
         if (!sketchLayer) {
           sketchLayer = createSketchLayer(state.brief.layers);
@@ -1072,7 +1075,7 @@ export async function renderEditor(page, pid, tid) {
       return;
     }
 
-    const currentLayer = state.brief.layers.find(l => l.id === state.selectedLayerId);
+    const currentLayer = state.brief.layers.find((l: Json) => l.id === state.selectedLayerId);
     if (!currentLayer) return;
 
     // Push history command for entire drag operation
@@ -1101,9 +1104,9 @@ export async function renderEditor(page, pid, tid) {
   canvas.addEventListener('lostpointercapture', endInteraction);
 
   // ---------- Keyboard Shortcuts (§9.7)
-  const onKeyDown = e => {
+  const onKeyDown = (e: Json) => {
     // Crucial rule: If typing in an input, textarea or select, ignore all shortcuts!
-    if (document.activeElement?.matches('input, textarea, select') || document.activeElement?.isContentEditable) {
+    if (document.activeElement?.matches('input, textarea, select') || (document.activeElement as HTMLElement | null)?.isContentEditable) {
       return;
     }
     if (document.querySelector('.modal-bg')) return; // a dialog / the variant viewer has the keys
@@ -1151,7 +1154,7 @@ export async function renderEditor(page, pid, tid) {
       const stepPx = e.shiftKey ? 10 : 1;
       const stepX = stepPx / canvas.width;
       const stepY = stepPx / canvas.height;
-      const layer = state.brief.layers.find(l => l.id === state.selectedLayerId);
+      const layer = state.brief.layers.find((l: Json) => l.id === state.selectedLayerId);
       if (layer && !layer.locked) {
         let dx = 0,
           dy = 0;
@@ -1167,13 +1170,13 @@ export async function renderEditor(page, pid, tid) {
     // Depth [ and ]
     if (key === '[' && state.selectedLayerId) {
       e.preventDefault();
-      const layer = state.brief.layers.find(l => l.id === state.selectedLayerId);
+      const layer = state.brief.layers.find((l: Json) => l.id === state.selectedLayerId);
       if (layer) mutateLayer(layer.id, { depth: Math.max(0, (layer.depth ?? 50) - 5) });
       return;
     }
     if (key === ']' && state.selectedLayerId) {
       e.preventDefault();
-      const layer = state.brief.layers.find(l => l.id === state.selectedLayerId);
+      const layer = state.brief.layers.find((l: Json) => l.id === state.selectedLayerId);
       if (layer) mutateLayer(layer.id, { depth: Math.min(100, (layer.depth ?? 50) + 5) });
       return;
     }
@@ -1181,13 +1184,13 @@ export async function renderEditor(page, pid, tid) {
     // Hide / Lock toggles
     if (key === 'h' && state.selectedLayerId) {
       e.preventDefault();
-      const layer = state.brief.layers.find(l => l.id === state.selectedLayerId);
+      const layer = state.brief.layers.find((l: Json) => l.id === state.selectedLayerId);
       if (layer) mutateLayer(layer.id, { hidden: !layer.hidden });
       return;
     }
     if (key === 'l' && state.selectedLayerId) {
       e.preventDefault();
-      const layer = state.brief.layers.find(l => l.id === state.selectedLayerId);
+      const layer = state.brief.layers.find((l: Json) => l.id === state.selectedLayerId);
       if (layer) mutateLayer(layer.id, { locked: !layer.locked });
       return;
     }
@@ -1211,7 +1214,7 @@ export async function renderEditor(page, pid, tid) {
     }
   };
 
-  const onPaste = e => {
+  const onPaste = (e: Json) => {
     if (document.activeElement?.matches('input, textarea, select')) return;
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -1228,7 +1231,7 @@ export async function renderEditor(page, pid, tid) {
 
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('paste', onPaste);
-  const onLeave = e => {
+  const onLeave = (e: Json) => {
     if (saveTimer) {
       e.preventDefault();
       e.returnValue = '';

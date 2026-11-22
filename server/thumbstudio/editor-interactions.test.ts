@@ -1,23 +1,23 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import vm from 'node:vm';
+import { readSource } from '../../scripts/test-source.ts';
+import type { Json } from '../types.ts';
 import { History } from '../../ui/thumbstudio/history.ts';
 import * as layers from '../../ui/thumbstudio/layers.ts';
 import * as light from '../../ui/thumbstudio/light.ts';
 
 // Exercise the actual editor and its real geometry/history helpers without
 // starting app.js's browser router, SSE connection.
-const source = fs
-  .readFileSync(new URL('../../ui/thumbstudio/editor.ts', import.meta.url), 'utf8')
+const source = readSource(new URL('../../ui/thumbstudio/editor.ts', import.meta.url))
   .replace(/^import[\s\S]*?from ['"][^'"]+['"];\r?$/gm, '')
   .replace('export async function renderEditor', 'async function renderEditor');
 
 async function harness(overrides = {}) {
-  let document;
+  let document: Json;
   class Element {
-    constructor(tag) {
+    [key: string]: Json; // the fake gets whatever fields the editor sets on a node
+    constructor(tag: Json) {
       this.tagName = tag.toUpperCase();
       this.children = [];
       this.style = {};
@@ -31,22 +31,22 @@ async function harness(overrides = {}) {
       this.captures = new Set();
       this.className = '';
       this.classList = {
-        contains: name => this.className.split(/\s+/).includes(name),
-        add: name => {
+        contains: (name: Json) => this.className.split(/\s+/).includes(name),
+        add: (name: Json) => {
           if (!this.classList.contains(name)) this.className += ' ' + name;
         },
-        remove: name => {
+        remove: (name: Json) => {
           this.className = this.className
             .split(/\s+/)
-            .filter(n => n !== name)
+            .filter((n: Json) => n !== name)
             .join(' ');
         },
-        toggle: (name, on) => {
+        toggle: (name: Json, on: Json) => {
           (on ?? !this.classList.contains(name)) ? this.classList.add(name) : this.classList.remove(name);
         }
       };
     }
-    append(...children) {
+    append(...children: Json[]) {
       for (const child of children.flat(Infinity)) {
         if (child == null || child === false) continue;
         const node = child instanceof Element ? child : Object.assign(new Element('#text'), { text: String(child) });
@@ -54,8 +54,8 @@ async function harness(overrides = {}) {
         this.children.push(node);
       }
     }
-    set innerHTML(_) {
-      this.children.forEach(c => {
+    set innerHTML(_: Json) {
+      this.children.forEach((c: Json) => {
         c.parentElement = null;
       });
       this.children = [];
@@ -65,17 +65,17 @@ async function harness(overrides = {}) {
       this.text = String(text);
     }
     get textContent() {
-      return (this.text || '') + this.children.map(c => c.textContent).join('');
+      return (this.text || '') + this.children.map((c: Json) => c.textContent).join('');
     }
-    setAttribute(key, value) {
+    setAttribute(key: Json, value: Json) {
       this.attrs[key] = String(value);
       if (key === 'class') this.className = String(value);
       else if (key.startsWith('data-')) this.dataset[key.slice(5)] = String(value);
       else if (key === 'disabled' || key === 'hidden' || key === 'checked') this[key] = true;
       else this[key] = value;
     }
-    matches(selector) {
-      return selector.split(',').some(part => {
+    matches(selector: Json) {
+      return selector.split(',').some((part: Json) => {
         const s = part.trim();
         const tag = /^([a-z]+)/i.exec(s)?.[1];
         if (tag && this.tagName !== tag.toUpperCase()) return false;
@@ -83,23 +83,23 @@ async function harness(overrides = {}) {
         return [...s.matchAll(/\.([\w-]+)/g)].every(([, cls]) => this.classList.contains(cls));
       });
     }
-    querySelectorAll(selector) {
-      return this.children.flatMap(child => [...(child.matches(selector) ? [child] : []), ...child.querySelectorAll(selector)]);
+    querySelectorAll(selector: Json) {
+      return this.children.flatMap((child: Json) => [...(child.matches(selector) ? [child] : []), ...child.querySelectorAll(selector)]);
     }
-    querySelector(selector) {
+    querySelector(selector: Json) {
       return this.querySelectorAll(selector)[0] || null;
     }
-    contains(node) {
-      return this === node || this.children.some(child => child.contains(node));
+    contains(node: Json) {
+      return this === node || this.children.some((child: Json) => child.contains(node));
     }
-    addEventListener(name, fn) {
+    addEventListener(name: Json, fn: Json) {
       if (!this.listeners.has(name)) this.listeners.set(name, new Set());
       this.listeners.get(name).add(fn);
     }
-    removeEventListener(name, fn) {
+    removeEventListener(name: Json, fn: Json) {
       this.listeners.get(name)?.delete(fn);
     }
-    dispatch(name, props = {}) {
+    dispatch(name: Json, props = {}) {
       const event = { target: this, preventDefault() {}, stopPropagation() {}, ...props };
       this['on' + name]?.(event);
       for (const fn of this.listeners.get(name) || []) fn(event);
@@ -108,7 +108,7 @@ async function harness(overrides = {}) {
       this.focus();
       this.dispatch('click');
     }
-    focus(options) {
+    focus(options?: Json) {
       document.activeElement = this;
       this.focusOptions = options;
     }
@@ -119,23 +119,23 @@ async function harness(overrides = {}) {
       return { left: 0, top: 0, width: this.width || 960, height: this.height || 600 };
     }
     getContext() {
-      return new Proxy({ canvas: this }, { get: (obj, key) => obj[key] ?? (() => {}) });
+      return new Proxy({ canvas: this }, { get: (obj: Json, key: Json) => obj[key] ?? (() => {}) });
     }
-    setPointerCapture(id) {
+    setPointerCapture(id: Json) {
       this.captures.add(id);
     }
-    hasPointerCapture(id) {
+    hasPointerCapture(id: Json) {
       return this.captures.has(id);
     }
-    releasePointerCapture(id) {
+    releasePointerCapture(id: Json) {
       this.captures.delete(id);
       this.dispatch('lostpointercapture', { pointerId: id });
     }
   }
-  document = { body: new Element('body'), createElement: tag => new Element(tag) };
+  document = { body: new Element('body'), createElement: (tag: Json) => new Element(tag) };
   document.activeElement = document.body;
-  document.querySelector = selector => document.body.querySelector(selector);
-  const h = (tag, attrs = {}, ...children) => {
+  document.querySelector = (selector: Json) => document.body.querySelector(selector);
+  const h = (tag: Json, attrs = {}, ...children: Json[]) => {
     const el = new Element(tag);
     for (const [key, value] of Object.entries(attrs)) {
       if (value == null || value === false) continue;
@@ -146,7 +146,7 @@ async function harness(overrides = {}) {
     el.append(...children);
     return el;
   };
-  const initial = {
+  const initial: Json = {
     title: 'Test thumbnail',
     format: '16:9',
     camera: {},
@@ -160,14 +160,14 @@ async function harness(overrides = {}) {
     ...overrides
   };
   const timers = new Map(),
-    observers = [],
-    requests = [];
+    observers: Json[] = [],
+    requests: Json[] = [];
   let timerSeq = 0,
     brief = initial,
-    picker,
-    inspectorCallbacks,
+    picker: Json,
+    inspectorCallbacks: Json,
     depthDestroyed = false;
-  const sandbox = {
+  const sandbox: Json = {
     agentName: () => 'OpenCode',
     ...layers,
     ...light,
@@ -175,7 +175,7 @@ async function harness(overrides = {}) {
     document,
     console,
     h,
-    api: async (url, options = {}) => {
+    api: async (url: Json, options = {}) => {
       requests.push([url, options]);
       return url === '/api/thumbstudio/gen' ? { queue: [] } : initial;
     },
@@ -183,27 +183,30 @@ async function harness(overrides = {}) {
     location: { hash: '' },
     getComputedStyle: () => ({ paddingLeft: '24', paddingRight: '24', paddingTop: '24', paddingBottom: '24' }),
     ResizeObserver: class {
-      constructor(fn) {
+      declare fn: Json;
+      declare target: Json;
+      declare disconnected: boolean;
+      constructor(fn: Json) {
         this.fn = fn;
         observers.push(this);
       }
-      observe(target) {
+      observe(target: Json) {
         this.target = target;
       }
       disconnect() {
         this.disconnected = true;
       }
     },
-    setTimeout: fn => {
+    setTimeout: (fn: Json) => {
       timers.set(++timerSeq, fn);
       return timerSeq;
     },
-    clearTimeout: id => timers.delete(id),
+    clearTimeout: (id: Json) => timers.delete(id),
     localStorage: { getItem: () => null, setItem() {} },
     toast() {},
-    pill: (_, text) => h('span', {}, text),
+    pill: (_: Json, text: Json) => h('span', {}, text),
     onHubEvent: () => () => {},
-    drawScene: (_ctx, current) => {
+    drawScene: (_ctx: Json, current: Json) => {
       brief = current;
     },
     setImageLoadHandler() {},
@@ -216,22 +219,22 @@ async function harness(overrides = {}) {
         depthDestroyed = true;
       }
     }),
-    renderInspector: (container, currentBrief, selectedId, callbacks) => {
+    renderInspector: (container: Json, currentBrief: Json, selectedId: Json, callbacks: Json) => {
       inspectorCallbacks = callbacks;
       container.innerHTML = '';
       // Replacing a long form can clamp its scrolling parent before it grows.
       container.parentElement.scrollTop = 0;
       container.parentElement.scrollLeft = 0;
       container.append(h('input', { type: 'text' }), h('input', { type: 'checkbox' }), h('select'));
-      const selected = currentBrief.layers.find(layer => layer.id === selectedId);
+      const selected = currentBrief.layers.find((layer: Json) => layer.id === selectedId);
       if (selected?.bg) container.append(h('input', { type: 'color', class: 'background-color-control' }));
       if (selected?.shape === 'ellipse') container.append(h('span', { class: 'ellipse-control' }));
     },
-    isOverlayLayer: layer => layer.type === 'text' || layer.type === 'effect',
-    openTemplatePickerModal: options => {
+    isOverlayLayer: (layer: Json) => layer.type === 'text' || layer.type === 'effect',
+    openTemplatePickerModal: (options: Json) => {
       picker = options;
     },
-    applyClientTemplateSlots: tpl => JSON.parse(JSON.stringify(tpl))
+    applyClientTemplateSlots: (tpl: Json) => JSON.parse(JSON.stringify(tpl))
   };
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox);
@@ -241,7 +244,7 @@ async function harness(overrides = {}) {
   document.body.append(main);
   const dispose = await sandbox.renderEditor(page, '_', 'test');
   const canvas = page.querySelector('canvas');
-  const pointer = (type, x, y, props = {}) =>
+  const pointer = (type: Json, x: Json, y: Json, props = {}) =>
     canvas.dispatch(type, {
       clientX: x,
       clientY: y,
@@ -249,8 +252,8 @@ async function harness(overrides = {}) {
       button: 0,
       ...props
     });
-  const button = title => page.querySelectorAll('button').find(el => el.title === title);
-  const key = (name, props = {}) => sandbox.window.dispatch('keydown', { key: name, ...props });
+  const button = (title: Json) => page.querySelectorAll('button').find((el: Json) => el.title === title);
+  const key = (name: Json, props = {}) => sandbox.window.dispatch('keydown', { key: name, ...props });
   return {
     page,
     main,
@@ -284,7 +287,7 @@ test('pen release ends the stroke and later pointer movement cannot append or cr
   h.pointer('pointerdown', 400, 200);
   h.pointer('pointermove', 450, 220);
   h.pointer('pointerup', 450, 220);
-  const sketch = h.brief.layers.find(layer => layer.type === 'sketch');
+  const sketch = h.brief.layers.find((layer: Json) => layer.type === 'sketch');
   assert.equal(sketch.strokes.length, 1);
   assert.equal(sketch.strokes[0].pts.length, 2);
   const snapshot = JSON.stringify(h.brief);

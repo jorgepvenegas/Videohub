@@ -1,10 +1,22 @@
-// @ts-nocheck
 // Right panel: Inspector for selected layer or overall scene
 import { h } from '../app.ts';
+import type { Json } from '../app.ts';
 import { checkFramingConsistency } from './camera.ts';
 import { CAMERA_SHOTS, CAMERA_ANGLES, LENSES, LIGHT_KEYS, LIGHT_TIMES, STYLE_PRESETS, MOODS, TEXT_PRESETS } from './catalog.ts';
 
-export function renderInspector(container, brief, selectedLayerId, { onLayerChange, onBriefChange, onDuplicate, onDelete }) {
+interface InspectorHandlers {
+  onLayerChange: (patch: Json) => void;
+  onBriefChange: (patch: Json) => void;
+  onDuplicate: (layerId: string) => void;
+  onDelete: (layerId: string) => void;
+}
+
+export function renderInspector(
+  container: Json,
+  brief: Json,
+  selectedLayerId: Json,
+  { onLayerChange, onBriefChange, onDuplicate, onDelete }: InspectorHandlers
+) {
   container.innerHTML = '';
 
   // Framing consistency warnings
@@ -30,7 +42,7 @@ export function renderInspector(container, brief, selectedLayerId, { onLayerChan
     container.append(warnBox);
   }
 
-  const selectedLayer = brief.layers?.find(l => l.id === selectedLayerId);
+  const selectedLayer = brief.layers?.find((l: Json) => l.id === selectedLayerId);
 
   if (selectedLayer) {
     renderLayerInspector(container, selectedLayer, brief, { onLayerChange, onDuplicate, onDelete });
@@ -39,7 +51,12 @@ export function renderInspector(container, brief, selectedLayerId, { onLayerChan
   }
 }
 
-function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplicate, onDelete }) {
+function renderLayerInspector(
+  container: Json,
+  layer: Json,
+  brief: Json,
+  { onLayerChange, onDuplicate, onDelete }: Pick<InspectorHandlers, 'onLayerChange' | 'onDuplicate' | 'onDelete'>
+) {
   const isLocked = !!layer.locked;
   const isBg = layer.type === 'background';
 
@@ -104,7 +121,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
         type: 'text',
         value: layer.name || '',
         disabled: isLocked,
-        oninput: e => onLayerChange({ name: e.target.value })
+        oninput: (e: Json) => onLayerChange({ name: e.target.value })
       })
     )
   );
@@ -118,16 +135,16 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
         placeholder: 'What is in this layer? (e.g. An ancient gold goblet with patina and hieroglyphs)',
         value: layer.desc || '',
         disabled: isLocked,
-        oninput: e => onLayerChange({ desc: e.target.value })
+        oninput: (e: Json) => onLayerChange({ desc: e.target.value })
       })
     )
   );
 
   // Geometry
-  const xIn = numInput(Math.round(layer.x * 100), -50, 150, 1, isLocked, v => onLayerChange({ x: v / 100 }));
-  const yIn = numInput(Math.round(layer.y * 100), -50, 150, 1, isLocked, v => onLayerChange({ y: v / 100 }));
-  const wIn = numInput(Math.round(layer.w * 100), 1, 300, 1, isLocked || isBg, v => onLayerChange({ w: v / 100 }));
-  const hIn = numInput(Math.round(layer.h * 100), 1, 300, 1, isLocked || isBg, v => onLayerChange({ h: v / 100 }));
+  const xIn = numInput(Math.round(layer.x * 100), -50, 150, 1, isLocked, (v: Json) => onLayerChange({ x: v / 100 }));
+  const yIn = numInput(Math.round(layer.y * 100), -50, 150, 1, isLocked, (v: Json) => onLayerChange({ y: v / 100 }));
+  const wIn = numInput(Math.round(layer.w * 100), 1, 300, 1, isLocked || isBg, (v: Json) => onLayerChange({ w: v / 100 }));
+  const hIn = numInput(Math.round(layer.h * 100), 1, 300, 1, isLocked || isBg, (v: Json) => onLayerChange({ h: v / 100 }));
 
   form.append(
     h(
@@ -147,7 +164,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       max: 180,
       value: layer.rot || 0,
       disabled: isLocked,
-      oninput: e => {
+      oninput: (e: Json) => {
         const val = parseInt(e.target.value, 10);
         rotVal.textContent = val + '°';
         onLayerChange({ rot: val });
@@ -165,7 +182,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
     max: 100,
     value: layer.depth ?? 50,
     disabled: isLocked || isBg,
-    oninput: e => {
+    oninput: (e: Json) => {
       const d = parseInt(e.target.value, 10);
       const txt = d <= 33 ? 'Foreground' : d <= 66 ? 'Midground' : 'Background';
       depthLabel.textContent = `${d} (${txt})`;
@@ -180,7 +197,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       'select',
       {
         disabled: isLocked,
-        onchange: e => onLayerChange({ importance: parseInt(e.target.value, 10) })
+        onchange: (e: Json) => onLayerChange({ importance: parseInt(e.target.value, 10) })
       },
       h('option', { value: '1', selected: layer.importance === 1 }, '1 - Secondary detail'),
       h('option', { value: '2', selected: layer.importance === 2 }, '2 - Important element'),
@@ -194,7 +211,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
     type: 'color',
     value: layer.color || '#6aa0ff',
     disabled: isLocked,
-    oninput: e => onLayerChange({ color: e.target.value })
+    oninput: (e: Json) => onLayerChange({ color: e.target.value })
   });
   form.append(field('Block Color (Layout mode)', colorPicker));
 
@@ -204,7 +221,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       'select',
       {
         disabled: isLocked,
-        onchange: e => onLayerChange({ shape: e.target.value })
+        onchange: (e: Json) => onLayerChange({ shape: e.target.value })
       },
       h('option', { value: 'rect', selected: layer.shape === 'rect' }, 'Rectangle'),
       h('option', { value: 'ellipse', selected: layer.shape === 'ellipse' }, 'Ellipse / Circle'),
@@ -220,7 +237,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
           placeholder: 'e.g. Rusty metal, gold leaf, matte plastic',
           value: layer.material || '',
           disabled: isLocked,
-          oninput: e => onLayerChange({ material: e.target.value })
+          oninput: (e: Json) => onLayerChange({ material: e.target.value })
         })
       )
     );
@@ -231,7 +248,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       'select',
       {
         disabled: isLocked,
-        onchange: e => onLayerChange({ purpose: e.target.value })
+        onchange: (e: Json) => onLayerChange({ purpose: e.target.value })
       },
       h('option', { value: 'title', selected: layer.purpose === 'title' }, 'For a Large Title'),
       h('option', { value: 'face', selected: layer.purpose === 'face' }, 'For a Face / Character'),
@@ -264,7 +281,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       'select',
       {
         disabled: isLocked,
-        onchange: e => onLayerChange({ pose: e.target.value })
+        onchange: (e: Json) => onLayerChange({ pose: e.target.value })
       },
       poses.map(([v, t]) => h('option', { value: v, selected: layer.pose === v }, t))
     );
@@ -286,7 +303,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       'select',
       {
         disabled: isLocked,
-        onchange: e => onLayerChange({ expression: e.target.value })
+        onchange: (e: Json) => onLayerChange({ expression: e.target.value })
       },
       exprs.map(([v, t]) => h('option', { value: v, selected: layer.expression === v }, t))
     );
@@ -304,7 +321,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       'select',
       {
         disabled: isLocked,
-        onchange: e => onLayerChange({ crop: e.target.value })
+        onchange: (e: Json) => onLayerChange({ crop: e.target.value })
       },
       crops.map(([v, t]) => h('option', { value: v, selected: layer.crop === v }, t))
     );
@@ -315,7 +332,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       'select',
       {
         disabled: isLocked,
-        onchange: e => onLayerChange({ facing: e.target.value })
+        onchange: (e: Json) => onLayerChange({ facing: e.target.value })
       },
       h('option', { value: 'camera', selected: layer.facing === 'camera' }, 'Facing Camera'),
       h('option', { value: 'left', selected: layer.facing === 'left' }, 'Looking Left'),
@@ -329,7 +346,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
         type: 'checkbox',
         checked: !!layer.flip,
         disabled: isLocked,
-        onchange: e => onLayerChange({ flip: e.target.checked })
+        onchange: (e: Json) => onLayerChange({ flip: e.target.checked })
       }),
       'Flip Horizontally'
     );
@@ -342,7 +359,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       rows: 2,
       value: layer.content || '',
       disabled: isLocked,
-      oninput: e => onLayerChange({ content: e.target.value })
+      oninput: (e: Json) => onLayerChange({ content: e.target.value })
     });
     // Quick Turkish chars buttons
     const trBtns = h(
@@ -370,7 +387,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       'select',
       {
         disabled: isLocked,
-        onchange: e => {
+        onchange: (e: Json) => {
           const p = TEXT_PRESETS.find(x => x.id === e.target.value);
           e.target.blur();
           if (!p) return;
@@ -410,7 +427,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       'select',
       {
         disabled: isLocked,
-        onchange: e => {
+        onchange: (e: Json) => {
           onLayerChange({ font: e.target.value });
           e.target.blur();
         }
@@ -425,7 +442,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
           'select',
           {
             disabled: isLocked,
-            onchange: e => {
+            onchange: (e: Json) => {
               onLayerChange({ align: e.target.value });
               e.target.blur();
             }
@@ -446,13 +463,13 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       max: 30,
       value: Math.round((layer.size ?? 0.12) * 100),
       disabled: isLocked,
-      oninput: e => onLayerChange({ size: parseInt(e.target.value, 10) / 100 })
+      oninput: (e: Json) => onLayerChange({ size: parseInt(e.target.value, 10) / 100 })
     });
     form.append(field('Text Size (%)', sizeSlider));
 
     // Colors: Fill, Stroke
-    const fillIn = h('input', { type: 'color', value: layer.fill || '#ffffff', oninput: e => onLayerChange({ fill: e.target.value }) });
-    const strokeIn = h('input', { type: 'color', value: layer.stroke || '#000000', oninput: e => onLayerChange({ stroke: e.target.value }) });
+    const fillIn = h('input', { type: 'color', value: layer.fill || '#ffffff', oninput: (e: Json) => onLayerChange({ fill: e.target.value }) });
+    const strokeIn = h('input', { type: 'color', value: layer.stroke || '#000000', oninput: (e: Json) => onLayerChange({ stroke: e.target.value }) });
     form.append(
       field(
         'Text Color & Outline Color',
@@ -471,18 +488,18 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       min: 0,
       max: 15,
       value: Math.round((layer.strokeW ?? 0.05) * 100),
-      oninput: e => onLayerChange({ strokeW: parseInt(e.target.value, 10) / 100 })
+      oninput: (e: Json) => onLayerChange({ strokeW: parseInt(e.target.value, 10) / 100 })
     });
     const shadowCheck = h(
       'label',
       { class: 'row', style: { gap: '6px', fontSize: '12px', marginTop: '6px' } },
-      h('input', { type: 'checkbox', checked: layer.shadow !== false, onchange: e => onLayerChange({ shadow: e.target.checked }) }),
+      h('input', { type: 'checkbox', checked: layer.shadow !== false, onchange: (e: Json) => onLayerChange({ shadow: e.target.checked }) }),
       'Drop Shadow'
     );
     const upperCheck = h(
       'label',
       { class: 'row', style: { gap: '6px', fontSize: '12px', marginTop: '4px' } },
-      h('input', { type: 'checkbox', checked: layer.uppercase !== false, onchange: e => onLayerChange({ uppercase: e.target.checked }) }),
+      h('input', { type: 'checkbox', checked: layer.uppercase !== false, onchange: (e: Json) => onLayerChange({ uppercase: e.target.checked }) }),
       'Convert to Uppercase (UPPERCASE)'
     );
     form.append(field('Outline Width & Effects', h('div', {}, strokeWSlider, shadowCheck, upperCheck)));
@@ -500,11 +517,11 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
             placeholder: 'e.g. NEVER, SECRET',
             value: (layer.highlightWords || []).join(', '),
             disabled: isLocked,
-            oninput: e =>
+            oninput: (e: Json) =>
               onLayerChange({
                 highlightWords: e.target.value
                   .split(',')
-                  .map(w => w.trim())
+                  .map((w: Json) => w.trim())
                   .filter(Boolean)
               })
           }),
@@ -512,7 +529,7 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
             type: 'color',
             title: 'Highlight color',
             value: layer.highlight || '#ffd400',
-            oninput: e => onLayerChange({ highlight: e.target.value })
+            oninput: (e: Json) => onLayerChange({ highlight: e.target.value })
           })
         )
       )
@@ -526,10 +543,14 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
           h(
             'label',
             { class: 'row', style: { gap: '6px', fontSize: '12px' } },
-            h('input', { type: 'checkbox', checked: !!layer.bg, onchange: e => onLayerChange({ bg: e.target.checked ? layer.bg || '#f08a3c' : null }) }),
+            h('input', {
+              type: 'checkbox',
+              checked: !!layer.bg,
+              onchange: (e: Json) => onLayerChange({ bg: e.target.checked ? layer.bg || '#f08a3c' : null })
+            }),
             'Colored box behind text'
           ),
-          layer.bg ? h('input', { type: 'color', value: layer.bg, oninput: e => onLayerChange({ bg: e.target.value }) }) : null
+          layer.bg ? h('input', { type: 'color', value: layer.bg, oninput: (e: Json) => onLayerChange({ bg: e.target.value }) }) : null
         )
       )
     );
@@ -551,18 +572,18 @@ function renderLayerInspector(container, layer, brief, { onLayerChange, onDuplic
       'select',
       {
         disabled: isLocked,
-        onchange: e => onLayerChange({ kind: e.target.value })
+        onchange: (e: Json) => onLayerChange({ kind: e.target.value })
       },
       kinds.map(([v, t]) => h('option', { value: v, selected: layer.kind === v }, t))
     );
     form.append(field('Highlight / Effect Type', kindSel));
 
-    const strokeIn = h('input', { type: 'color', value: layer.stroke || '#ff2222', oninput: e => onLayerChange({ stroke: e.target.value }) });
+    const strokeIn = h('input', { type: 'color', value: layer.stroke || '#ff2222', oninput: (e: Json) => onLayerChange({ stroke: e.target.value }) });
     form.append(field('Effect Color', strokeIn));
   }
 }
 
-function renderSceneInspector(container, brief, { onBriefChange }) {
+function renderSceneInspector(container: Json, brief: Json, { onBriefChange }: Pick<InspectorHandlers, 'onBriefChange'>) {
   container.append(
     h(
       'div',
@@ -580,18 +601,18 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
     text = brief.text || {},
     safe = brief.safe || {};
   const goal = brief.goal || {};
-  const sel = (value, items, onPick) =>
+  const sel = (value: Json, items: Json, onPick: Json) =>
     h(
       'select',
       {
-        onchange: e => {
+        onchange: (e: Json) => {
           onPick(e.target.value);
           e.target.blur();
         }
       },
-      items.map(([v, t]) => h('option', { value: v, selected: String(value) === String(v) }, t))
+      items.map(([v, t]: [string, string]) => h('option', { value: v, selected: String(value) === String(v) }, t))
     );
-  const range = (value, min, max, onPick, fmt = v => v + '%') => {
+  const range = (value: Json, min: Json, max: Json, onPick: Json, fmt = (v: Json) => v + '%') => {
     const out = h('span', { class: 'dim', style: { minWidth: '38px', textAlign: 'right' } }, fmt(value));
     return h(
       'div',
@@ -602,7 +623,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
         max,
         value,
         style: { flex: 1 },
-        oninput: e => {
+        oninput: (e: Json) => {
           out.textContent = fmt(+e.target.value);
           onPick(+e.target.value);
         }
@@ -610,11 +631,11 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
       out
     );
   };
-  const check = (on, label, onPick) =>
+  const check = (on: Json, label: Json, onPick: Json) =>
     h(
       'label',
       { class: 'row', style: { gap: '6px', fontSize: '12.5px' } },
-      h('input', { type: 'checkbox', checked: !!on, onchange: e => onPick(e.target.checked) }),
+      h('input', { type: 'checkbox', checked: !!on, onchange: (e: Json) => onPick(e.target.checked) }),
       label
     );
 
@@ -630,7 +651,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
           rows: 2,
           placeholder: 'What is the video about? (1-2 sentences)',
           value: goal.topic || '',
-          oninput: e => onBriefChange({ goal: { ...(brief.goal || {}), topic: e.target.value } })
+          oninput: (e: Json) => onBriefChange({ goal: { ...(brief.goal || {}), topic: e.target.value } })
         })
       ),
       field(
@@ -639,7 +660,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
           type: 'text',
           placeholder: 'Curiosity, surprise, horror, excitement…',
           value: goal.feeling || '',
-          oninput: e => onBriefChange({ goal: { ...(brief.goal || {}), feeling: e.target.value } })
+          oninput: (e: Json) => onBriefChange({ goal: { ...(brief.goal || {}), feeling: e.target.value } })
         })
       ),
       field(
@@ -648,14 +669,14 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
           type: 'text',
           placeholder: 'The single idea in the thumbnail (e.g. "a person smaller than an ant")',
           value: goal.hook || '',
-          oninput: e => onBriefChange({ goal: { ...(brief.goal || {}), hook: e.target.value } })
+          oninput: (e: Json) => onBriefChange({ goal: { ...(brief.goal || {}), hook: e.target.value } })
         })
       )
     )
   );
 
   // camera
-  const setCam = patch => onBriefChange({ camera: { ...(brief.camera || {}), ...patch } });
+  const setCam = (patch: Json) => onBriefChange({ camera: { ...(brief.camera || {}), ...patch } });
   form.append(
     h(
       'div',
@@ -666,7 +687,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
         sel(
           cam.shot,
           CAMERA_SHOTS.map(s => [s.id, s.name]),
-          v => setCam({ shot: v })
+          (v: Json) => setCam({ shot: v })
         )
       ),
       field(
@@ -674,7 +695,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
         sel(
           cam.angle,
           CAMERA_ANGLES.map(a => [a.id, a.name]),
-          v => {
+          (v: Json) => {
             const a = CAMERA_ANGLES.find(x => x.id === v);
             setCam({
               angle: v,
@@ -692,7 +713,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
               Math.round(cam.tilt || 0),
               -30,
               30,
-              v => setCam({ tilt: v }),
+              (v: Json) => setCam({ tilt: v }),
               v => v + '°'
             )
           )
@@ -705,19 +726,22 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
             l,
             `${l} mm · ${l <= 14 ? 'ultra-wide, exaggerated' : l <= 24 ? 'wide, cinematic' : l <= 35 ? 'natural surroundings' : l <= 50 ? 'natural perspective' : l <= 85 ? 'portrait' : 'telephoto, compressed background'}`
           ]),
-          v => setCam({ lens: +v })
+          (v: Json) => setCam({ lens: +v })
         )
       ),
       field(
         'Depth of field (background blur)',
-        range(Math.round((cam.dof ?? 0.5) * 100), 0, 100, v => setCam({ dof: v / 100 }))
+        range(Math.round((cam.dof ?? 0.5) * 100), 0, 100, (v: Json) => setCam({ dof: v / 100 }))
       ),
       field(
         'Focus layer',
         sel(
           cam.focusLayer || '',
-          [['', 'Automatic'], ...(brief.layers || []).filter(l => l.type !== 'background' && l.type !== 'trace').map(l => [l.id, l.name || l.id])],
-          v => setCam({ focusLayer: v || null })
+          [
+            ['', 'Automatic'],
+            ...(brief.layers || []).filter((l: Json) => l.type !== 'background' && l.type !== 'trace').map((l: Json) => [l.id, l.name || l.id])
+          ],
+          (v: Json) => setCam({ focusLayer: v || null })
         )
       ),
       field(
@@ -726,7 +750,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
           Math.round((cam.horizon ?? 0.5) * 100),
           0,
           100,
-          v => setCam({ horizon: v / 100 }),
+          (v: Json) => setCam({ horizon: v / 100 }),
           v => v + '% down'
         )
       ),
@@ -736,7 +760,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
           Math.round((cam.vanishX ?? 0.5) * 100),
           0,
           100,
-          v => setCam({ vanishX: v / 100 }),
+          (v: Json) => setCam({ vanishX: v / 100 }),
           v => v + '%'
         )
       )
@@ -744,7 +768,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
   );
 
   // light
-  const setLight = patch => onBriefChange({ light: { ...(brief.light || {}), ...patch } });
+  const setLight = (patch: Json) => onBriefChange({ light: { ...(brief.light || {}), ...patch } });
   form.append(
     h(
       'div',
@@ -756,7 +780,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
         sel(
           light.key || 'warm',
           LIGHT_KEYS.map(k => [k.id, k.name]),
-          v => setLight({ key: v })
+          (v: Json) => setLight({ key: v })
         )
       ),
       field(
@@ -764,7 +788,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
         sel(
           light.time || 'day',
           LIGHT_TIMES.map(t => [t.id, t.name]),
-          v => setLight({ time: v })
+          (v: Json) => setLight({ time: v })
         )
       ),
       field(
@@ -773,29 +797,29 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
           Math.round(light.elevation ?? 35),
           0,
           90,
-          v => setLight({ elevation: v }),
+          (v: Json) => setLight({ elevation: v }),
           v => v + '°'
         )
       ),
       field(
         'Shadow hardness',
-        range(Math.round((light.contrast ?? 0.5) * 100), 0, 100, v => setLight({ contrast: v / 100 }))
+        range(Math.round((light.contrast ?? 0.5) * 100), 0, 100, (v: Json) => setLight({ contrast: v / 100 }))
       ),
-      check(light.rim, 'Rim light from behind', v => setLight({ rim: v })),
+      check(light.rim, 'Rim light from behind', (v: Json) => setLight({ rim: v })),
       field(
         'Light note',
         h('input', {
           type: 'text',
           placeholder: 'e.g. blue light spilling through a door',
           value: light.notes || '',
-          oninput: e => setLight({ notes: e.target.value })
+          oninput: (e: Json) => setLight({ notes: e.target.value })
         })
       )
     )
   );
 
   // style
-  const setStyle = patch => onBriefChange({ style: { ...(brief.style || {}), ...patch } });
+  const setStyle = (patch: Json) => onBriefChange({ style: { ...(brief.style || {}), ...patch } });
   const palette = Array.isArray(style.palette) && style.palette.length ? style.palette : [];
   form.append(
     h(
@@ -807,7 +831,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
         sel(
           style.preset || 'cinematic-photo',
           STYLE_PRESETS.map(p => [p.id, p.name]),
-          v => {
+          (v: Json) => {
             const p = STYLE_PRESETS.find(x => x.id === v);
             setStyle({ preset: v, ...(p?.defaultPalette && !palette.length ? { palette: p.defaultPalette } : {}) });
           }
@@ -819,12 +843,12 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
           type: 'text',
           placeholder: 'e.g. foggy, vintage photo grain',
           value: style.custom || '',
-          oninput: e => setStyle({ custom: e.target.value })
+          oninput: (e: Json) => setStyle({ custom: e.target.value })
         })
       ),
       field(
         'Mood',
-        sel(style.mood || '', [['', '—'], ...MOODS.map(m => [m, MOOD_TR[m] || m])], v => setStyle({ mood: v }))
+        sel(style.mood || '', [['', '—'], ...MOODS.map(m => [m, MOOD_TR[m] || m])], (v: Json) => setStyle({ mood: v }))
       ),
       field(
         'Color palette (dominant → accent)',
@@ -836,7 +860,7 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
               type: 'color',
               value: palette[i] || ['#1b2a3a', '#f08a3c', '#ffe9b0'][i],
               title: ['Dominant', 'Accent', 'Light'][i],
-              onchange: e => {
+              onchange: (e: Json) => {
                 const p = [...(palette.length ? palette : ['#1b2a3a', '#f08a3c', '#ffe9b0'])];
                 p[i] = e.target.value;
                 setStyle({ palette: p });
@@ -865,17 +889,17 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
             ['overlay', 'Add text as an overlay later (recommended)'],
             ['ai', 'Generate text with AI (Turkish letters may be incorrect)']
           ],
-          v => onBriefChange({ text: { ...text, policy: v } })
+          (v: Json) => onBriefChange({ text: { ...text, policy: v } })
         )
       ),
-      check(text.reserve !== false, 'Keep text area clear (negative space)', v => onBriefChange({ text: { ...text, reserve: v } })),
+      check(text.reserve !== false, 'Keep text area clear (negative space)', (v: Json) => onBriefChange({ text: { ...text, reserve: v } })),
       field(
         'Exclusions',
         h('input', {
           type: 'text',
           placeholder: 'e.g. busy background, blurry face, watermark',
           value: brief.negative || '',
-          oninput: e => onBriefChange({ negative: e.target.value })
+          oninput: (e: Json) => onBriefChange({ negative: e.target.value })
         })
       )
     )
@@ -885,13 +909,15 @@ function renderSceneInspector(container, brief, { onBriefChange }) {
       'div',
       { class: 'inspector-section' },
       h('div', { class: 'section-title' }, 'Guides'),
-      check(safe.thirds !== false, 'Rule of thirds lines', v => onBriefChange({ safe: { ...safe, thirds: v } })),
-      brief.format !== '9:16' ? check(safe.badge !== false, 'Duration badge area (bottom right)', v => onBriefChange({ safe: { ...safe, badge: v } })) : null,
-      brief.format === '9:16' ? check(safe.shortsUi, 'Shorts UI areas', v => onBriefChange({ safe: { ...safe, shortsUi: v } })) : null
+      check(safe.thirds !== false, 'Rule of thirds lines', (v: Json) => onBriefChange({ safe: { ...safe, thirds: v } })),
+      brief.format !== '9:16'
+        ? check(safe.badge !== false, 'Duration badge area (bottom right)', (v: Json) => onBriefChange({ safe: { ...safe, badge: v } }))
+        : null,
+      brief.format === '9:16' ? check(safe.shortsUi, 'Shorts UI areas', (v: Json) => onBriefChange({ safe: { ...safe, shortsUi: v } })) : null
     )
   );
 }
-const MOOD_TR = {
+const MOOD_TR: Record<string, string> = {
   mysterious: 'Mysterious',
   epic: 'Epic',
   scary: 'Scary',
@@ -904,11 +930,11 @@ const MOOD_TR = {
   exciting: 'Exciting'
 };
 
-function field(label, inputNode) {
+function field(label: Json, inputNode: Json) {
   return h('div', { class: 'inspector-field' }, h('div', { class: 'field-label' }, label), inputNode);
 }
 
-function numInput(val, min, max, step, disabled, onChange) {
+function numInput(val: Json, min: Json, max: Json, step: Json, disabled: Json, onChange: Json) {
   return h('input', {
     type: 'number',
     value: val,
@@ -916,7 +942,7 @@ function numInput(val, min, max, step, disabled, onChange) {
     max,
     step,
     disabled,
-    oninput: e => {
+    oninput: (e: Json) => {
       const v = parseFloat(e.target.value);
       if (!isNaN(v)) onChange(v);
     }
