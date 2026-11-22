@@ -16,7 +16,7 @@ import {
   NOTE_STATUSES,
   PROJECT_STATUSES
 } from './legacy.ts';
-import { normalizeBrief } from './thumbstudio/schema.js';
+import { normalizeBrief } from './thumbstudio/schema.ts';
 
 const dir = path.resolve('.test-tmp', 'legacy-' + process.pid);
 fs.mkdirSync(dir, { recursive: true });
@@ -79,6 +79,7 @@ test('an old notes.json and project.json are read with English values', () => {
 });
 
 test('an old thumbnail brief is read with English statuses and font ids', () => {
+  // normalizeBrief is inferred as `{}` from the JS catalog until P5, so the fields this test reads are declared here
   const b = normalizeBrief({
     id: '20261104-abcd',
     status: tr('\\u00fcretiliyor'),
@@ -93,13 +94,13 @@ test('an old thumbnail brief is read with English statuses and font ids', () => 
         ]
       }
     ]
-  });
+  }) as unknown as { status: string; variants: { notes: { status: string }[] }[]; layers: { type: string; font: string }[] };
   assert.equal(b.status, 'generating');
   assert.deepEqual(
     b.variants[0].notes.map((n: { status: string }) => n.status),
     ['open', 'fixed']
   );
-  assert.equal(b.layers.find((l: { type: string }) => l.type === 'text').font, 'youtube-bold');
+  assert.equal(b.layers.find((l: { type: string }) => l.type === 'text')!.font, 'youtube-bold');
 });
 
 test.after(() => {

@@ -21,16 +21,16 @@
   ],
   "packageManager": "pnpm@11.5.2",
   "type": "module",
-  "main": "server/hub.js",
+  "main": "server/hub.ts",
   "os": [
     "linux",
     "darwin"
   ],
   "scripts": {
-    "start": "node server/hub.js",
-    "mcp": "node server/mcp.js",
+    "start": "node server/hub.ts",
+    "mcp": "node server/mcp.ts",
     "test": "node scripts/test.mjs",
-    "check": "node --check server/hub.js && node --check server/mcp.js",
+    "check": "pnpm typecheck",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "oxlint -c oxlintrc.json",
     "format": "oxfmt --config oxfmtrc.json --no-error-on-unmatched-pattern '{server,scripts,ui,engine-hooks,templates,examples}/**/*.{js,mjs,ts}' '*.ts'",

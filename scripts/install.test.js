@@ -17,10 +17,10 @@ function fixture(os = 'linux', installName = 'install') {
     home = path.join(base, 'home'),
     workspace = path.join(base, 'work');
   for (const d of [hub, home, path.join(home, 'Desktop')]) fs.mkdirSync(d, { recursive: true });
-  write(path.join(hub, 'server', 'hub.js'), '// fixture hub');
+  write(path.join(hub, 'server', 'hub.ts'), '// fixture hub');
   for (const m of ['@modelcontextprotocol/sdk', 'puppeteer-core']) write(path.join(hub, 'node_modules', m, 'package.json'));
-  write(path.join(hub, 'skill', 'videohub', 'SKILL.md'), '---\nname: videohub\ndescription: Fixture\n---\n{{VIDEOHUB_DIR}}/server/cli.js\n');
-  write(path.join(hub, 'claude', 'global-rule.md'), '{{VIDEOHUB_DIR}}/server/cli.js\n');
+  write(path.join(hub, 'skill', 'videohub', 'SKILL.md'), '---\nname: videohub\ndescription: Fixture\n---\n{{VIDEOHUB_DIR}}/server/cli.ts\n');
+  write(path.join(hub, 'claude', 'global-rule.md'), '{{VIDEOHUB_DIR}}/server/cli.ts\n');
   write(path.join(hub, 'examples', 'hello-film', 'index.html'), '<canvas></canvas>');
   write(path.join(hub, 'examples', 'hello-film', 'videohub-project.json'), '{"title":"Example"}');
   const env = {
@@ -139,17 +139,17 @@ test('fake-home Linux setup writes workspace, OpenCode integration, entry, examp
 test('updater preserves data and backs up code without removing old files', async () => {
   const o = fixture(),
     target = path.join(path.dirname(o.hub), 'target');
-  write(path.join(target, 'server', 'hub.js'), '// old hub');
+  write(path.join(target, 'server', 'hub.ts'), '// old hub');
   write(path.join(target, 'server', 'old.js'), '// old extra');
   write(path.join(target, 'data', 'config.json'), '{"mine":true}');
   for (const m of ['@modelcontextprotocol/sdk', 'puppeteer-core']) write(path.join(target, 'node_modules', m, 'package.json'));
   await runInstaller({ action: 'update', target }, { ...o, env: { ...o.env, VIDEOHUB_DATA_DIR: '' }, request: async () => null });
-  assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.js'), 'utf8'), '// fixture hub');
+  assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.ts'), 'utf8'), '// fixture hub');
   assert.equal(fs.readFileSync(path.join(target, 'server', 'old.js'), 'utf8'), '// old extra');
   assert.equal(fs.readFileSync(path.join(target, 'data', 'config.json'), 'utf8'), '{"mine":true}');
   const backups = fs.readdirSync(path.join(target, 'data', 'update-backup'));
   assert.equal(backups.length, 1);
-  assert.equal(fs.readFileSync(path.join(target, 'data', 'update-backup', backups[0], 'server', 'hub.js'), 'utf8'), '// old hub');
+  assert.equal(fs.readFileSync(path.join(target, 'data', 'update-backup', backups[0], 'server', 'hub.ts'), 'utf8'), '// old hub');
 });
 test('macOS and Linux setup runs pnpm install --frozen-lockfile in the hub folder', async () => {
   for (const os of ['linux', 'darwin']) {
@@ -190,7 +190,7 @@ test('updating an npm-era install installs with pnpm and keeps data', async () =
   const o = fixture(),
     target = path.join(path.dirname(o.hub), 'target'),
     commands = [];
-  write(path.join(target, 'server', 'hub.js'), '// old hub');
+  write(path.join(target, 'server', 'hub.ts'), '// old hub');
   write(path.join(target, 'package-lock.json'));
   write(path.join(target, 'data', 'config.json'), '{"mine":true}');
   write(path.join(o.hub, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n');
@@ -215,8 +215,8 @@ test('updating an npm-era install installs with pnpm and keeps data', async () =
 test('updater refuses active queues and unrelated processes; dry-run does not contact a server', async () => {
   const o = fixture(),
     target = path.join(path.dirname(o.hub), 'target');
-  write(path.join(target, 'server', 'hub.js'), '// old');
-  const p = { ...o.platform, processList: async () => [{ pid: 123, name: 'node', cmd: 'node ' + path.join(target, 'server', 'hub.js') }] };
+  write(path.join(target, 'server', 'hub.ts'), '// old');
+  const p = { ...o.platform, processList: async () => [{ pid: 123, name: 'node', cmd: 'node ' + path.join(target, 'server', 'hub.ts') }] };
   await assert.rejects(
     runInstaller(
       { action: 'update', target },
@@ -234,7 +234,7 @@ test('updater refuses active queues and unrelated processes; dry-run does not co
       }
     }
   );
-  assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.js'), 'utf8'), '// old');
+  assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.ts'), 'utf8'), '// old');
 });
 test('uninstall recycles only owned launchers and leaves work and program files', async () => {
   const o = fixture();
@@ -246,7 +246,7 @@ test('uninstall recycles only owned launchers and leaves work and program files'
   assert.ok(o.calls.filter(c => c[0] === 'trash').some(c => c[1].some(f => f.endsWith('videohub.desktop'))));
   assert.ok(!o.calls.filter(c => c[0] === 'trash').some(c => c[1].some(f => f.endsWith('VideoHub.desktop'))));
   assert.ok(fs.existsSync(path.join(o.workspace, 'films', 'hello-film', 'index.html')));
-  assert.ok(fs.existsSync(path.join(o.hub, 'server', 'hub.js')));
+  assert.ok(fs.existsSync(path.join(o.hub, 'server', 'hub.ts')));
 });
 test('launcher starts a detached local server and opens the window; server flag opens none', async () => {
   const o = fixture();
@@ -264,7 +264,7 @@ test('launcher starts a detached local server and opens the window; server flag 
   await runInstaller({ action: 'open' }, overrides);
   assert.equal(spawned.length, 1);
   assert.equal(spawned[0].opts.detached, true);
-  assert.deepEqual(spawned[0].args, [path.join(o.hub, 'server', 'hub.js')]);
+  assert.deepEqual(spawned[0].args, [path.join(o.hub, 'server', 'hub.ts')]);
   assert.deepEqual(o.calls, [['open', 'http://127.0.0.1:7799']]);
   polls = 0;
   o.calls.length = 0;
@@ -314,11 +314,11 @@ test("macOS setup and uninstall leave another installation's Desktop command unc
 test('updater identifies only direct Node hub launches and refuses nested source/target folders', async () => {
   const o = fixture(),
     target = path.join(path.dirname(o.hub), 'target');
-  write(path.join(target, 'server', 'hub.js'), '// old');
+  write(path.join(target, 'server', 'hub.ts'), '// old');
   for (const p of [
-    { pid: 123, name: 'bash', cmd: 'bash ' + path.join(target, 'server', 'hub.js') },
-    { pid: 123, name: 'node', cmd: 'node ' + path.join(target, 'server', 'hub.js') + '.other' },
-    { pid: 123, name: 'node', cmd: 'node -e console.log("' + path.join(target, 'server', 'hub.js') + '")' }
+    { pid: 123, name: 'bash', cmd: 'bash ' + path.join(target, 'server', 'hub.ts') },
+    { pid: 123, name: 'node', cmd: 'node ' + path.join(target, 'server', 'hub.ts') + '.other' },
+    { pid: 123, name: 'node', cmd: 'node -e console.log("' + path.join(target, 'server', 'hub.ts') + '")' }
   ]) {
     await assert.rejects(
       runInstaller(
@@ -329,13 +329,13 @@ test('updater identifies only direct Node hub launches and refuses nested source
     );
   }
   const nested = path.join(o.hub, 'nested');
-  write(path.join(nested, 'server', 'hub.js'), '// nested');
+  write(path.join(nested, 'server', 'hub.ts'), '// nested');
   await assert.rejects(runInstaller({ action: 'update', target: nested }, o), /not nested/);
 });
 test('invalid config prevents package installation, server requests and code replacement', async () => {
   const o = fixture(),
     target = path.join(path.dirname(o.hub), 'target');
-  write(path.join(target, 'server', 'hub.js'), '// old');
+  write(path.join(target, 'server', 'hub.ts'), '// old');
   write(path.join(o.hub, 'data', 'config.json'), '{ invalid');
   const noRequest = async () => {
     throw new Error('Should not contact a server');
@@ -343,13 +343,13 @@ test('invalid config prevents package installation, server requests and code rep
   await assert.rejects(runInstaller({ action: 'setup', yes: true }, { ...o, request: noRequest }), /left as it is/);
   await assert.rejects(runInstaller({ action: 'open' }, { ...o, request: noRequest }), /Cannot read/);
   await assert.rejects(runInstaller({ action: 'update', target }, { ...o, request: noRequest }), /Cannot read/);
-  assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.js'), 'utf8'), '// old');
+  assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.ts'), 'utf8'), '// old');
 });
 test('updater verifies server termination before replacing any code', async () => {
   const o = fixture(),
     target = path.join(path.dirname(o.hub), 'target');
-  write(path.join(target, 'server', 'hub.js'), '// old');
-  const row = { pid: 123, name: 'node', start: 'original', cmd: 'node ' + path.join(target, 'server', 'hub.js') },
+  write(path.join(target, 'server', 'hub.ts'), '// old');
+  const row = { pid: 123, name: 'node', start: 'original', cmd: 'node ' + path.join(target, 'server', 'hub.ts') },
     stopped = [];
   const request = async u => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' });
   await assert.rejects(
@@ -360,14 +360,14 @@ test('updater verifies server termination before replacing any code', async () =
     /still running/
   );
   assert.deepEqual(stopped, [123]);
-  assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.js'), 'utf8'), '// old');
+  assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.ts'), 'utf8'), '// old');
   assert.equal(fs.existsSync(path.join(target, 'data', 'update-backup')), false);
 });
 test('updater refuses a reused PID and unavailable process inventory before sending a stop', async () => {
   const o = fixture(),
     target = path.join(path.dirname(o.hub), 'target');
-  write(path.join(target, 'server', 'hub.js'), '// old');
-  const row = { pid: 123, name: 'node', start: 'original', cmd: 'node ' + path.join(target, 'server', 'hub.js') };
+  write(path.join(target, 'server', 'hub.ts'), '// old');
+  const row = { pid: 123, name: 'node', start: 'original', cmd: 'node ' + path.join(target, 'server', 'hub.ts') };
   let calls = 0;
   const request = async u => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' });
   await assert.rejects(
@@ -392,7 +392,7 @@ test('updater refuses a reused PID and unavailable process inventory before send
 test('updater checks all file types before stopping the server or making a partial update', async () => {
   const o = fixture(),
     target = path.join(path.dirname(o.hub), 'target');
-  write(path.join(target, 'server', 'hub.js'), '// old');
+  write(path.join(target, 'server', 'hub.ts'), '// old');
   write(path.join(target, 'skill'), 'conflicting file');
   await assert.rejects(
     runInstaller(
@@ -406,7 +406,7 @@ test('updater checks all file types before stopping the server or making a parti
     ),
     /different file types/
   );
-  assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.js'), 'utf8'), '// old');
+  assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.ts'), 'utf8'), '// old');
 });
 test('launcher does not open a different program that wins a startup port race', async () => {
   const o = fixture();
@@ -444,7 +444,7 @@ test('stop uses the queue and ownership checks without allowing dry-run API cont
     /another process/
   );
   assert.deepEqual(stopped, []);
-  const row = { pid: 123, name: 'node', start: 'original', cmd: '"' + process.execPath + '" "' + path.join(o.hub, 'server', 'hub.js') + '"' };
+  const row = { pid: 123, name: 'node', start: 'original', cmd: '"' + process.execPath + '" "' + path.join(o.hub, 'server', 'hub.ts') + '"' };
   let exited = false;
   await stopInstalledHub({
     install: o.hub,
@@ -462,9 +462,9 @@ test('stop uses the queue and ownership checks without allowing dry-run API cont
 test('stop ownership is case-sensitive and different install prefixes remain distinct', async () => {
   const o = fixture(),
     request = async u => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' });
-  const script = path.join(o.hub, 'server', 'hub.js'),
+  const script = path.join(o.hub, 'server', 'hub.ts'),
     row = { pid: 123, name: 'node', start: 'original', cmd: '"' + process.execPath + '" "' + script.toUpperCase() + '"' };
-  for (const cmd of [row.cmd, 'node "' + path.join(o.hub + '-copy', 'server', 'hub.js') + '"']) {
+  for (const cmd of [row.cmd, 'node "' + path.join(o.hub + '-copy', 'server', 'hub.ts') + '"']) {
     await assert.rejects(
       stopInstalledHub({
         install: o.hub,
@@ -482,7 +482,7 @@ test('stop ownership is case-sensitive and different install prefixes remain dis
 });
 test('lifecycle refuses unknown process start identity instead of treating null as a match', async () => {
   const o = fixture(),
-    row = { pid: 123, name: 'node', start: null, cmd: 'node ' + path.join(o.hub, 'server', 'hub.js') },
+    row = { pid: 123, name: 'node', start: null, cmd: 'node ' + path.join(o.hub, 'server', 'hub.ts') },
     stopped = [];
   await assert.rejects(
     stopInstalledHub({

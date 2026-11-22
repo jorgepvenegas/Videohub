@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { norm } from './util.ts';
 // VideoHub server: http://127.0.0.1:7788  (UI + JSON API + server-sent events). Local only.
 import http from 'node:http';
@@ -29,7 +30,7 @@ import * as tweaksApi from './tweaks.ts';
 import { openFile } from './open-file.ts';
 import { transcript } from './transcript.ts';
 import { ramHogs } from './ramhogs.ts';
-import * as thumbstudio from './thumbstudio/store.js';
+import * as thumbstudio from './thumbstudio/store.ts';
 
 const UI = path.join(HUB_DIR, 'ui');
 const MIME = {

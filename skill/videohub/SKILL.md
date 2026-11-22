@@ -25,8 +25,8 @@ frames, draws on them and leaves notes, and where renders are queued one at a ti
 | `hub_thumbs` / `hub_thumb_brief` / `hub_thumb_variant` | Thumbnails (see below). |
 
 **Without the MCP tools** (the server is not loaded in this session) the same tools run from the command line:
-`node "{{VIDEOHUB_DIR}}/server/cli.js" <tool> "<json>"`, e.g.
-`node "{{VIDEOHUB_DIR}}/server/cli.js" hub_live "{\"project\":\"/home/me/film\"}"`. The tools start the hub
+`node "{{VIDEOHUB_DIR}}/server/cli.ts" <tool> "<json>"`, e.g.
+`node "{{VIDEOHUB_DIR}}/server/cli.ts" hub_live "{\"project\":\"/home/me/film\"}"`. The tools start the hub
 themselves when it is not running.
 
 ## 1. The user asks for a video → build it as code

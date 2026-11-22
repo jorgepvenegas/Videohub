@@ -1,3 +1,4 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -20,7 +21,7 @@ const server = http.createServer((req, res) => {
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 process.env.VIDEOHUB_PORT = String(server.address().port);
 process.env.VIDEOHUB_DATA_DIR ||= path.resolve('.test-tmp', 'tools-data');
-const { TOOLS } = await import('./tools.js');
+const { TOOLS } = await import('./tools.ts');
 test.after(() => server.close());
 
 test('hub_workspace guidance uses the platform path separator', async () => {

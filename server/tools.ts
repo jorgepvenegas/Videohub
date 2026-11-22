@@ -1,4 +1,5 @@
-// The tools agents use (through mcp.js, or `node server/cli.js <tool> '<json>'` without MCP).
+// @ts-nocheck
+// The tools agents use (through mcp.js, or `node server/cli.ts <tool> '<json>'` without MCP).
 // They talk to the hub over http://127.0.0.1:7788 and start it when it is not running.
 // Status inputs accept the English values and, as aliases, the Turkish words older versions used.
 import { z } from 'zod';
@@ -32,7 +33,7 @@ async function ping() {
 }
 async function ensureHub() {
   if (await ping()) return;
-  const child = spawn(process.execPath, [path.join(HUB_DIR, 'server', 'hub.js')], { cwd: HUB_DIR, detached: true, stdio: 'ignore' });
+  const child = spawn(process.execPath, [path.join(HUB_DIR, 'server', 'hub.ts')], { cwd: HUB_DIR, detached: true, stdio: 'ignore' });
   child.unref();
   for (let i = 0; i < 40; i++) {
     await new Promise(r => setTimeout(r, 500));
@@ -418,7 +419,7 @@ export const TOOLS = {
         }
       }
 
-      const { generatePrompt } = await import('./thumbstudio/prompt.js');
+      const { generatePrompt } = await import('./thumbstudio/prompt.ts');
       const gp = generatePrompt(brief),
         prompt = gp.prompt,
         summary = gp.summary || gp.summaryTr;

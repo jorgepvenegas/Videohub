@@ -1,10 +1,11 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 
-const source = fs.readFileSync(new URL('./hub.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('./hub.ts', import.meta.url), 'utf8');
 const DATA_DIR = path.resolve('.test-tmp', 'hub-paths', 'isolated-data');
 const HUB_DIR = path.resolve('.test-tmp', 'hub-paths', 'program');
 

@@ -141,7 +141,7 @@ export async function integrateAgents({
   if (!['setup', 'refresh', 'uninstall'].includes(action)) throw new Error('Unknown agent action: ' + action);
   const actions = [],
     errors = [],
-    mcp = path.join(hub, 'server', 'mcp.js');
+    mcp = path.join(hub, 'server', 'mcp.ts');
   agents = [...new Set(agents.flatMap(a => String(a).split(',')).filter(Boolean))];
   if (agents.some(a => !['claude', 'opencode'].includes(a))) throw new Error('Agents must be claude or opencode');
   const say = s => actions.push((dryRun ? 'would ' : '') + s);

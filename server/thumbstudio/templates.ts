@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Thumbnail templates: loading, validation, slot replacement, saving, and directory watcher
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';

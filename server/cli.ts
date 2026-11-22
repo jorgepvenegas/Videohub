@@ -1,7 +1,8 @@
+// @ts-nocheck
 // Same tools as the MCP server, for sessions that do not have it:
-//   node server/cli.js hub_notes '{"project":"C:\\path\\to\\film"}'
-//   node server/cli.js list
-import { TOOLS } from './tools.js';
+//   node server/cli.ts hub_notes '{"project":"C:\\path\\to\\film"}'
+//   node server/cli.ts list
+import { TOOLS } from './tools.ts';
 
 const [name, json] = process.argv.slice(2);
 if (!name || name === 'list' || !TOOLS[name]) {

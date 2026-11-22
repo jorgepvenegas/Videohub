@@ -369,7 +369,7 @@ test('macOS LaunchAgent autostart requires an owned plist and loaded service and
   assert.match(plist, /<key>RunAtLoad<\/key><true\/>/);
   assert.match(plist, /<key>ProgramArguments<\/key><array>/);
   assert.match(plist, /<key>EnvironmentVariables<\/key><dict><key>PATH<\/key><string>\/opt\/homebrew\/bin:\/usr\/local\/bin:\/usr\/bin:/);
-  assert.match(plist, /\/opt\/VideoHub &amp; review\/server\/hub.js/);
+  assert.match(plist, /\/opt\/VideoHub &amp; review\/server\/hub.ts/);
   assert.equal(await h.getAutostart(), true);
   assert.deepEqual(h.calls.find(c => c.args[0] === 'bootstrap')!.args, ['bootstrap', 'gui/501', file]);
   await h.setAutostart(true);

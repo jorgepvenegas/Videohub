@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Tests exercise reversible moves without opening the operating system's real Trash.
 import fs from 'node:fs';
 import path from 'node:path';

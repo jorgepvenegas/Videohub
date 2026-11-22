@@ -4,7 +4,7 @@ import { norm } from './util.ts';
 // mixes) or by the 3D studio's make.mjs (its own mixdown). Every clip's file is copied into the film's vhaudio/
 // folder first, so previews, renders and other PCs find it next to the film.
 // Library: the user's sound folder (config.soundLibDir, default Documents\VideoHub\sounds) + ready-made effects built
-// with an optional 3D studio engine's synth (config.studioDir; data/sfx-lib, server/sfxlib.mjs). Without that engine the
+// with an optional 3D studio engine's synth (config.studioDir; data/sfx-lib, server/sfxlib.ts). Without that engine the
 // library just has no ready-made effects (library().sfxAvailable = false; the UI hides the button).
 import fs from 'node:fs';
 import type { Dirent } from 'node:fs';
@@ -113,7 +113,7 @@ export function buildSfx() {
         { code: 400 }
       )
     );
-  const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'sfxlib.mjs');
+  const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'sfxlib.ts');
   building = new Promise<unknown>((ok, no) => {
     const c = spawn(TOOLS.node || process.execPath, [script, synth, SFX_DIR], { stdio: ['ignore', 'pipe', 'pipe'] });
     let err = '';

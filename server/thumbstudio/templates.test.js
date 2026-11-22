@@ -15,9 +15,9 @@ import {
   slugify,
   builtinDir,
   userDir
-} from './templates.js';
+} from './templates.ts';
 import { config } from '../config.ts';
-import { normalizeBrief } from './schema.js';
+import { normalizeBrief } from './schema.ts';
 import { generatePrompt, PROMPT_MAX } from '../../ui/thumbstudio/prompt.js';
 
 // Setup temp test directory for user templates

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Variants from Claude (hub_thumb_variant), their notes, choosing, the final and deleting. RG_TEST
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +8,7 @@ import os from 'node:os';
 
 process.env.VIDEOHUB_NO_WINDOW = '1';
 const { config } = await import('../config.ts');
-const store = await import('./store.js');
+const store = await import('./store.ts');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vh-variants-test-'));
 const prev = { g: config().thumbstudio.globalDir, o: config().outputsDir };

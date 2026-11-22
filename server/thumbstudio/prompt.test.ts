@@ -1,6 +1,7 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generatePrompt, describeSpatial, describeDepth } from './prompt.js';
+import { generatePrompt, describeSpatial, describeDepth } from './prompt.ts';
 
 test('describeSpatial: correctly maps coordinates to 3x3 grid and size categories', () => {
   // Top-left small element touching frame edge

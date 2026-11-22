@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { testTrash } from './test-trash.js';
-import { POSES, EXPRESSIONS } from './schema.js';
+import { testTrash } from './test-trash.ts';
+import { POSES, EXPRESSIONS } from './schema.ts';
 import { FIGURE_POSES, CROP_CONFIG } from '../../ui/thumbstudio/figures.js';
-import { saveReference, createThumbnail, getThumbnail, deleteThumbnail } from './store.js';
+import { saveReference, createThumbnail, getThumbnail, deleteThumbnail } from './store.ts';
 import { config } from '../config.ts';
 
 // Setup temp test directory for global thumbnails

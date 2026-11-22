@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Thumbnail brief validation and normalization. The catalog data lives in ui/thumbstudio/catalog.js (shared with the UI).
 import { thumbStatus, thumbNoteStatus } from '../../ui/values.js';
 import {

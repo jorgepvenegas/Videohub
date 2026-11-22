@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { writeWav, readWav, mixClips, clipsOf, mixKey, soundKey } from './vhsound.mjs';
+import { writeWav, readWav, mixClips, clipsOf, mixKey, soundKey } from './vhsound.ts';
 import { cleanAudio } from './soundedit.ts';
 import { cleanItems, cleanActors } from './edit2d.ts';
 
@@ -52,6 +52,7 @@ test('mixClips puts a clip at its time with its gain; loop fills to the end; mut
     }
   });
   assert.equal(clips.length, 1);
+  // @ts-expect-error vhsound.ts is untyped until S2: its optional ffmpeg parameter reads as required
   const n = mixClips(mix, clips, (s: string) => path.join(tmp, s));
   assert.equal(n, 1);
   const peak = (a: number, b: number) => {
@@ -63,6 +64,7 @@ test('mixClips puts a clip at its time with its gain; loop fills to the end; mut
   assert.ok(Math.abs(peak(1.05, 1.45) - 0.25) < 0.02, 'gain 0.5 of a 0.5 tone');
   assert.ok(peak(1.6, 3) < 1e-4, 'silent after');
   const loop = { sr, ch: [new Float32Array(sr * 3), new Float32Array(sr * 3)], bits: 16 };
+  // @ts-expect-error vhsound.ts is untyped until S2: its optional ffmpeg parameter reads as required
   mixClips(loop, [{ src: 'vhaudio/beep.wav', t: 0.5, loop: true, gain: 1 }], (s: string) => path.join(tmp, s));
   let m = 0;
   for (let i = Math.round(2.6 * sr); i < Math.round(2.9 * sr); i++) m = Math.max(m, Math.abs(loop.ch[0][i]));

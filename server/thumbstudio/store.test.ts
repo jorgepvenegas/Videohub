@@ -1,8 +1,9 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { testTrash } from './test-trash.js';
+import { testTrash } from './test-trash.ts';
 import {
   resolveThumbDir,
   createThumbnail,
@@ -12,7 +13,7 @@ import {
   deleteThumbnail,
   listThumbnails,
   serveThumbnailFile
-} from './store.js';
+} from './store.ts';
 import { config } from '../config.ts';
 
 // Setup temp test directory for global thumbnails

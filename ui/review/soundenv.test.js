@@ -13,7 +13,7 @@ const fnText = (file, name) => {
 };
 
 test('soundEnv is the same source as server/vhsound.mjs', () => {
-  assert.equal(fnText('./soundenv.js', 'soundEnv'), fnText('../../server/vhsound.mjs', 'soundEnv'));
+  assert.equal(fnText('./soundenv.js', 'soundEnv'), fnText('../../server/vhsound.ts', 'soundEnv'));
 });
 
 test('soundEnv: levels add up, ramps, nothing to do → null', () => {

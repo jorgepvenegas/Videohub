@@ -44,7 +44,7 @@ test('OpenCode fallback installs rules and skill into fake home, preserves unrel
     j = JSON.parse(fs.readFileSync(f, 'utf8'));
   assert.equal(j.theme, 'mine');
   assert.deepEqual(j.mcp.servers.other.command, ['other']);
-  assert.deepEqual(j.mcp.servers.videohub.command, ['node', path.join(hub, 'server', 'mcp.js')]);
+  assert.deepEqual(j.mcp.servers.videohub.command, ['node', path.join(hub, 'server', 'mcp.ts')]);
   assert.equal(j.mcp.servers.videohub.disabled, false);
   assert.match(fs.readFileSync(p.rule, 'utf8'), /Personal rules/);
   assert.match(fs.readFileSync(path.join(p.skill, 'SKILL.md'), 'utf8'), /description:/);
@@ -68,10 +68,10 @@ test('MCP registration uses OpenCode CLI and verifies list; existing owned entry
     };
   let r = await integrateAgents({ ...o, agents: ['opencode'], find: () => 'opencode', run, globalRule: false });
   assert.deepEqual(r.errors, []);
-  assert.deepEqual(calls[0], ['mcp', 'add', 'videohub', '--global', '--', 'node', path.join(hub, 'server', 'mcp.js')]);
+  assert.deepEqual(calls[0], ['mcp', 'add', 'videohub', '--global', '--', 'node', path.join(hub, 'server', 'mcp.ts')]);
   assert.deepEqual(calls[1], ['mcp', 'list']);
   const p = agentPaths('opencode', o);
-  write(p.config, JSON.stringify({ mcp: { servers: { videohub: { command: ['node', path.join(hub, 'server', 'mcp.js')] } } } }));
+  write(p.config, JSON.stringify({ mcp: { servers: { videohub: { command: ['node', path.join(hub, 'server', 'mcp.ts')] } } } }));
   calls.length = 0;
   r = await integrateAgents({ ...o, agents: ['opencode'], find: () => 'opencode', run, globalRule: false });
   assert.deepEqual(r.errors, []);
@@ -83,7 +83,7 @@ test('foreign integrations and malformed configs remain unchanged', async () => 
     text = JSON.stringify({ mcp: { servers: { videohub: { command: ['node', '/other-install/server/mcp.js'] } } } });
   write(p.config, text);
   write(path.join(p.skill, 'SKILL.md'), 'Other install');
-  write(p.rule, '<!-- videohub:begin -->\n/other-install/server/cli.js\n<!-- videohub:end -->');
+  write(p.rule, '<!-- videohub:begin -->\n/other-install/server/cli.ts\n<!-- videohub:end -->');
   const r = await integrateAgents({ ...o, agents: ['opencode'] });
   assert.deepEqual(r.errors, []);
   assert.equal(fs.readFileSync(p.config, 'utf8'), text);
@@ -149,12 +149,12 @@ test('all injected agent CLI calls receive the selected fake environment', async
 test('uninstall preserves conflicting legacy and V2 MCP entries and removes only its own rule block', async () => {
   const o = scratch(),
     p = agentPaths('opencode', o),
-    foreign = '<!-- videohub:begin -->\n/other-install/server/cli.js\n<!-- videohub:end -->';
+    foreign = '<!-- videohub:begin -->\n/other-install/server/cli.ts\n<!-- videohub:end -->';
   const cfg = {
-    mcp: { videohub: { command: ['node', '/other-install/server/mcp.js'] }, servers: { videohub: { command: ['node', path.join(hub, 'server', 'mcp.js')] } } }
+    mcp: { videohub: { command: ['node', '/other-install/server/mcp.js'] }, servers: { videohub: { command: ['node', path.join(hub, 'server', 'mcp.ts')] } } }
   };
   write(p.config, JSON.stringify(cfg));
-  const own = '<!-- videohub:begin -->\n' + hub.replace(/\\/g, '/') + '/server/cli.js\n<!-- videohub:end -->';
+  const own = '<!-- videohub:begin -->\n' + hub.replace(/\\/g, '/') + '/server/cli.ts\n<!-- videohub:end -->';
   write(p.rule, '\n  Personal rule\n\n' + own + '\n' + foreign + '\n\n');
   const r = await integrateAgents({ ...o, action: 'uninstall', agents: ['opencode'] });
   assert.deepEqual(r.errors, []);
@@ -164,7 +164,7 @@ test('uninstall preserves conflicting legacy and V2 MCP entries and removes only
 test('a path embedded inside another install path does not claim ownership of its skill or rule', async () => {
   const o = scratch(),
     p = agentPaths('opencode', o),
-    foreign = '/other-prefix' + hub.replace(/\\/g, '/') + '/server/cli.js';
+    foreign = '/other-prefix' + hub.replace(/\\/g, '/') + '/server/cli.ts';
   write(path.join(p.skill, 'SKILL.md'), foreign);
   write(p.rule, '<!-- videohub:begin -->\n' + foreign + '\n<!-- videohub:end -->');
   const recycled = [];
@@ -191,7 +191,7 @@ test('a rule block written with the old marker text is replaced on refresh', asy
       oldScript +
       ') -->\nstale ' +
       hub +
-      '/server/cli.js\n<!-- videohub:end -->\n'
+      '/server/cli.ts\n<!-- videohub:end -->\n'
   );
   await integrateAgents({ ...o, action: 'refresh', agents: ['opencode'] });
   const text = fs.readFileSync(p.rule, 'utf8');

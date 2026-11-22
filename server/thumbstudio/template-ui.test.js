@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { applyTemplateSlots, loadBuiltinTemplates } from './templates.js';
+import { applyTemplateSlots, loadBuiltinTemplates } from './templates.ts';
 
 // Importing app.js starts routing and SSE. Evaluate the actual gallery module
 // with just its DOM and drawScene dependencies stubbed instead.

@@ -114,7 +114,7 @@ function processMatches(p, install, platform) {
   if (!/^node(?:js)?$/i.test(path.basename(p.name || ''))) return false;
   const cmd = casePath(String(p.cmd || ''), platform),
     head = cmd.match(/^(?:"[^"]+"|\S+)\s+/),
-    script = casePath(path.join(install, 'server', 'hub.js'), platform);
+    script = casePath(path.join(install, 'server', 'hub.ts'), platform);
   if (!head) return false;
   const args = cmd.slice(head[0].length);
   return args === script || args.startsWith(script + ' ') || args === '"' + script + '"' || args.startsWith('"' + script + '" ');
@@ -285,7 +285,7 @@ export async function runInstaller(
       if (!procs.some(p => p.pid === ping.pid && processMatches(p, install, platform))) throw new Error('Another VideoHub install is using this port');
     }
     if (!ping) {
-      const c = spawnServer(process.execPath, [path.join(install, 'server', 'hub.js')], { cwd: install, detached: true, stdio: 'ignore', env });
+      const c = spawnServer(process.execPath, [path.join(install, 'server', 'hub.ts')], { cwd: install, detached: true, stdio: 'ignore', env });
       let spawnError;
       c.on('error', e => {
         spawnError = e;
@@ -480,7 +480,7 @@ export async function runInstaller(
     if (options.action === 'update') {
       const targetName = options.target || read(markerFile, {})?.hub;
       const target = path.resolve(targetName || hub);
-      if (!fs.existsSync(path.join(target, 'server', 'hub.js'))) throw new Error('No installed VideoHub found; use --target PATH or run setup.sh first');
+      if (!fs.existsSync(path.join(target, 'server', 'hub.ts'))) throw new Error('No installed VideoHub found; use --target PATH or run setup.sh first');
       const paths = validateUpdatePaths(hub, target, { platform });
       if (paths.same) {
         say('keep this install (source and target are the same; no copy needed)');

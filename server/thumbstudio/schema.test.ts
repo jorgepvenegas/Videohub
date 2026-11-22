@@ -1,6 +1,7 @@
+// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { catalog, normalizeBrief, validTid, validPid, generateTid } from './schema.js';
+import { catalog, normalizeBrief, validTid, validPid, generateTid } from './schema.ts';
 
 test('validTid and validPid validation', () => {
   assert.equal(validTid('20261104-k3f9'), true);

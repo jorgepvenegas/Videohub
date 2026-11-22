@@ -63,7 +63,7 @@ export function discoverRoots() {
       if (lp === lower(baseDir())) continue;
       // skip folders that are a root, sit inside one, or contain one
       if (roots.some(r => lower(r.path) === lp || lp.startsWith(lower(r.path) + path.sep) || lower(r.path).startsWith(lp + path.sep))) continue;
-      if (fs.existsSync(path.join(p, 'server', 'hub.js'))) continue; // a VideoHub install
+      if (fs.existsSync(path.join(p, 'server', 'hub.ts')) || fs.existsSync(path.join(p, 'server', 'hub.js'))) continue; // a VideoHub install
       if (hasRenderCode(p)) {
         add(p, 'project', false);
         continue;

@@ -1,7 +1,8 @@
+// @ts-nocheck
 // Ducking the film's music (P4): "duck:" sound entries multiply, old entries keep their additive math and keys.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { soundEnv, soundKey } from './vhsound.mjs';
+import { soundEnv, soundKey } from './vhsound.ts';
 
 const old = [
   { shot: '*', t0: 0, t1: 100, music: 0.5 },

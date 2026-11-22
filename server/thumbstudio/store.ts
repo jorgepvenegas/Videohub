@@ -1,16 +1,17 @@
+// @ts-nocheck
 // Thumbnail store: CRUD, paths, security, recycle bin, and route bindings
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import { catalog, normalizeBrief, validTid, validPid, generateTid } from './schema.js';
-import { listTemplates, getTemplate, saveUserTemplate, applyTemplateSlots, watchTemplates } from './templates.js';
-import { generatePrompt } from './prompt.js';
+import { catalog, normalizeBrief, validTid, validPid, generateTid } from './schema.ts';
+import { listTemplates, getTemplate, saveUserTemplate, applyTemplateSlots, watchTemplates } from './templates.ts';
+import { generatePrompt } from './prompt.ts';
 import { config } from '../config.ts';
 import { HUB_DIR, isInside, readJson, writeJson } from '../util.ts';
 import { project, index } from '../scan.ts';
 import { recyclePaths } from '../janitor.ts';
 import { outputsDir } from '../ciktilar-dir.ts';
-import { describeSpatialTr } from './prompt.js';
+import { describeSpatialTr } from './prompt.ts';
 import crypto from 'node:crypto';
 
 const MIME = {
