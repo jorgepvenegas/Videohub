@@ -9,8 +9,8 @@
 - Approved at: 2026-11-22
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: p5-worker
+- Implemented at: 2026-11-22
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -164,26 +164,26 @@ Commit after each step with subject `P5:` followed by the step title, and push. 
   3. A fresh setup of a `git archive HEAD` export in a sibling scratch folder (L23) with a fake home (rule 1), checking that `dist/ui/index.html` was built and `/` is served on 7799.
   Then stop everything and record the evidence and the L3 warning counts.
 - Acceptance:
-  - [ ] Zero console errors and zero failed requests on the six pages; setup builds and serves the UI
+  - [x] Zero console errors and zero failed requests on the six pages; setup builds and serves the UI
 - Verification: the recorded browser-script output and setup log; `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty at the end
 - Rollback: n/a (scratch only)
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — No tracked `ui/*.js` directly in `ui/`; renames keep history — verify: `git ls-files 'ui/*.js'` (empty) and `git log --follow --oneline ui/app.ts | wc -l`
-- [ ] A2 — Both type-check configs are strict-clean; no `@ts-nocheck` in `ui/*.ts`; S5 is runtime-identical — verify: `pnpm typecheck`, the grep and the §9 comparison
-- [ ] A3 — `pnpm test` has 0 failures and ≥ 307 passing, plus the new tests, each shown to fail without its change — verify: `pnpm test` and §9
-- [ ] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
-- [ ] A5 — `pnpm build` exits 0 and the scratch hub's six app pages load from `dist/ui` with zero console errors and failed requests; a missing build shows the 503 page — verify: S6 evidence and the S2 tests
-- [ ] A6 — Setup and update run the UI build (tests), and a fresh scratch setup serves the built UI — verify: S3 tests and S6 evidence
+- [x] A1 — No tracked `ui/*.js` directly in `ui/`; renames keep history — verify: `git ls-files 'ui/*.js'` (empty) and `git log --follow --oneline ui/app.ts | wc -l`
+- [x] A2 — Both type-check configs are strict-clean; no `@ts-nocheck` in `ui/*.ts`; S5 is runtime-identical — verify: `pnpm typecheck`, the grep and the §9 comparison
+- [x] A3 — `pnpm test` has 0 failures and ≥ 307 passing, plus the new tests, each shown to fail without its change — verify: `pnpm test` and §9
+- [x] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
+- [x] A5 — `pnpm build` exits 0 and the scratch hub's six app pages load from `dist/ui` with zero console errors and failed requests; a missing build shows the 503 page — verify: S6 evidence and the S2 tests
+- [x] A6 — Setup and update run the UI build (tests), and a fresh scratch setup serves the built UI — verify: S3 tests and S6 evidence
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency beyond the pinned Vite
-- [ ] Existing helpers are reused (the installer `run` helper, the hub's static-serving path); no parallel mechanisms
-- [ ] Names and structure state intent; comments explain only non-obvious reasons (for example, why assets go under `_vh/`)
-- [ ] Every new test fails if the behavior it covers breaks (revert checks in §9)
-- [ ] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`, plus `pnpm build`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency beyond the pinned Vite
+- [x] Existing helpers are reused (the installer `run` helper, the hub's static-serving path); no parallel mechanisms
+- [x] Names and structure state intent; comments explain only non-obvious reasons (for example, why assets go under `_vh/`)
+- [x] Every new test fails if the behavior it covers breaks (revert checks in §9)
+- [x] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`, plus `pnpm build`
 
 ## 8. Risks and unknowns
 
@@ -206,37 +206,43 @@ Append during implementation. One line per deviation: date, step, what changed, 
 - 2026-11-22 S4: 10 `git mv` renames (6 modules, 4 tests) each with a first-line `// @ts-nocheck`; specifiers rewritten only when relative; `pnpm build`, `pnpm typecheck`, `pnpm test` (312 pass, 0 fail) green. Deviation: `server/tools.ts:19` also imports `../ui/values.js` and is not in the §3 list; its specifier was changed to `.ts` (specifier only) because the import would break otherwise. Discovery for the coordinator: §3 file list missed `server/tools.ts`.
 - 2026-11-22 S5: `grep -l "@ts-nocheck" ui/*.ts` prints nothing; `pnpm typecheck` (root and `ui/tsconfig.json`), `pnpm build`, `pnpm lint` (0 errors), `pnpm format:check` pass; `pnpm test` 312 pass, 0 fail. Runtime identity: types stripped from the S4 and S5 sources (`stripTypeScriptTypes`, whitespace collapsed, arrow-parameter parentheses ignored) compare identical for `agent`, `outputs-panel`, `render-status` and `system`. `app.ts` differs only by added comments and three pairs of grouping parentheses left where `(x as T)` casts were stripped. `values.ts` differs only by alias bindings (`const n = note`, `const m = meta`) that avoid `any` in the shared module (same object, same writes). The built bundle `dist/ui/_vh/index-CxjZ9iWf.js` has the same content hash before S4 and after S5. Script: `.test-tmp/p5-strip/` (not committed).
 - 2026-11-22 S5 deviations: (1) `ui/app.ts` exports `type Json = any` (comment says why) and declares `Window.__vhNewCount`; `outputs-panel.ts` and `render-status.ts` import the type from it. (2) `h` has a tag-keyed overload so `h('input')` is an `HTMLInputElement`; `$` is typed as returning `HTMLElement` (the old code already assumed non-null). (3) `ui/values.ts` label maps and `ui/system.ts` state are typed; `server/` typecheck needed no change, and the `server/legacy.test.ts` cast is removed (it was needed only because `normalizeBrief` was inferred from untyped JS; now clean). `server/thumbstudio/schema.ts` and `store.ts` needed no edit. (4) The `platform-ui` test marker `const PRESETS =` became `const PRESETS` because the type annotation on the declaration is replaced by whitespace in stripped source; assertions unchanged. The three source-reading UI tests now read through `readSource`.
+- 2026-11-22 S6: environment `.test-tmp/p4env.sh e2e5` (HOME/XDG/TMPDIR/data/base under `.test-tmp/p4-e2e5`, port 7799, guard and jobs off, no window, `PATH=.test-tmp/p4-bin:/usr/bin:/bin`, `--startup no`); the asdf `node` shim fails under a fake HOME, so the scratch hub was started with the real node binary path. Browser check: scratch hub from the repo (data/base `.test-tmp/p5-hub`), script `.test-tmp/p5-browser/check.mjs` (puppeteer-core, installed Chrome, headless): `#/`, `#/renders`, `#/outputs`, `#/disk`, `#/settings`, `#/thumbstudio` each printed `ok` with page text from the app, `total problems 0` (console errors and warnings, page errors, failed requests and HTTP >= 400 all counted). No film review page opened, nothing played. Setup check: `git archive HEAD` into `.test-tmp/p5-e2e/src`, `bash setup.sh --yes --agents opencode --shortcut no --startup no --example no --global-rule no --watch-found no --gpu-encoder no --workspace .test-tmp/p4-e2e5/base`: `pnpm install` ran, then `build the browser interface with pnpm build` produced `dist/ui/index.html` and `dist/ui/_vh/{index-CxjZ9iWf.js,index-D9xtDTKq.css,editor-C2mmOttu.js,figures-catalog-D_4_dwNK.js}`; setup started the hub itself: `/` 200 with `<script type="module" crossorigin src="/_vh/index-CxjZ9iWf.js">`, `/_vh/index-CxjZ9iWf.js` 200, `/api/ping` ok from `.test-tmp/p5-e2e/src/server/hub.ts`. Both hubs stopped; `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty; nothing listened on 7788. Final standards: `pnpm install --frozen-lockfile` up to date; `pnpm format:check` clean; `pnpm lint` exit 0 with 146 warnings (L3, unchanged); `pnpm typecheck` exit 0; `pnpm build` exit 0; `pnpm test` 313 tests, 312 pass, 1 skipped, 0 fail. Scratch folders under `.test-tmp/p5-*` and `.test-tmp/p4-e2e5` were kept (git-ignored), nothing deleted.
 
 ## 10. Closeout
 
-Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
-
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-22
+- Session: p5-worker (subagent), branch `plan/typescript-migration`
+- Verdict: addressed
+- Steps complete: S1 (2a8d41d), S2 (225a9d8), S3 (461bb62), S4 (df35b43), S5 (0ce44d9), S6 (this closeout)
+- Verification run: `pnpm install --frozen-lockfile`, `pnpm format:check`, `pnpm lint` (0 errors, 146 warnings), `pnpm typecheck`, `pnpm build`, `pnpm test` (313 tests, 312 pass, 1 skipped, 0 fail); six-page headless Chrome check on a scratch hub; fresh `setup.sh` from a `git archive HEAD` export in a fake HOME
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | pending | |
-| A2 | pending | |
-| A3 | pending | |
-| A4 | pending | |
-| A5 | pending | |
-| A6 | pending | |
-| D1 (master) | pending | |
-| D2 (master) | pending | |
-| D3 (master) | pending | |
-| D4 (master) | pending | |
-| D5 (master) | pending | |
-| D6 (master) | pending | |
+| A1 | met | `git ls-files ui | grep -E '^ui/[^/]+\.js$'` prints nothing (the plan's `git ls-files 'ui/*.js'` also lists the `review/` and `thumbstudio/` JS that P6 and P7 convert); `git show -M --summary df35b43` shows 10 renames; `git log --follow --oneline ui/app.ts` 6 commits |
+| A2 | met | `pnpm typecheck` exit 0 (root and `ui/tsconfig.json`); `grep -l "@ts-nocheck" ui/*.ts` empty; stripped-source comparison in §9 S5 (identical bar comments, grouping parentheses and alias bindings); built bundle hash unchanged |
+| A3 | met | `pnpm test` 312 pass, 0 fail (baseline 307); new tests `server/hub-ui.test.ts` (3) and `scripts/install.test.ts` (+2, 2 updated); revert checks in §9 S2 and S3 |
+| A4 | met | `pnpm lint` exit 0 with 0 errors; `pnpm format:check` exit 0 |
+| A5 | met | `pnpm build` exit 0; browser check `total problems 0` on the six pages (§9 S6); 503 page covered by `hub-ui.test.ts` "without a build the hub answers 503" |
+| A6 | met | `scripts/install.test.ts` tests "macOS and Linux setup runs pnpm install ..." (install then build), "updating an npm-era install ..." (install then build), "setup and update fail with a clear message when the UI build fails ..."; fresh scratch setup built and served `dist/ui` (§9 S6) |
+| D1 (master) | advanced | 10 top-level `ui` files are `.ts`; `review/` and `thumbstudio/` remain for P6 and P7 |
+| D2 (master) | advanced | UI sources check strictly under `ui/tsconfig.json` (DOM, no Node types); `ui/values.ts` checks under both configs |
+| D3 (master) | advanced | lint 0 errors, format clean |
+| D4 (master) | advanced | 312 pass, 0 fail |
+| D5 (master) | partly met | `pnpm build` exits 0; scratch hub serves library, renders, outputs, disk, settings and thumbnail studio with no console errors; the review page was not opened by rule |
+| D6 (master) | partly met | fresh setup builds the UI automatically (tests and e2e); update runs the same build (tests); the update-from-JS-era e2e is P4's |
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| P5-1 | `server/tools.ts:19` imports `../ui/values.js` and was missing from the plan's file list; its specifier changed to `.ts` | note | P5 | Recorded in §9 S4 |
+| P5-2 | The installer test fixture's `run` throws on any command; it now allows only `pnpm build`, and the exact-command tests expect install then build | note | P5 | Recorded in §9 S3 |
+| P5-3 | The asdf `node` shim fails under a fake HOME; scratch hubs and setup runs need the real node binary (`.test-tmp/p4-bin/node`) | note | P6-P9 | Later e2e steps use `PATH=.test-tmp/p4-bin:/usr/bin:/bin` and the real binary path |
+| P5-4 | Source-reading tests lose a type annotation's text in stripped source, so markers like `const PRESETS =` must stop before the `=` | note | P6, P7 | Marker rule: end markers before any `=` or `(` that a type annotation could precede |
+| P5-5 | The hub cannot watch `dist/ui` when it starts before the first build (watch is skipped); the version-reload broadcast resumes after a restart | note | P8 | Setup and update build before the hub starts; none needed now |
+| P5-6 | `ui/app.ts` now exports `type Json = any`; P6 and P7 reuse it by `import type` for the untyped review and thumbstudio code | note | P6, P7 | Recorded in §9 S5 |
+| P5-7 | Plan's `git ls-files 'ui/*.js'` pathspec also matches subfolders | plan-defect | P5 | A1 evidence uses a top-level-only grep |
 
-**Master updates written:** none yet
-**Next-phase updates written:** none yet
-**Remaining work and handoff:** none yet
+**Master updates written:** none (coordinator owns master.md)
+**Next-phase updates written:** none; see P5-3 to P5-6 above for P6 and P7
+**Remaining work and handoff:** `record-commit` and `close` are left to the coordinator. No removals were held back. Out of this phase: `ui/review*` and `ui/thumbstudio*` (P6, P7), engine-hook build (P8), docs (P9). Not run: Node 22.18 full suite, real-hardware Linux and Intel macOS acceptance.
