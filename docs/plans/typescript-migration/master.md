@@ -1,7 +1,7 @@
 # Master Plan — TypeScript migration
 
 - Plan ID: `typescript-migration`
-- Master version: 61
+- Master version: 62
 - Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
@@ -93,7 +93,7 @@ flowchart LR
 | P6 | Review UI to TS | `ui/review/` and `ui/review.js` are `.ts` and build with Vite; review pages work in a scratch hub | P5 | done | [plan](phases/06-review-ui-to-ts/plan.md) |
 | P7 | Thumbnail studio UI to TS | `ui/thumbstudio/` (and the server tests importing it) are `.ts`; the thumbnail studio works in a scratch hub | P5 | done | [plan](phases/07-thumbnail-studio-ui-to-ts/plan.md) |
 | P8 | Engine hooks to TS | `engine-hooks/vh2d` and `vhtweaks` are strict `.ts` (with a local `three` declaration, C13); Vite builds them into stable, readable `dist/engine-hooks/vh2d.js` and `vhtweaks.js` that engines copy; `three` stays external | P4,P5 | done | [plan](phases/08-engine-hooks-to-ts/plan.md) |
-| P10 | Film starter and example to TS | templates/new-film and examples/hello-film use render.ts, make-audio.ts and film.ts; hub live preview and render.ts serve film.ts stripped; render.js and film.js films still preview and render; one scratch render after the user reviews the preview | P8 | planned | pending |
+| P10 | Film starter and example to TS | templates/new-film and examples/hello-film use render.ts, make-audio.ts and film.ts; hub live preview and render.ts serve film.ts stripped; render.js and film.js films still preview and render; one scratch render after the user reviews the preview | P8 | planned | [plan](phases/10-film-starter-and-example-to-ts/plan.md) |
 | P9 | Strict repo-wide, no JS left, docs | `allowJs` removed, strict repo-wide, a test fails on any tracked JS file, CLAUDE.md/docs/skill/README updated; full D1–D9 verification | P6,P7,P10 | planned | pending |
 
 Status: `planned`, `ready`, `in_progress`, `done`, `blocked`, `needs_replan`, `superseded`.
@@ -121,6 +121,7 @@ Append-only. Supersede a decision with a new row; never delete history.
 | C12 | 2026-11-21 | Every worker prompt from P5 on carries three hard rules: never import or run an entry module (hub, mcp, cli, install) outside the scratch environment; never delete anything outside .test-tmp (report it instead); before any removal inside the repo, show the coordinator the timestamps and wait | P4 incident: an unscoped probe started a real hub on 7788 and cleanup hard-deleted a pre-existing repo data/ folder (user confirmed it was scratch) | P5-P9 |
 | C13 | 2026-11-22 | engine-hooks/vhtweaks.ts gets types for its three import from a local declaration file (engine-hooks/three.d.ts) covering only the three API the hook uses; no @types/three dependency; the hooks build keeps three external | User choice 2026-11-22; VideoHub does not install three and engines ship their own version | P8,P9 |
 | C14 | 2026-11-22 | Old P8 is split: P8 converts only engine-hooks (strict TS, Vite builds them into stable dist/engine-hooks/*.js); new P10 converts the film starter and example, hub stripping of film.ts, render.js compatibility and the preview-then-one-render gate (D7, D8); P9 depends on P10 | User choice 2026-11-22; the two jobs are unrelated and together exceed the 7-step phase limit | P8,P9,P10 |
+| C15 | 2026-11-22 | User instruction 2026-11-22 ('yes, continue until the whole master plan is done'): P10 and P9 proceed from a checked, committed plan to implementation without stopping for per-phase approval; approval is recorded as 'Jorge Venegas (standing instruction 2026-11-22)'. Still stopping for the user: the CLAUDE.md preview-before-render gate (the user watches the scratch preview and explicitly asks for the one render), any scope-change discovery, and any question whose answer changes user-visible behavior | User asked to run the rest of the plan to the end; the skill requires the skip-review instruction to be recorded before starting | P9,P10 |
 
 ## 9. Discovery ledger
 
