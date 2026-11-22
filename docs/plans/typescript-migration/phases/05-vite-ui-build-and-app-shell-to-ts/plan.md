@@ -2,8 +2,8 @@
 
 - Plan ID: `typescript-migration`
 - Phase: P5
-- Plan version: 1
-- Validated against master version: 37
+- Plan version: 2
+- Validated against master version: 43
 - Status: in_progress
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-22
@@ -56,6 +56,7 @@ Make the browser UI a Vite build. Then convert the top-level UI modules (`app`, 
 | L20 | Incident: an unscoped probe started a real hub and cleanup hard-deleted a folder | Decision C12 rules are binding for every step (see §5) |
 | L23 | `update.sh` from the repo is refused as nested; old configs use port 7788 | The S6 setup check exports the branch with `git archive` to a sibling scratch folder and sets the scratch config to 7799 before starting anything |
 | L25 | `install.ts` must keep importing only node builtins and relative modules | S3 runs the build by spawning `pnpm build` from `install.ts`; no package import |
+| L26 | `server/tools.ts` imports `ui/values` but was missing from the file list (found during S4) | S4 changed its specifier to `.ts`; accepted by the coordinator at closeout |
 
 ## 3. Scope
 

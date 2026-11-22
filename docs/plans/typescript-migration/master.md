@@ -1,7 +1,7 @@
 # Master Plan — TypeScript migration
 
 - Plan ID: `typescript-migration`
-- Master version: 37
+- Master version: 43
 - Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
@@ -150,6 +150,12 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L23 | 2026-11-21 | P4 | P5-P9 | update.sh run from the repo is refused as nested (the repo contains .test-tmp), and an old install's saved config says port 7788; end-to-end runs need a sibling git-archive export as source and a scratch config set to 7799 | note | Later end-to-end steps export the branch with git archive to a sibling scratch folder and set the scratch config port to 7799 before starting anything | open |
 | L24 | 2026-11-21 | P4 | P9 | Node 22.18.0 runs .ts entries, mixed imports and node --test with no stderr warnings; the full suite was not run on 22.18. Re-applying a macOS LaunchAgent starts the new hub immediately, tested only with injected platforms | note | Final report lists the full-suite run on 22.18 and real-launchd re-apply as remaining verification | open |
 | L25 | 2026-11-21 | P4 | P5 | P5 adds a Vite build to setup and update; scripts/install.ts must keep importing only node builtins and relative modules (it runs before pnpm install) | next-phase-amend | P5 runs the build by spawning pnpm (pnpm build) from install.ts after package install, with no package import | open |
+| L26 | 2026-11-22 | P5 | P5 | server/tools.ts imported ../ui/values.js but was not in the P5 file list; its specifier changed to .ts | plan-defect | Accepted in P5 (specifier only); later phases grep all importers repo-wide before renaming | open |
+| L27 | 2026-11-22 | P5 | P6-P9 | The asdf node shim fails under a fake HOME; scratch hubs and setup runs must use the real node binary (.test-tmp/p4-bin/node) | note | Worker prompts for P6-P9 point scratch runs at the real node binary | open |
+| L28 | 2026-11-22 | P5 | P6,P7,P8 | Type annotations strip to whitespace, so readSource marker slices must stop before '=' (e.g. 'const PRESETS') | note | Source-reading tests use markers that end before the annotation | open |
+| L29 | 2026-11-22 | P5 | P6,P7,P9 | ui/app.ts exports 'type Json = any' (commented) for untyped hub JSON replies | next-phase-amend | P6/P7 reuse it via import type; P9 decides whether to replace it with response types | open |
+| L30 | 2026-11-22 | P5 | P9 | If the hub starts before the first build it does not watch dist/ui; reload broadcast resumes after restart | note | Harmless since setup/update build first; mention in P9 contributor docs | open |
+| L31 | 2026-11-22 | P5 | P6 | A1 pathspec git ls-files 'ui/*.js' matches subfolders, and ui/review.js (P6) is top-level, so A1 as worded conflicts with scope | plan-defect | P6 owns removing ui/review.js; P5 A1 evidence uses a top-level grep excluding review.js | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
