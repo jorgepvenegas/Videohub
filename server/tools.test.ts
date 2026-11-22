@@ -4,7 +4,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 
-// tools.js talks to the hub over HTTP; a fake hub answers /api/ping and /api/config so no real hub is touched
+// tools.ts talks to the hub over HTTP; a fake hub answers /api/ping and /api/config so no real hub is touched
 const films = path.resolve('.test-tmp', 'tools-fixture', 'films');
 const cfg = {
   workspace: path.dirname(films),

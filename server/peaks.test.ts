@@ -1,4 +1,4 @@
-// peaksOf from server/media.ts, read from the source (importing media.js would set up its cache folders)
+// peaksOf from server/media.ts, read from the source (importing media.ts would set up its cache folders)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readSource } from '../scripts/test-source.ts';

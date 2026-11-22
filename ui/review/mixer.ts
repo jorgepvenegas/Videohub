@@ -1,4 +1,4 @@
-// Live mixer (P3c, replaces stems.js): channel levels, M/S, the master and the "Channels" section of the Sounds tab.
+// Live mixer (P3c, replaces stems.ts): channel levels, M/S, the master and the "Channels" section of the Sounds tab.
 // Levels live where the render reads them, tweaks.json "sound" (no new key): the whole-film level of vo / music / sfx
 // and the master (`all`) on the {shot:'*'} entry, range levels on 'range a–b' (scope select; older films: 'aralık a–b'), "🔇 Remove music" =
 // '*' music 0. Each change is a PATCH soundOps (field-level, 400 ms debounce) and then the review page's apply queue
@@ -7,7 +7,7 @@
 // Listening engine: while something differs from the built mix the player plays (M/S, a change not built yet, or the
 // A/B switch on "Channels"), the player is muted and the stem files play instead through Web Audio: each stem →
 // GainNode following M/S × soundEnv(level curve, the render's formula) → master → limiter; added clips are decoded
-// once and scheduled as buffer sources with their fades (soundenv.js clipPlan, the render's mixClips rules).
+// once and scheduled as buffer sources with their fades (soundenv.ts clipPlan, the render's mixClips rules).
 // The transport's 🔊 / volume / U drive the master while it runs. "Built audio" forces the player's own sound.
 import { h, api, toast } from '../app.ts';
 import { createHistory } from './history.ts';

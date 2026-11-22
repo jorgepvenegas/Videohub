@@ -114,7 +114,7 @@ export function run(cmd: string, args: string[], opts: ExecFileOptions = {}): Pr
   });
 }
 
-// Retained for older integrations; new OS operations belong in platform.js.
+// Retained for older integrations; new OS operations belong in platform.ts.
 
 export async function pLimit<T, R>(items: T[], n: number, fn: (item: T, index: number) => R | Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);

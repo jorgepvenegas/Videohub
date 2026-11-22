@@ -1,4 +1,4 @@
-// Pure sound helpers for the live mixer (mixer.js). No DOM, no runtime imports (soundenv.test.ts runs them in Node).
+// Pure sound helpers for the live mixer (mixer.ts). No DOM, no runtime imports (soundenv.test.ts runs them in Node).
 // soundEnv is an identical copy of server/vhsound.ts soundEnv (the test compares the two source texts), so the
 // levels heard live follow the same curve the render's mix is built with.
 
@@ -34,7 +34,7 @@ export function soundEnv(entries: SoundEntry[] | null | undefined, key: string, 
 export const LEVELS = ['music', 'sfx', 'vo', 'all'];
 const hasLevel = (e: Json) => LEVELS.some(k => e[k] != null && Math.abs(e[k] - 1) > 1e-3);
 
-// the client's copy of server/tweaks.js applySoundOps (field-level merge by shot; null removes a field; an entry with
+// the client's copy of server/tweaks.ts applySoundOps (field-level merge by shot; null removes a field; an entry with
 // no level ≠ 1 left is dropped; sorted by t0), so the mixer hears a change before the PATCH answers
 export function applyOps(list: Json, ops: Json) {
   const o = ops || {},
@@ -79,7 +79,7 @@ export function opsToward(cur: Json, snap: Json, owned: Json) {
   return set.length ? { set } : null;
 }
 
-// how to play one added clip live from film time `t` at playback rate `rate` (mirrors vhsound.mjs mixClips: trim,
+// how to play one added clip live from film time `t` at playback rate `rate` (mirrors vhsound.ts mixClips: trim,
 // len, loop, fin/fout, gain): null when it has ended or is silent; else { delay (s of real time until it starts),
 // offset (s into the file), dur (s of film time it still plays), loop, loopStart, pts: [[filmSecFromNow, gain]…] }
 // pts are the corners of the clip's level curve min(1, i/fin, (len−i)/fout)·gain from where it starts playing

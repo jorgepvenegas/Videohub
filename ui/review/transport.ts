@@ -1,6 +1,6 @@
 // Transport bar (P2): one row under the picture — frame/seek buttons, a typed timecode, speed + J/K/L shuttle,
 // the I/O range, timeline zoom + follow, note / captions / sound / still / fullscreen. What does not fit goes
-// into "⋯" by data-pri (dock.js fitRow). parseTime / fmtTC / createShuttle are pure and tested in node.
+// into "⋯" by data-pri (dock.ts fitRow). parseTime / fmtTC / createShuttle are pure and tested in node.
 import { fitRow, openPop } from './dock.ts';
 import type { Json } from '../app.ts';
 
@@ -150,7 +150,7 @@ export function createShuttle({
   };
 }
 
-// tiny DOM helper (this module must stay importable in node for its tests: no app.js)
+// tiny DOM helper (this module must stay importable in node for its tests: no app.ts)
 function el(tag: Json, attrs = {}, ...kids: Json[]) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {

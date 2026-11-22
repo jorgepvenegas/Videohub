@@ -1,10 +1,10 @@
 // Setup's helper for data/config.json: setup.sh asks the questions, this file decides and writes (so the logic lives
-// next to server/config.js and is unit-tested in scripts/init-config.test.js). It never moves or deletes a folder,
+// next to server/config.ts and is unit-tested in scripts/init-config.test.ts). It never moves or deletes a folder,
 // never overwrites a value an existing config.json has and never replaces a config it cannot read.
 //
 //   node scripts/init-config.ts --state                      what is decided already, the defaults, folders found (JSON)
 //   node scripts/init-config.ts --check <folder>             can this folder be the workspace? {ok, why}
-//   node scripts/init-config.ts --detect [--refresh]         encoders this PC can use (server/encoders.js, cached)
+//   node scripts/init-config.ts --detect [--refresh]         encoders this PC can use (server/encoders.ts, cached)
 //   node scripts/init-config.ts [--workspace <folder>] [--watch <folder>]... [--encoder auto|nvenc|amf|qsv|x264]
 //                                [--dry-run]                  write config.json (+ create the workspace folders)
 //   node scripts/init-config.ts --example                    copy examples\hello-film into the films folder (once)
@@ -288,7 +288,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           ffmpeg: val('--ffmpeg') || 'ffmpeg'
         })
       );
-    // the example film, the same copy as the Welcome panel's button (server/example.js); never twice
+    // the example film, the same copy as the Welcome panel's button (server/example.ts); never twice
     else if (a.includes('--example')) out(installExample({ dataDir, dryRun: a.includes('--dry-run') }));
     else out(initConfig({ dataDir, workspace: val('--workspace'), watch: all('--watch'), encoder: val('--encoder'), dryRun: a.includes('--dry-run') }));
   } catch (e) {

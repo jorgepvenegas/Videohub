@@ -641,7 +641,7 @@ function softScan(maxAgeMs: number) {
     t = typeof at === 'number' ? at : Date.parse((at || 0) as string) || 0;
   if (index().scanning || Date.now() - t < maxAgeMs) return false;
   scan({ soft: true }).catch(() => {});
-  return true; // only changed projects are walked again (scan.js)
+  return true; // only changed projects are walked again (scan.ts)
 }
 setInterval(() => {
   if (clients.size) softScan(9 * 60e3);

@@ -98,7 +98,7 @@ const fps = PREVIEW ? Math.min(FPS, 30) : FPS,
   TOTAL = Math.round(DUR * fps);
 const OUT = PREVIEW ? path.resolve('render/preview') : path.resolve('render/chunks');
 
-// ---------- encoders (the same table as VideoHub's server/encoders.js; quality checked against a lossless reference)
+// ---------- encoders (the same table as VideoHub's server/encoders.ts; quality checked against a lossless reference)
 const ENCODER_ARGS = {
   nvenc: [
     [

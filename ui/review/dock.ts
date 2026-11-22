@@ -1,7 +1,7 @@
 import type { Json } from '../app.ts';
 // Editor layout helpers (P1, no-scroll editor): safe storage, drag splitters that write a CSS length var,
 // a one-line row that hides its least important children into a "⋯" menu, and a small popover.
-// No imports: the pure parts are tested in node (dock.test.js).
+// No imports: the pure parts are tested in node (dock.test.ts).
 
 // localStorage that never throws (private window, blocked site data); values are JSON
 export const ls = {

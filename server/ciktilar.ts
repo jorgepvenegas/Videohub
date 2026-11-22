@@ -2,7 +2,7 @@
 // place, named "2026-11-03 My film v2.mp4", so nobody has to dig through project folders.
 // Each file is an NTFS hard link to the render (the same data under a second name: no extra disk space; deleting either
 // name keeps the other). Only when a link is impossible (another drive) is it a copy. Index: data/ciktilar.json.
-//   linkOutput(file, {title, v, kind})  a new render (jobs.js register: queue + hub_register_version)
+//   linkOutput(file, {title, v, kind})  a new render (jobs.ts register: queue + hub_register_version)
 //   sync()                              after every scan: each project's newest final (the first run fills the folder)
 //   afterClean(results)                 the janitor removed renders: their links go to the Trash too, or the disk
 //                                       space would never come back (the data stays in the Trash / archive)

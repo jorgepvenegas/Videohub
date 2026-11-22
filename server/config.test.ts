@@ -8,7 +8,7 @@ import type { config, saveConfig, baseDir, defaultFilmsDir } from './config.ts';
 import type { Json } from './types.ts';
 const fixture = (...parts: string[]) => path.resolve('.test-tmp', 'config-fixture', ...parts);
 
-// config.js with in-memory files: never writes data/config.json
+// config.ts with in-memory files: never writes data/config.json
 function load(
   saved: Json = { port: 7788, roots: [{ path: fixture('films'), type: 'container', enabled: true }] },
   env: Record<string, string> = { VIDEOHUB_BASE_DIR: fixture('base') }

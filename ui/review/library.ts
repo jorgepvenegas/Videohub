@@ -1,6 +1,6 @@
 // Sound library at the top of the Sounds tab (P4): ready-made effects (made on this PC with the 3D studio's synth)
 // and the user's sound folder (config.soundLibDir, default Documents\VideoHub\sounds). Search, ▶ listen (one at a time), "+" adds at the playhead,
-// and every row can be dragged onto the timeline (application/x-vh-sound; timeline.js decides time, row and lane).
+// and every row can be dragged onto the timeline (application/x-vh-sound; timeline.ts decides time, row and lane).
 import { h, api, toast } from '../app.ts';
 import type { Json } from '../app.ts';
 

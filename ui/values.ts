@@ -1,6 +1,6 @@
 // Stored values (note statuses, note kinds, project statuses, thumbnail statuses …) and their legacy aliases.
 // VideoHub writes the English values. Files written by older (Turkish) versions use the Turkish words; they are mapped
-// to the English ones when a file is read (server/legacy.js) and the hub_* tools accept them as input aliases.
+// to the English ones when a file is read (server/legacy.ts) and the hub_* tools accept them as input aliases.
 // A plain module: the UI (labels) and the server (normalising) both import it.
 
 export const NOTE_STATUSES = ['open', 'claude', 'fixed', 'approved', 'reopened'];

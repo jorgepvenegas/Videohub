@@ -3,7 +3,7 @@
 // is muted/soloed, the player is muted and the stems play in its place through Web Audio gains (so above 100 % works),
 // kept to its clock (moved when they drift > 0.15 s, checked on every play/seek and twice a second).
 // "💾 Apply to film" writes the levels into tweaks.json "sound" (whole film or the selected I/O range; PATCH soundOps,
-// only that entry's fields) and the review page's apply queue rebuilds the film's mix (server/sound.js; the untouched
+// only that entry's fields) and the review page's apply queue rebuilds the film's mix (server/sound.ts; the untouched
 // mix stays as *.vhorig.wav; 3D studio: the engine's build at once, since the button asked for it).
 import { h, api, toast } from '../app.ts';
 import type { Json } from '../app.ts';

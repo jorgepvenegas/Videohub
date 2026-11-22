@@ -1,5 +1,5 @@
 // Builds VideoHub's ready-made sound effects (data/sfx-lib/*.wav) with an optional 3D studio engine's synth — made on this computer,
-// nothing downloaded. Run by server/soundedit.js in a child process:  node sfxlib.ts <synth.js> <out dir>
+// nothing downloaded. Run by server/soundedit.ts in a child process:  node sfxlib.ts <synth.js> <out dir>
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

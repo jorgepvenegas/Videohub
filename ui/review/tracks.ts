@@ -1,6 +1,6 @@
 import type { Json } from '../app.ts';
 // Pure helpers for the multi-track timeline (P3a): which rows it shows and how tall, clip lanes, ruler ticks, snapping.
-// No DOM here (tracks.test.js runs it in Node).
+// No DOM here (tracks.test.ts runs it in Node).
 
 export const COLLAPSED_H = 14;
 export const MAX_LANES = 8;

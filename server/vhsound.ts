@@ -1,5 +1,5 @@
 // Per-shot sound levels from VideoHub's scene editor (tweaks.json "sound": [{ shot, t0, t1, music, sfx, vo, all }],
-// film seconds, 1 = unchanged). Shared by VideoHub (server/sound.js) and engines that build their own mix
+// film seconds, 1 = unchanged). Shared by VideoHub (server/sound.ts) and engines that build their own mix
 // (3D studio engine/audio/vhsound.mjs is a copy of this file).
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';

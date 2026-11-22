@@ -124,7 +124,7 @@ export function readTweaksStrict(file: string) {
 }
 
 // tmp file + rename (readers never see half a file); the rename can fail while someone reads the file, so
-// retry 6 × 120 ms like vhsound.mjs replaceFile, then write in place
+// retry 6 × 120 ms like vhsound.ts replaceFile, then write in place
 export function writeTweaks(file: string, obj: unknown) {
   const txt = JSON.stringify(obj, null, 1),
     tmp = file + '.' + process.pid + '.tmp';

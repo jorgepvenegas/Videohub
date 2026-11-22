@@ -104,7 +104,7 @@ export const DEFAULTS = (base = baseDir()) => ({
   tempMaxAgeDays: 14,
   bloatWarnRatio: 3,
   thumbstudio: defaultThumbstudioDirs(base),
-  // render.encoder: auto | nvenc | amf | qsv | x264, passed to render scripts as VIDEOHUB_ENCODER (server/encoders.js)
+  // render.encoder: auto | nvenc | amf | qsv | x264, passed to render scripts as VIDEOHUB_ENCODER (server/encoders.ts)
   render: { encoder: 'auto' }
 });
 function firstRoots(): Root[] {

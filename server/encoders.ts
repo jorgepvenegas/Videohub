@@ -1,7 +1,7 @@
 // Video encoders for renders: which ones this PC can use (one tiny test encode each, cached) and the ffmpeg arguments
 // for each. Shared by the hub (Settings, render options, the env of render jobs) and setup (scripts/init-config.ts).
 // The film render script (templates/new-film/render.ts) carries its own copy of ENCODER_ARGS because films copy it;
-// encoders.test.js checks that the two stay the same. Measurements and what is unverified: docs/RENDER-SPEED.md.
+// encoders.test.ts checks that the two stay the same. Measurements and what is unverified: docs/RENDER-SPEED.md.
 import fs from 'node:fs';
 import os from 'node:os';
 import { spawn } from 'node:child_process';

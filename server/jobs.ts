@@ -513,7 +513,7 @@ function maxNameVersion(p: Project) {
     films.length ? 1 : 0
   );
 }
-// the project's last film (scan.js: test clips never count), else the newest final / web copy
+// the project's last film (scan.ts: test clips never count), else the newest final / web copy
 const lastFilm = (p: Project) =>
   p.outputs.find(o => o.rel === p.latest && (o.role === 'final' || o.role === 'web')) ||
   p.outputs.filter(o => o.role === 'final').sort((a, b) => b.mtime - a.mtime)[0] ||
@@ -541,7 +541,7 @@ async function withAudio(p: Project, video: string, out: string, rc: Json = {}, 
     if (r.code !== 0) throw new Error('Adding the sound (render.mux recipe) failed: ' + r.stderr.slice(0, 300));
     return out;
   }
-  // VideoHub rebuilt the film's mix (sound levels / added clips from the timeline, server/sound.js): that mix is the
+  // VideoHub rebuilt the film's mix (sound levels / added clips from the timeline, server/sound.ts): that mix is the
   // film's sound now. Copying the last film's track (below) would silently drop those edits (a real bug: "Apply to film"
   // never reached a render without a mux recipe).
   const en = [job?.env?.FILMLANG, job?.env?.LANG].some(v => String(v || '').toLowerCase() === 'en');
@@ -864,7 +864,7 @@ async function renderOptions0(p: Project): Promise<Record<string, unknown>> {
     fps: env.has('FPS') ? { default: rc.fps || 30 } : null,
     workers: { default: rc.workers || 2, max: 8, env: env.has('WK') ? 'WK' : null },
     dur: +rc.env.DUR || null,
-    // a script that reads VIDEOHUB_ENCODER (the template's render.js) gets the encoder choice; default = Settings' choice
+    // a script that reads VIDEOHUB_ENCODER (the template's render.ts) gets the encoder choice; default = Settings' choice
     ...(env.has('VIDEOHUB_ENCODER')
       ? {
           codecs: ENCODERS.filter(n => n === 'auto' || n === 'x264' || PROBE_ORDER.includes(n)),

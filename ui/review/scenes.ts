@@ -5,7 +5,7 @@ import type { Json } from '../app.ts';
 //   window.SHOTS          spotlight-shorts (3D and 2D template): [{id, set, t0, t1}]
 //   window.EVENTS.shots   hd2d: shots on its "old" timeline, mapped to film time through window.PIECES
 //   window.__qaShotAt(t)  3D studio 2D films (film2d.js): the shot name at a time, sampled every 1/20 s
-// Pure (no DOM): tested by ui/review/scenes.test.js.
+// Pure (no DOM): tested by ui/review/scenes.test.ts.
 
 export function scenesFromPage(win: Json, dur: Json) {
   if (!win) return { scenes: [], source: null };

@@ -5,7 +5,7 @@ import { readSource } from '../../scripts/test-source.ts';
 import type { Json } from '../types.ts';
 import { applyTemplateSlots, loadBuiltinTemplates } from './templates.ts';
 
-// Importing app.js starts routing and SSE. Evaluate the actual gallery module
+// Importing app.ts starts routing and SSE. Evaluate the actual gallery module
 // with just its DOM and drawScene dependencies stubbed instead.
 const source = readSource(new URL('../../ui/thumbstudio/templates.ts', import.meta.url))
   .replace(/^import .+;\r?$/gm, '')

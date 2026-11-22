@@ -1,6 +1,6 @@
 import type { Json } from '../app.ts';
 // Undo / redo by snapshots (strings). A drag arms the state before it and pushes it only on its first real change,
-// so a click that moves nothing leaves no step; any other edit pushes before it changes. Pure (history.test.js).
+// so a click that moves nothing leaves no step; any other edit pushes before it changes. Pure (history.test.ts).
 export function createHistory({ snapshot, restore, max = 60, onPush }: Json) {
   let undo: Json = [],
     redo: Json = [],

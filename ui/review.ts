@@ -225,7 +225,7 @@ export async function reviewPage(page: Json, id: Json, relArg = '') {
       refreshApply();
     });
   // its state in the timeline corner, the Sounds and the Clip tab (persistent hosts: no pane repaint mid-edit);
-  // Sounds' Channels section has its own 💾 (mixer.js), so stSounds only says when a build runs
+  // Sounds' Channels section has its own 💾 (mixer.ts), so stSounds only says when a build runs
   const stCorner = h('span', { class: 'rv2-astat' }),
     stSounds = h('span', { class: 'rv2-astat' }),
     stClip = h('span', { class: 'rv2-astat' });

@@ -1,4 +1,4 @@
-// The tools agents use (through mcp.js, or `node server/cli.ts <tool> '<json>'` without MCP).
+// The tools agents use (through mcp.ts, or `node server/cli.ts <tool> '<json>'` without MCP).
 // They talk to the hub over http://127.0.0.1:7788 and start it when it is not running.
 // Status inputs accept the English values and, as aliases, the Turkish words older versions used.
 import { z } from 'zod';

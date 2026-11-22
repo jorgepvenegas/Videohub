@@ -1,4 +1,4 @@
-// Files written by older (Turkish) versions are read with English values (server/legacy.js, ui/values.js).
+// Files written by older (Turkish) versions are read with English values (server/legacy.ts, ui/values.ts).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

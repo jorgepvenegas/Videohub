@@ -1,7 +1,7 @@
 // Review notes: a moment (or range) in a video, a drawing on the frame, a text, and a status
 // that goes  open → claude → fixed → approved  (or "reopened" back to Claude when a fix did not work).
 // Stored with the project: <project>\.videohub\notes.json + notes\nNN_*.{jpg,png}
-// Older notes.json files with Turkish statuses/kinds are read through legacy.js and saved back in English.
+// Older notes.json files with Turkish statuses/kinds are read through legacy.ts and saved back in English.
 import fs from 'node:fs';
 import path from 'node:path';
 import { project, setNoteCounts } from './scan.ts';

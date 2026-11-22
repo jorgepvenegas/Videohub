@@ -8,7 +8,7 @@ import * as layers from '../../ui/thumbstudio/layers.ts';
 import * as light from '../../ui/thumbstudio/light.ts';
 
 // Exercise the actual editor and its real geometry/history helpers without
-// starting app.js's browser router, SSE connection.
+// starting app.ts's browser router, SSE connection.
 const source = readSource(new URL('../../ui/thumbstudio/editor.ts', import.meta.url))
   .replace(/^import[\s\S]*?from ['"][^'"]+['"];\r?$/gm, '')
   .replace('export async function renderEditor', 'async function renderEditor');

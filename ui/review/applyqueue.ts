@@ -3,7 +3,7 @@ import type { Json } from '../app.ts';
 //   stems / all  request() debounces (1.2 s), then builds; changes while it builds cause exactly one more build after
 //   studio       the engine's build takes minutes: request() only marks it dirty; "💾 Apply to film" calls applyNow()
 //   none         nothing to build
-// Pure apart from the injected apply() and timers (applyqueue.test.js).
+// Pure apart from the injected apply() and timers (applyqueue.test.ts).
 export function createApplyQueue({
   apply /* () => Promise<result> */,
   mode /* () => 'stems'|'all'|'studio'|'none'|null */,

@@ -7,7 +7,7 @@
 // press/drag there pauses and scrubs. Notes are picked only in their own row (close notes merge into one marker with a
 // count; clicking it again steps through them), so scrubbing never lands on a note by accident.
 // Ctrl+wheel zooms at the pointer (plain wheel too, over the ruler), Shift+wheel pans, plain wheel scrolls the rows;
-// double-click shows the whole film. The view (zoom/pan/follow) lives in tlview.js; its buttons are in the transport.
+// double-click shows the whole film. The view (zoom/pan/follow) lives in tlview.ts; its buttons are in the transport.
 import { h } from '../app.ts';
 import { createView } from './tlview.ts';
 import { ls } from './dock.ts';
