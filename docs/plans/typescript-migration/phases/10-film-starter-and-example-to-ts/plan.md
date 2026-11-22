@@ -2,8 +2,8 @@
 
 - Plan ID: `typescript-migration`
 - Phase: P10
-- Plan version: 1
-- Validated against master version: 62
+- Plan version: 2
+- Validated against master version: 65
 - Status: in_progress
 - Approved by: Jorge Venegas (standing instruction 2026-11-22, C15)
 - Approved at: 2026-11-22
@@ -58,6 +58,7 @@ New films start from TypeScript: `templates/new-film` and `examples/hello-film` 
 | L35 | AST comparison of stripped sources | S4 compares all six film scripts against the S3 commit |
 | L38 | Stray files from a comparison loop | Scratch output only under `.test-tmp/p10-*`; explicit staging; `git status --short` before each commit |
 | L40 | Renaming to `.ts` enables TypeScript-only lint rules | Fix with types; a commented disable only where a fix would change runtime code |
+| L47 | More hub code recognizes only `.js` film code (source revision, live watcher, scan markers, render toast) | Plan v2 adds S4b; S5 re-runs with a reload check |
 
 Decisions applied: C3 (`film.ts` served stripped by hub live preview and by the render script's own page server; `render.js` films keep working; the default prefers `render.ts`) shapes S1 and S2. C12 is binding for every step. C15 removes the per-phase approval stop, but S6 still stops for the user.
 
@@ -148,15 +149,26 @@ Commit after each step with subject `P10:` followed by the step title, and push.
 - Verification: `grep -l "@ts-nocheck" templates/new-film/*.ts examples/hello-film/*.ts` (no output); the L8 grep; `pnpm typecheck && pnpm test 2>&1 | tail -8`; the AST result and the scratch `make-audio` run in §9
 - Rollback: `git revert HEAD`
 
-### S5 — Preview check in a real browser
+### S4b — Recognize `.ts` film code everywhere the hub looks
 
 - Depends on: S4
+- Files: `server/source-revision.ts`, `server/live.ts` (watcher filter), `server/scan.ts` (film markers), `ui/review/renderbtn.ts` (toast text only); tests in `server/film-ts.test.ts`, `server/source-revision.test.ts` or `server/scan-cache.test.ts`
+- Change: Added at plan v2 (phase-amend from the S5 review). Count `.ts` files as film code in the source revision and the live watcher, and `render.ts` as a film marker in `scan.ts`, next to the existing `.js`/`.mjs` patterns. The toast names "render.ts or render.js". Legacy `.js` films behave exactly as before. Tests fail without the change: a `.ts` change bumps the source revision; `render.ts` alone marks a folder as a code film, including the container check.
+- Acceptance:
+  - [ ] New tests pass and each fails against the reverted change (recorded in §9); existing tests unchanged
+- Verification: `node --test` on the changed test files; `pnpm typecheck && pnpm build && pnpm test 2>&1 | tail -8`
+- Rollback: `git revert HEAD`
+
+### S5 — Preview check in a real browser
+
+- Depends on: S4b
 - Files: the P10 phase plan (modify) — §7, §9 and §10
 - Change:
   1. Run the standards commands, then `pnpm build`.
   2. Build a scratch base under `.test-tmp/p10-hub/` with three films: a copy of `examples/hello-film`; a new film copied from `templates/new-film` with `make-audio.ts` run in it and its project length set the way the starter README says; and a legacy copy of the example from the P8 closeout commit (`git archive 0e18934 examples/hello-film`), which still has `render.js` and `film.js`. Seed scratch covers (L34). Start a scratch hub (rule 1).
   3. A throwaway script under `.test-tmp/p10-browser/` drives the repo's `puppeteer-core` with the installed Chrome, headless and muted. It opens `#/` and each film's `#/review/PROJECT_ID/~live` page without `?play=1`, collects console errors and failed requests, and confirms that each live page reports `window.READY` and draws a frame. It clicks nothing and plays nothing.
-  4. Check through the hub API that the TS films' detected script is `render.ts` and the legacy film's is `render.js`. Stop the hub and record the evidence and the L3 warning counts.
+  4. In the new starter film, change one drawn value in `film.ts` (scratch copy only) and confirm the open live page reloads and the project's source revision changes; put the value back.
+  5. Check through the hub API that the TS films' detected script is `render.ts` and the legacy film's is `render.js`. Stop the hub and record the evidence and the L3 warning counts.
 - Acceptance:
   - [x] Zero console errors and zero failed requests on all four pages; all three films are live-capable; scripts detected as above; nothing played or rendered
 - Verification: the recorded script output; `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty at the end
