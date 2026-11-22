@@ -10,7 +10,7 @@ import { detectEncoders } from '../server/encoders.ts';
 import { detectAgents, integrateAgents } from './agents.ts';
 import type { Json, ProcessRow } from '../server/types.ts';
 
-type Platform = typeof platformDefault;
+type Platform = ReturnType<typeof platformDefault.createPlatform>;
 type CasePlatform = { casePath?: Platform['casePath'] };
 type Options = Record<string, Json> & { action: string };
 type Stat = ReturnType<typeof fs.lstatSync>;
@@ -60,6 +60,18 @@ function checkCopy(from: string, to: string): void {
   if (dst && src.isDirectory() !== dst.isDirectory()) throw new Error('Update source and target have different file types: ' + to);
   if (src.isDirectory())
     for (const e of fs.readdirSync(from, { withFileTypes: true })) if (!skipCode(e.name)) checkCopy(path.join(from, e.name), path.join(to, e.name));
+}
+// An update from the JavaScript era leaves x.js/x.mjs beside the new x.ts; only those pairs are returned.
+function staleCode(src: string, dst: string, rel: string): string[] {
+  const found: string[] = [];
+  for (const e of fs.readdirSync(path.join(src, rel), { withFileTypes: true })) {
+    if (skipCode(e.name) || e.isSymbolicLink()) continue;
+    const r = path.join(rel, e.name);
+    if (e.isDirectory()) found.push(...staleCode(src, dst, r));
+    else if (e.isFile() && e.name.endsWith('.ts'))
+      for (const ext of ['.js', '.mjs']) if (stat(path.join(dst, r.slice(0, -3) + ext))?.isFile()) found.push(r.slice(0, -3) + ext);
+  }
+  return found;
 }
 function write(f: string, text: string, mode?: number) {
   fs.mkdirSync(path.dirname(f), { recursive: true });
@@ -120,14 +132,18 @@ export function validateUpdatePaths(
     throw new Error('Source and target must be separate folders, not nested');
   return { same: false, source: sourceReal, target: targetReal };
 }
+const HUB_ENTRIES = ['hub.ts', 'hub.js'];
 function processMatches(p: ProcessRow, install: string, platform: CasePlatform) {
   if (!/^node(?:js)?$/i.test(path.basename(p.name || ''))) return false;
   const cmd = casePath(String(p.cmd || ''), platform),
-    head = cmd.match(/^(?:"[^"]+"|\S+)\s+/),
-    script = casePath(path.join(install, 'server', 'hub.ts'), platform);
+    head = cmd.match(/^(?:"[^"]+"|\S+)\s+/);
   if (!head) return false;
   const args = cmd.slice(head[0].length);
-  return args === script || args.startsWith(script + ' ') || args === '"' + script + '"' || args.startsWith('"' + script + '" ');
+  // an install from the JavaScript era still runs server/hub.js
+  return HUB_ENTRIES.some(entry => {
+    const script = casePath(path.join(install, 'server', entry), platform);
+    return args === script || args.startsWith(script + ' ') || args === '"' + script + '"' || args.startsWith('"' + script + '" ');
+  });
 }
 // Update, uninstall and stop share the same ownership/queue/termination checks.
 export async function stopInstalledHub({
@@ -272,6 +288,16 @@ export async function runInstaller(
       return false;
     }
   };
+  const launcherText = (p: Platform, install: string) =>
+    p.IS_MAC
+      ? '#!/bin/bash\n# VideoHub install: ' +
+        install +
+        '\nset -euo pipefail\nexport PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"\nexec ' +
+        shellQuote(p.TOOLS.node) +
+        ' ' +
+        shellQuote(path.join(install, 'scripts', 'install.ts')) +
+        ' open "$@"\n'
+      : '# VideoHub install: ' + install + '\n' + p.desktopEntry(false);
   const packageInstall = (install: string, force = false) => {
     if (
       !force &&
@@ -464,15 +490,7 @@ export async function runInstaller(
       const makeShortcut = await yesNo('shortcut', 'Add a Desktop shortcut?', true, saved);
       answers.shortcut = makeShortcut ? 'yes' : 'no';
       if (/[\r\n]/.test(hub)) throw new Error('Move this VideoHub install to a path without line breaks before creating launchers');
-      const entry = platform.IS_MAC
-        ? '#!/bin/bash\n# VideoHub install: ' +
-          hub +
-          '\nset -euo pipefail\nexport PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"\nexec ' +
-          shellQuote(platform.TOOLS.node) +
-          ' ' +
-          shellQuote(path.join(hub, 'scripts', 'install.ts')) +
-          ' open "$@"\n'
-        : '# VideoHub install: ' + hub + '\n' + (platform as unknown as { desktopEntry(server: boolean): string }).desktopEntry(false);
+      const entry = launcherText(platform, hub);
       for (const f of [...(platform.IS_MAC ? [] : [entryFile]), ...(makeShortcut ? [desktopFile] : [])]) {
         if (fs.existsSync(f) && !owned(f, hub)) {
           warn('Shortcut belongs to another install; left unchanged: ' + f);
@@ -525,7 +543,8 @@ export async function runInstaller(
     if (options.action === 'update') {
       const targetName = options.target || read(markerFile, {})?.hub;
       const target = path.resolve(targetName || hub);
-      if (!fs.existsSync(path.join(target, 'server', 'hub.ts'))) throw new Error('No installed VideoHub found; use --target PATH or run setup.sh first');
+      if (!HUB_ENTRIES.some(entry => fs.existsSync(path.join(target, 'server', entry))))
+        throw new Error('No installed VideoHub found; use --target PATH or run setup.sh first');
       const paths = validateUpdatePaths(hub, target, { platform });
       if (paths.same) {
         say('keep this install (source and target are the same; no copy needed)');
@@ -539,6 +558,8 @@ export async function runInstaller(
       const lockBefore = fs.existsSync(path.join(target, 'pnpm-lock.yaml')) ? fs.readFileSync(path.join(target, 'pnpm-lock.yaml'), 'utf8') : null;
       const backup = path.join(target, 'data', 'update-backup', new Date().toISOString().replace(/[:.]/g, '-'));
       say('back up replaced code to ' + backup + ' and copy the new code (data and projects stay)');
+      const stale = ITEMS.flatMap(name => (stat(path.join(hub, name))?.isDirectory() ? staleCode(hub, target, name) : []));
+      if (stale.length) say('move ' + stale.length + ' obsolete JavaScript files that now have a .ts replacement to the backup');
       if (!dry)
         for (const name of ITEMS) {
           const src = path.join(hub, name),
@@ -559,8 +580,31 @@ export async function runInstaller(
             fs.chmodSync(dst, fs.statSync(src).mode);
           }
         }
+      if (!dry)
+        for (const rel of stale) {
+          fs.mkdirSync(path.dirname(path.join(backup, rel)), { recursive: true });
+          fs.renameSync(path.join(target, rel), path.join(backup, rel));
+        }
       const lockAfter = fs.existsSync(path.join(target, 'pnpm-lock.yaml')) ? fs.readFileSync(path.join(target, 'pnpm-lock.yaml'), 'utf8') : null;
       packageInstall(target, lockBefore !== lockAfter);
+      // This install's own launchers and login startup name the entry points; rewrite them for the new code.
+      const own = platform === platformDefault ? platformDefault.createPlatform({ hubDir: target, env }) : platform;
+      for (const f of [...(own.IS_MAC ? [] : [entryFile]), desktopFile])
+        if (owned(f, target)) {
+          say('refresh launcher ' + f);
+          if (!dry) write(f, launcherText(own, target), 0o755);
+        }
+      if (await own.getAutostart()) {
+        say('refresh login startup');
+        if (!dry)
+          try {
+            // a loaded macOS LaunchAgent is left as it is by setAutostart(true), so remove it first
+            if (own.IS_MAC) await own.setAutostart(false);
+            await own.setAutostart(true);
+          } catch (e) {
+            warn((e as Error).message);
+          }
+      }
       if (!options['no-skill']) {
         const integration = await agents({ action: 'refresh', agents: ['claude', 'opencode'], hub: target, home, env, dryRun: dry });
         for (const s of integration.actions) log(s);

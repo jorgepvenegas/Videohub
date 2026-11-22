@@ -546,3 +546,111 @@ test('Bash launchers pass bash -n when a working Bash is available', t => {
     assert.equal(r.status, 0, f + ': ' + r.stderr);
   }
 });
+// ---- upgrading an install from the JavaScript era (server/hub.js, scripts/*.mjs, launchers naming them)
+const hubRow = (hub: string, file: string, pid: number): Json => ({
+  pid,
+  name: 'node',
+  start: 'original',
+  cmd: '"' + process.execPath + '" "' + path.join(hub, 'server', file) + '"'
+});
+test('stop recognizes this install running server/hub.js and leaves another install alone', async () => {
+  const o = fixture(),
+    mine = hubRow(o.hub, 'hub.js', 123),
+    other = hubRow(path.join(path.dirname(o.hub), 'other'), 'hub.js', 456),
+    stoppedPids: number[] = [];
+  let exited = false;
+  await stopInstalledHub({
+    install: o.hub,
+    platform: { processList: async () => (exited ? [other] : [mine, other]) as Json },
+    port: 7799,
+    request: async (u: string) => (u.endsWith('/api/ping') ? { app: 'videohub', pid: 123 } : u.endsWith('/api/jobs') ? [] : { state: 'idle' }),
+    stopPid: (p: number) => {
+      stoppedPids.push(p);
+      exited = true;
+    },
+    delay: async () => {}
+  });
+  assert.deepEqual(stoppedPids, [123]);
+});
+test('update accepts an install that only has server/hub.js and rejects a folder with neither entry', async () => {
+  const o = fixture(),
+    target = path.join(path.dirname(o.hub), 'target'),
+    empty = path.join(path.dirname(o.hub), 'empty');
+  write(path.join(target, 'server', 'hub.js'), '// old js hub');
+  write(path.join(empty, 'server', 'other.js'), '// not a hub');
+  for (const m of ['@modelcontextprotocol/sdk', 'puppeteer-core']) write(path.join(target, 'node_modules', m, 'package.json'));
+  await assert.rejects(runInstaller({ action: 'update', target: empty }, { ...o, request: async () => null }), /No installed VideoHub found/);
+  await runInstaller({ action: 'update', target }, { ...o, env: { ...o.env, VIDEOHUB_DATA_DIR: '' }, request: async () => null });
+  assert.equal(fs.readFileSync(path.join(target, 'server', 'hub.ts'), 'utf8'), '// fixture hub');
+});
+test('update moves .js and .mjs files that now have a .ts replacement into the backup and nothing else', async () => {
+  const o = fixture(),
+    target = path.join(path.dirname(o.hub), 'target');
+  write(path.join(o.hub, 'scripts', 'install.ts'), '// new installer');
+  write(path.join(o.hub, 'scripts', 'install.test.ts'), '// new test');
+  write(path.join(target, 'server', 'hub.js'), '// old js hub');
+  write(path.join(target, 'scripts', 'install.mjs'), '// old installer');
+  write(path.join(target, 'scripts', 'install.test.js'), '// old test');
+  write(path.join(target, 'scripts', 'user-extra.js'), '// no .ts sibling');
+  write(path.join(target, 'server', 'hub.ts.js'), '// not a sibling pair');
+  write(path.join(target, 'data', 'hub.js'), '// data folder is never scanned');
+  write(path.join(target, 'films', 'install.mjs'), '// outside the copied folders');
+  for (const m of ['@modelcontextprotocol/sdk', 'puppeteer-core']) write(path.join(target, 'node_modules', m, 'package.json'));
+  const env = { ...o.env, VIDEOHUB_DATA_DIR: '' };
+  const dry = await runInstaller({ action: 'update', target, 'dry-run': true }, { ...o, env, request: async () => null });
+  assert.ok(dry.actions.some((s: string) => /would move 3 obsolete JavaScript files/.test(s)));
+  assert.equal(fs.existsSync(path.join(target, 'server', 'hub.js')), true);
+  await runInstaller({ action: 'update', target }, { ...o, env, request: async () => null });
+  for (const gone of ['server/hub.js', 'scripts/install.mjs', 'scripts/install.test.js']) assert.equal(fs.existsSync(path.join(target, gone)), false, gone);
+  for (const kept of ['scripts/user-extra.js', 'server/hub.ts.js', 'data/hub.js', 'films/install.mjs'])
+    assert.equal(fs.existsSync(path.join(target, kept)), true, kept);
+  const backups = fs.readdirSync(path.join(target, 'data', 'update-backup'));
+  assert.equal(backups.length, 1);
+  const backup = path.join(target, 'data', 'update-backup', backups[0]);
+  assert.equal(fs.readFileSync(path.join(backup, 'server', 'hub.js'), 'utf8'), '// old js hub');
+  assert.equal(fs.readFileSync(path.join(backup, 'scripts', 'install.mjs'), 'utf8'), '// old installer');
+  assert.equal(fs.readFileSync(path.join(target, 'scripts', 'install.ts'), 'utf8'), '// new installer');
+});
+test("update rewrites only this install's own launchers and re-applies login startup when it is on", async () => {
+  for (const os of ['linux', 'darwin']) {
+    const o = fixture(os),
+      target = path.join(path.dirname(o.hub), 'target'),
+      other = path.join(path.dirname(o.hub), 'other'),
+      stale = (install: string) => '# VideoHub install: ' + install + '\nexec node ' + path.join(install, 'scripts', 'install.mjs') + ' open\n',
+      shortcut = path.join(o.home, 'Desktop', os === 'darwin' ? 'VideoHub.command' : 'VideoHub.desktop'),
+      appEntry = path.join(o.home, '.local', 'share', 'applications', 'videohub.desktop');
+    write(path.join(target, 'server', 'hub.js'), '// old js hub');
+    for (const m of ['@modelcontextprotocol/sdk', 'puppeteer-core']) write(path.join(target, 'node_modules', m, 'package.json'));
+    write(shortcut, stale(target));
+    if (os === 'linux') write(appEntry, stale(target));
+    const run = (platform: Json) =>
+      runInstaller({ action: 'update', target }, { ...o, platform, env: { ...o.env, VIDEOHUB_DATA_DIR: '' }, request: async () => null });
+    o.calls.length = 0;
+    await run({ ...o.platform, getAutostart: async () => true });
+    const fresh = fs.readFileSync(shortcut, 'utf8');
+    assert.ok(fresh.includes('# VideoHub install: ' + target + '\n'));
+    assert.ok(!fresh.includes('install.mjs'));
+    if (os === 'darwin') assert.ok(fresh.includes(path.join(target, 'scripts', 'install.ts')));
+    else assert.ok(!fs.readFileSync(appEntry, 'utf8').includes('install.mjs'));
+    assert.deepEqual(
+      o.calls.filter(c => c[0] === 'startup'),
+      os === 'darwin'
+        ? [
+            ['startup', false],
+            ['startup', true]
+          ]
+        : [['startup', true]]
+    );
+    // another install's shortcut, a missing app entry and login startup that is off are all left alone
+    write(shortcut, stale(other));
+    if (os === 'linux') fs.rmSync(appEntry);
+    o.calls.length = 0;
+    await run(o.platform);
+    assert.equal(fs.readFileSync(shortcut, 'utf8'), stale(other));
+    assert.equal(fs.existsSync(appEntry), false);
+    assert.deepEqual(
+      o.calls.filter(c => c[0] === 'startup'),
+      []
+    );
+  }
+});

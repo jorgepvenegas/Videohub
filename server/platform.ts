@@ -603,7 +603,8 @@ export function createPlatform({
     capabilities,
     casePath,
     pathKey,
-    availableMemory
+    availableMemory,
+    desktopEntry
   };
 }
 export const {
@@ -634,5 +635,6 @@ export const {
   setAutostart,
   shellCommand,
   renderSpawnOptions,
-  gpuNames
+  gpuNames,
+  desktopEntry
 } = createPlatform();
