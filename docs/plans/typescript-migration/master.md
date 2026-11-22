@@ -89,7 +89,7 @@ flowchart LR
 | P2 | Server core modules to TS | Every top-level `server/*.js` module except the entry/tool layer (`hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib.mjs`, `vhsound.mjs`) plus their tests are strict `.ts`; one shared test helper strips types for source-reading tests | P1 | done | [plan](phases/02-server-core-modules-to-ts/plan.md) |
 | P3 | Server entry points and thumbstudio to TS | `server/hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib`, `vhsound` and `server/thumbstudio/` (except tests importing `ui/thumbstudio`, which move in P7) are `.ts`; every in-repo reference to the entry points uses `.ts` | P2 | done | [plan](phases/03-server-entry-points-and-thumbstudio-to-ts/plan.md) |
 | P4 | Installer, scripts and upgrade path to TS | `scripts/` and the lifecycle entry points are `.ts`; shell scripts gate Node ≥ 22.18; setup registers `.ts` entries; update from a JS-era install stops the old hub and re-points MCP and login items | P3 | done | [plan](phases/04-installer-scripts-and-upgrade-path-to-ts/plan.md) |
-| P5 | Vite UI build and app shell to TS | Vite builds `ui/` into ignored output that the hub serves; setup/update run the build; top-level `ui/*.js` modules (`app`, `agent`, `values`, `system`, `outputs-panel`, `render-status`) and their tests are converted | P4 | in_progress | [plan](phases/05-vite-ui-build-and-app-shell-to-ts/plan.md) |
+| P5 | Vite UI build and app shell to TS | Vite builds `ui/` into ignored output that the hub serves; setup/update run the build; top-level `ui/*.js` modules (`app`, `agent`, `values`, `system`, `outputs-panel`, `render-status`) and their tests are converted | P4 | done | [plan](phases/05-vite-ui-build-and-app-shell-to-ts/plan.md) |
 | P6 | Review UI to TS | `ui/review/` and `ui/review.js` are `.ts` and build with Vite; review pages work in a scratch hub | P5 | planned | pending |
 | P7 | Thumbnail studio UI to TS | `ui/thumbstudio/` (and the server tests importing it) are `.ts`; the thumbnail studio works in a scratch hub | P5 | planned | pending |
 | P8 | Engine hooks and film starter to TS | `engine-hooks/` build to stable `.js` paths; the film starter and example are `render.ts`/`make-audio.ts`/`film.ts`; hub live preview and `render.ts` serve stripped `film.ts`; `render.js` films still work | P4,P5 | planned | pending |
@@ -182,12 +182,13 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 | P2 | 2026-11-21 | addressed | A1, A2, A3, A4, A5, A6 | cd8073c | [report](phases/02-server-core-modules-to-ts/plan.md) |
 | P3 | 2026-11-21 | addressed | A1, A2, A3, A4, A5, A6, A7 | 292c485 | [report](phases/03-server-entry-points-and-thumbstudio-to-ts/plan.md) |
 | P4 | 2026-11-21 | addressed | A1, A2, A3, A4, A5, A6, A7 | 10ad620 | [report](phases/04-installer-scripts-and-upgrade-path-to-ts/plan.md) |
+| P5 | 2026-11-22 | addressed | A1, A2, A3, A4, A5, A6 | 1660e85 | [report](phases/05-vite-ui-build-and-app-shell-to-ts/plan.md) |
 
 ## 12. Resume brief
 
-- Current phase: P5 (plan drafted, awaiting approval)
-- Last verdict: P4 addressed
-- Next action: user reviews P5 plan; on approval run `approve docs/plans/typescript-migration P5`
+- Current phase: P6 (plan not yet written; P7 and P8 are also unblocked)
+- Last verdict: P5 addressed (commit 1660e85)
+- Next action: write the P6 plan (apply L27-L29, L31), then ask for approval
 - Open decisions: none
 - PR: https://github.com/jorgepvenegas/Videohub/pull/3
-- Last updated: 2026-11-21
+- Last updated: 2026-11-22
