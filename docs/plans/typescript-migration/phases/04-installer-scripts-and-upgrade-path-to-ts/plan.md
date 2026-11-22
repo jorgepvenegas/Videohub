@@ -216,6 +216,12 @@ Commit after each step with subject `P4:` followed by the step title, and push. 
 ## 9. Deviations and working notes
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
+- 2026-11-21 S1: gate added to the four scripts (bash `IFS=. read` on `node -p process.versions.node`; message "Node.js 22.18 or newer is required (found X)..."). Setup's missing-node messages now say 22.18.
+- S1 evidence: `PATH=.test-tmp/stub:$PATH bash setup.sh --dry-run` (stub prints 22.17.0) and `bash update.sh` -> message, rc=1. Node 24.16 (`bash setup.sh --help`) and Node 22.18.0 (`PATH=.test-tmp/g:/usr/bin:/bin bash setup.sh --help`) -> usage, accepted.
+- S1 Node 22.18.0 (official darwin-arm64 tarball in `.test-tmp/node-22.18`, `shasum -c` against SHASUMS256.txt: OK): `node c.ts` (TS syntax, imports `./a.ts` and a `.js`) runs; `node b.js` importing `./a.ts` runs; `node --test d.test.ts` passes 1/1; `import('./server/types.ts')` and `scripts/test-source.ts` load. stderr of all probes: 0 bytes, no ExperimentalWarning (answers the master unknown). Residual: the whole suite was not run on 22.18.
+- INCIDENT S1: a probe `node -e "import('./server/hub.ts')"` (my mistake, no scratch env) started a hub on 7788 and created the default `data/` in the repo checkout plus empty `~/Documents/VideoHub/{films,thumbnail-templates}`. Killed within ~2 min (port free afterwards, no other process left). Removed `data/` and the empty dirs (rmdir only); no pre-existing content touched (all created 22:12:53, the probe time). No later probe imports an entry module.
+- S1 `pnpm test`: 299 tests, 298 pass, 1 skipped, 0 fail.
+
 
 ## 10. Closeout
 
