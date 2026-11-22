@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Added sounds under the timeline (Nov 6, the user: "removing music and adding sound effects should be possible from the UI").
 // "➕ Add sound" picks a ready-made effect (made on this PC with the 3D studio's synth), a file from the user's sound
 // folder (config.soundLibDir: music beds…) or any file from disk; it lands at the playhead. The clip lanes of
@@ -9,23 +8,24 @@
 import { h, api, toast, confirmBox } from '../app.ts';
 import { createHistory } from './history.ts';
 import { assignLane, clipLen } from './tracks.ts';
+import type { Json } from '../app.ts';
 
 const AUD = /\.(wav|mp3|m4a|ogg|flac|aac)$/i,
   BIG = 35 * 1024 * 1024;
 
-const TC = s => {
+const TC = (s: Json) => {
   s = Math.max(0, +s || 0);
   const m = Math.floor(s / 60);
   return `${m}:${(s - m * 60).toFixed(2).padStart(5, '0')}`;
 };
-const parseTC = v => {
+const parseTC = (v: Json) => {
   const m = /^(?:(\d+):)?(\d+(?:[.,]\d+)?)$/.exec(String(v).trim());
   return m ? +(m[1] || 0) * 60 + +m[2].replace(',', '.') : null;
 };
 const newId = () => 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 
 // a clip from an audio-clip response: kind 'music' / 'sfx' as asked, else a file over 20 s is music
-export function newClip(r, { kind = null, t = 0, lane } = {}) {
+export function newClip(r: Json, { kind = null, t = 0, lane }: Json = {}) {
   const isMusic = kind === 'music' || (kind == null && r.dur > 20);
   return {
     id: newId(),
@@ -46,20 +46,20 @@ export function newClip(r, { kind = null, t = 0, lane } = {}) {
 }
 
 // onClips(loaded): the clip list changed (loaded = first load from tweaks.json); the live mixer plays them until built
-export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = () => 60, applyQueue, status, onSelect, onPush, onClips }) {
+export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = () => 60, applyQueue, status, onSelect, onPush, onClips }: Json) {
   const el = h('div', { class: 'tl2-layers se-row' });
   let info = null,
-    clips = [],
-    sel = null,
-    saveTimer = 0,
+    clips: Json = [],
+    sel: Json = null,
+    saveTimer: ReturnType<typeof setTimeout> | 0 = 0,
     saving = false,
     pending = false,
     lastSaved = '[]',
     disabled = '';
-  const byId = id => clips.find(c => c.id === id);
+  const byId = (id: Json) => clips.find((c: Json) => c.id === id);
   const history = createHistory({
     snapshot: () => JSON.stringify(clips),
-    restore: s => {
+    restore: (s: Json) => {
       clips = JSON.parse(s);
       if (sel && !byId(sel)) {
         sel = null;
@@ -69,7 +69,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
     },
     onPush: () => onPush?.()
   });
-  const edit = fn => {
+  const edit = (fn: Json) => {
     history.push();
     fn();
     changed();
@@ -103,7 +103,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
         );
       return;
     }
-    const num = (label, key, step, min, max, fmt, title) => {
+    const num = (label: Json, key: Json, step: Json, min: Json, max: Json, fmt: Json, title: Json) => {
       const inp = h('input', {
         type: 'number',
         step,
@@ -112,7 +112,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
         value: c[key] ?? 0,
         title,
         style: { width: '64px' },
-        onchange: e => {
+        onchange: (e: Json) => {
           const v = +e.target.value;
           if (Number.isFinite(v))
             edit(() => {
@@ -129,7 +129,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
       value: TC(c.t),
       style: { width: '78px' },
       title: 'Start (min:s)',
-      onchange: e => {
+      onchange: (e: Json) => {
         const v = parseTC(e.target.value);
         if (v != null)
           edit(() => {
@@ -167,7 +167,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
             max: 200,
             step: 5,
             value: Math.round((c.gain ?? 1) * 100),
-            oninput: e => {
+            oninput: (e: Json) => {
               if (!sliding) {
                 history.push();
                 sliding = true;
@@ -196,7 +196,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
             value: c.len ?? '',
             placeholder: 'whole file',
             style: { width: '70px' },
-            onchange: e =>
+            onchange: (e: Json) =>
               edit(() => {
                 c.len = e.target.value === '' ? null : Math.max(0.05, +e.target.value);
               })
@@ -209,7 +209,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
           h('input', {
             type: 'checkbox',
             checked: !!c.loop,
-            onchange: e =>
+            onchange: (e: Json) =>
               edit(() => {
                 c.loop = e.target.checked;
               })
@@ -222,7 +222,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
           h('input', {
             type: 'checkbox',
             checked: !!c.mute,
-            onchange: e =>
+            onchange: (e: Json) =>
               edit(() => {
                 c.mute = e.target.checked;
               })
@@ -250,7 +250,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
 
   // ---- P4: sounds dropped on the timeline (library item or files from Explorer) or added from the library list
   // one file from the user's disk → the film's vhaudio/ (as a dataURL up to 35 MB, streamed raw above)
-  async function uploadFile(f) {
+  async function uploadFile(f: Json) {
     if (f.size > BIG) {
       const r = await fetch(`/api/project/${projectId}/audio-upload?name=${encodeURIComponent(f.name)}&size=${f.size}`, {
         method: 'POST',
@@ -270,7 +270,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
     return api(`/api/project/${projectId}/audio-clip`, { method: 'POST', body: { name: f.name, data } });
   }
   // several files go one after another from t; the whole batch is one undo step
-  async function dropAdd({ item, files, t, kind = null, lane }) {
+  async function dropAdd({ item, files, t, kind = null, lane }: Json) {
     if (disabled) {
       toast(disabled, true);
       return;
@@ -278,13 +278,13 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
     let jobs;
     if (item?.file) jobs = [{ lib: item }];
     else {
-      const ok = (files || []).filter(f => AUD.test(f.name));
+      const ok = (files || []).filter((f: Json) => AUD.test(f.name));
       if (!ok.length) {
         toast('Audio files only: wav, mp3, m4a, ogg, flac, aac', true);
         return;
       }
       if (ok.length < files.length) toast('Skipped non-audio files', true);
-      jobs = ok.map(f => ({ f }));
+      jobs = ok.map((f: Json) => ({ f }));
     }
     const added = [];
     let at = +t || 0;
@@ -297,7 +297,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
         if (Number.isInteger(lane) && c.kind === kind) c.lane = lane;
         added.push(c);
         at = c.t + Math.max(0.05, clipLen(c, dur()));
-      } catch (e) {
+      } catch (e: Json) {
         toast('Could not add sound: ' + e.message, true);
       }
     }
@@ -313,7 +313,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
     toast(added.length === 1 ? `Added "${added[0].name}" at ${TC(added[0].t)}` : `Added ${added.length} sounds`);
   }
 
-  function duplicateAtPlayhead(id) {
+  function duplicateAtPlayhead(id: Json) {
     const c = byId(id);
     if (!c) return null;
     history.push();
@@ -326,11 +326,11 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
     onSelect?.(d.id);
     return d.id;
   }
-  function remove(id) {
+  function remove(id: Json) {
     const c = byId(id);
     if (!c) return false;
     history.push();
-    clips = clips.filter(x => x !== c);
+    clips = clips.filter((x: Json) => x !== c);
     if (sel === id) {
       sel = null;
       onSelect?.(null);
@@ -338,7 +338,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
     changed();
     return true;
   }
-  function select(id) {
+  function select(id: Json) {
     sel = id && byId(id) ? id : null;
     timeline.selectClip(sel);
     paint();
@@ -371,7 +371,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
       await api(`/api/project/${projectId}/tweaks`, { method: 'PATCH', body: { audio: { clips } } });
       lastSaved = want;
       applyQueue?.request('clips');
-    } catch (e) {
+    } catch (e: Json) {
       toast('Could not save sound: ' + e.message, true);
       lastSaved = want;
     }
@@ -380,7 +380,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
     if (!saveTimer && JSON.stringify(clips) !== lastSaved) save();
   }
   const hooks = {
-    select: id => {
+    select: (id: Json) => {
       sel = id;
       paint();
       onSelect?.(id);
@@ -391,18 +391,18 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
   // the timeline's clip gestures: one undo step per gesture (armed at press, pushed on the first real change)
   const ops = {
     begin: () => history.arm(),
-    move: (id, patch) => {
+    move: (id: Json, patch: Json) => {
       const c = byId(id);
       if (!c) return;
       history.touch();
       Object.assign(c, patch);
     },
     end: () => changed(),
-    remove: id => remove(id),
-    pick: kind => {
+    remove: (id: Json) => remove(id),
+    pick: (kind: Json) => {
       if (!disabled) openPicker(kind);
     },
-    duplicate: id => {
+    duplicate: (id: Json) => {
       const c = byId(id);
       if (!c) return null;
       history.touch();
@@ -429,19 +429,19 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
       if (e.target === bg) close();
     });
     const player = new Audio();
-    let lib = null,
+    let lib: Json = null,
       tab = 'sfx',
       q = '';
     const list = h('div', { class: 'se-list' }),
       search = h('input', {
         type: 'search',
         placeholder: 'Search…',
-        oninput: e => {
+        oninput: (e: Json) => {
           q = e.target.value.toLocaleLowerCase('en-US');
           draw();
         }
       });
-    const fileIn = h('input', { type: 'file', accept: 'audio/*,.wav,.mp3,.m4a,.ogg,.flac,.aac', hidden: true, onchange: () => upload(fileIn.files[0]) });
+    const fileIn = h('input', { type: 'file', accept: 'audio/*,.wav,.mp3,.m4a,.ogg,.flac,.aac', hidden: true, onchange: () => upload(fileIn.files![0]) });
     const tabs = h('div', { class: 'row', style: { gap: '6px' } });
     async function load() {
       lib = await api('/api/sound-library').catch(() => ({ sfx: [], user: [] }));
@@ -450,7 +450,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
         list.append(h('div', { class: 'dim' }, 'Preparing built-in effects (first time, a few seconds)…'));
         try {
           lib = await api('/api/sound-library/build', { method: 'POST' });
-        } catch (e) {
+        } catch (e: Json) {
           toast(e.message, true);
         }
       }
@@ -477,7 +477,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
         );
       tabs.append(h('button', { onclick: () => fileIn.click() }, '📁 Upload file…'));
       list.innerHTML = '';
-      const rows = (lib ? lib[tab] : []).filter(x => !q || (x.name + ' ' + x.group).toLocaleLowerCase('en-US').includes(q));
+      const rows = (lib ? lib[tab] : []).filter((x: Json) => !q || (x.name + ' ' + x.group).toLocaleLowerCase('en-US').includes(q));
       if (!rows.length) list.append(h('div', { class: 'dim' }, tab === 'user' ? `No sounds in folder: ${lib?.libDir || ''}` : 'No effects.'));
       let lastGroup = null;
       for (const x of rows) {
@@ -512,7 +512,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
         );
       }
     }
-    async function add(body, kind) {
+    async function add(body: Json, kind: Json) {
       try {
         const r = await api(`/api/project/${projectId}/audio-clip`, { method: 'POST', body });
         const c = newClip(r, { kind, t: time() });
@@ -524,11 +524,11 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
         changed();
         onSelect?.(c.id);
         toast(`Added "${c.name}" at ${TC(c.t)}`);
-      } catch (e) {
+      } catch (e: Json) {
         toast('Could not add sound: ' + e.message, true);
       }
     }
-    function upload(f) {
+    function upload(f: Json) {
       if (!f) return;
       if (f.size > 500 * 1024 * 1024) return toast('File is larger than 500 MB', true);
       close();
@@ -573,7 +573,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
         type: 'file',
         multiple: true,
         accept: 'audio/*,.wav,.mp3,.m4a,.ogg,.flac,.aac',
-        onchange: () => dropAdd({ files: [...fi.files], t: time() })
+        onchange: () => dropAdd({ files: [...(fi.files as Json)], t: time() })
       });
       fi.click();
     },
@@ -582,7 +582,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
     canUndo: () => history.canUndo(),
     remove,
     select,
-    add(c) {
+    add(c: Json) {
       history.push();
       if (!Number.isInteger(c.lane)) c.lane = assignLane(clips, c, dur());
       clips.push(c);
@@ -594,7 +594,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
     selected: () => (sel && byId(sel)) || null,
     duplicateAtPlayhead,
     // Alt+← / →: the selected clip n frames earlier / later (one undo step each)
-    nudge(frames) {
+    nudge(frames: Json) {
       const c = sel && byId(sel);
       if (!c) return false;
       edit(() => {
@@ -603,7 +603,7 @@ export function createSoundEditor({ projectId, timeline, dur, time, seek, fps = 
       return true;
     },
     // the Added sounds level (mixer): every clip's gain × f, one undo step
-    scaleGains(f) {
+    scaleGains(f: Json) {
       if (!clips.length || !(f >= 0) || Math.abs(f - 1) < 0.004) return false;
       edit(() => {
         for (const c of clips) c.gain = Math.max(0, Math.min(4, +((c.gain ?? 1) * f).toFixed(3)));

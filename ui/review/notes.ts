@@ -1,17 +1,18 @@
-// @ts-nocheck
 import { agentName } from '../agent.ts';
 // Notes panel: the draft note being written, the list of notes, edits, statuses, `send to ${agentName()}`.
 import { h, api, toast, confirmBox, pill, TC, AGO } from '../app.ts';
+import type { Json } from '../app.ts';
 
 // Element.append prints null/false as text; this skips them like h() does.
-const put = (el, ...kids) => {
+const put = (el: Json, ...kids: Json[]) => {
   for (const c of kids.flat(Infinity)) if (c != null && c !== false) el.append(c);
   return el;
 };
 const KINDS = ['visual', 'timing', 'sound', 'text', 'general'];
 // a note's range in frames (inclusive), or null
-const framesOf = (n, fps) => (n.t2 == null ? null : n.frames || [Math.floor(n.t * (n.fps || fps) + 1e-6), Math.floor(n.t2 * (n.fps || fps) + 1e-6)]);
-const STATUS_LABEL = {
+const framesOf = (n: Json, fps: Json) =>
+  n.t2 == null ? null : n.frames || [Math.floor(n.t * (n.fps || fps) + 1e-6), Math.floor(n.t2 * (n.fps || fps) + 1e-6)];
+const STATUS_LABEL: Record<string, string> = {
   open: 'open',
   get claude() {
     return `with ${agentName()}`;
@@ -21,7 +22,7 @@ const STATUS_LABEL = {
   reopened: 'still there'
 };
 
-export function createNotesPanel(ctx) {
+export function createNotesPanel(ctx: Json) {
   const filterSel = h(
     'select',
     { onchange: () => render() },
@@ -56,7 +57,7 @@ export function createNotesPanel(ctx) {
   const openImg = new Set();
   // notes written before the newest version: asked from the hub when the list is loaded or changed in bulk,
   // not on every render (new notes are never old)
-  let oldIds = [],
+  let oldIds: Json = [],
     oldAsked = false;
   async function refreshOld() {
     oldAsked = true;
@@ -68,9 +69,9 @@ export function createNotesPanel(ctx) {
     drawOld();
   }
   function drawOld() {
-    const live = new Set(ctx.notes().map(n => n.id));
-    oldIds = oldIds.filter(i => live.has(i));
-    const unapproved = ctx.notes().filter(n => oldIds.includes(n.id) && n.status !== 'approved').length;
+    const live = new Set(ctx.notes().map((n: Json) => n.id));
+    oldIds = oldIds.filter((i: Json) => live.has(i));
+    const unapproved = ctx.notes().filter((n: Json) => oldIds.includes(n.id) && n.status !== 'approved').length;
     oldBar.hidden = !oldIds.length;
     oldBar.innerHTML = '';
     if (!oldIds.length) return;
@@ -82,7 +83,7 @@ export function createNotesPanel(ctx) {
       h('button', { class: 'danger', onclick: () => bulk('remove') }, '🗑 Remove all')
     );
   }
-  async function bulk(action) {
+  async function bulk(action: Json) {
     const ids = oldIds.slice();
     const ok = await confirmBox(
       action === 'approve' ? `Approve ${ids.length} old notes?` : `Remove ${ids.length} old notes from the list?`,
@@ -100,7 +101,7 @@ export function createNotesPanel(ctx) {
     toast(`${r.count} notes ${action === 'approve' ? 'approved' : 'removed'}${r.freed ? ` · ${(r.freed / 1048576).toFixed(1)} MB freed` : ''}`);
     await ctx.reloadNotes();
   }
-  let editing = null;
+  let editing: Json = null;
 
   // ---------- draft composer
   function renderDrafts() {
@@ -122,9 +123,9 @@ export function createNotesPanel(ctx) {
         )
       );
   }
-  let comp = null;
+  let comp: Json = null;
   // which sound layer the note is about (only when the film has layers)
-  const layerPick = d => {
+  const layerPick = (d: Json) => {
     const L = ctx.layers?.() || [];
     if (!L.length) return null;
     return h(
@@ -132,12 +133,12 @@ export function createNotesPanel(ctx) {
       {
         class: 'layerpick',
         title: 'Which sound layer is this note about?',
-        onchange: e => {
+        onchange: (e: Json) => {
           d.layer = e.target.value || null;
         }
       },
       h('option', { value: '' }, 'layer: —'),
-      L.map(x => h('option', { value: x, selected: d.layer === x }, 'layer: ' + x))
+      L.map((x: Json) => h('option', { value: x, selected: d.layer === x }, 'layer: ' + x))
     );
   };
   function openComposer(focus = true) {
@@ -149,7 +150,7 @@ export function createNotesPanel(ctx) {
         'span',
         {
           class: 'chip' + (k === d.kind ? ' on' : ''),
-          onclick: e => {
+          onclick: (e: Json) => {
             d.kind = k;
             chips.forEach(c => c.classList.remove('on'));
             e.target.classList.add('on');
@@ -226,7 +227,7 @@ export function createNotesPanel(ctx) {
     );
     const text = h('textarea', {
       placeholder: 'What is wrong, and how should it look? (e.g. the sign is floating; place it against the wall)',
-      onkeydown: e => {
+      onkeydown: (e: Json) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           save();
@@ -311,12 +312,12 @@ export function createNotesPanel(ctx) {
   }
 
   // ---------- list
-  async function setStatus(n, status) {
+  async function setStatus(n: Json, status: Json) {
     const r = await api(`/api/project/${ctx.projectId}/note/${n.id}`, { method: 'POST', body: { status } });
     Object.assign(n, r);
     ctx.changed();
   }
-  function card(n) {
+  function card(n: Json) {
     const other = n.file && n.file !== ctx.file();
     const cardEl = h('div', {
       class: 'nc' + (n.id === ctx.selected() ? ' sel' : ''),
@@ -328,7 +329,7 @@ export function createNotesPanel(ctx) {
       }
     }); // while editing, clicks belong to the edit box (a re-render would throw the typing away)
     if (editing === n.id) {
-      const ta = h('textarea', { onkeydown: e => e.stopPropagation() });
+      const ta = h('textarea', { onkeydown: (e: Json) => e.stopPropagation() });
       ta.value = n.text;
       setTimeout(() => {
         ta.focus();
@@ -355,7 +356,7 @@ export function createNotesPanel(ctx) {
           'span',
           {
             class: 'chip' + (k === kind ? ' on' : ''),
-            onclick: e => {
+            onclick: (e: Json) => {
               e.stopPropagation();
               kind = k;
               chips.forEach(c => c.classList.remove('on'));
@@ -372,7 +373,7 @@ export function createNotesPanel(ctx) {
         ta,
         h(
           'div',
-          { class: 'rrow', onclick: e => e.stopPropagation() },
+          { class: 'rrow', onclick: (e: Json) => e.stopPropagation() },
           'range: frame',
           eA,
           '→',
@@ -381,7 +382,7 @@ export function createNotesPanel(ctx) {
         ),
         h(
           'div',
-          { class: 'acts', onclick: e => e.stopPropagation() },
+          { class: 'acts', onclick: (e: Json) => e.stopPropagation() },
           h(
             'button',
             {
@@ -400,7 +401,7 @@ export function createNotesPanel(ctx) {
                 let rp;
                 try {
                   rp = rangePatch();
-                } catch (e) {
+                } catch (e: Json) {
                   toast(e.message, true);
                   return;
                 }
@@ -439,7 +440,7 @@ export function createNotesPanel(ctx) {
               'button',
               {
                 class: 'ghost',
-                onclick: e => {
+                onclick: (e: Json) => {
                   e.stopPropagation();
                   ctx.playRange(n);
                 }
@@ -454,7 +455,7 @@ export function createNotesPanel(ctx) {
             {
               class: 'nimg' + (openImg.has(n.id) ? ' open' : ''),
               title: 'Expand / collapse frame image',
-              onclick: e => {
+              onclick: (e: Json) => {
                 e.stopPropagation();
                 const o = e.currentTarget.classList.toggle('open');
                 o ? openImg.add(n.id) : openImg.delete(n.id);
@@ -470,7 +471,7 @@ export function createNotesPanel(ctx) {
       n.reply ? h('div', { class: 'reply' }, h('b', {}, `${agentName()}: `), n.reply, n.fixedIn ? h('span', { class: 'dim' }, ` (${n.fixedIn})`) : null) : null,
       h(
         'div',
-        { class: 'acts', onclick: e => e.stopPropagation() },
+        { class: 'acts', onclick: (e: Json) => e.stopPropagation() },
         n.status === 'fixed'
           ? [
               h('button', { onclick: () => setStatus(n, 'approved') }, '✓ Approve'),
@@ -517,8 +518,8 @@ export function createNotesPanel(ctx) {
   // a card is rebuilt only when something it shows changed (rebuilding ~100 cards on every save or selection
   // took ~25 ms and re-requested their pictures); the card being edited is never rebuilt under the user's typing
   const cache = new Map();
-  let firstShownId = null;
-  const sigOf = n =>
+  let firstShownId: Json = null;
+  const sigOf = (n: Json) =>
     JSON.stringify([
       n.local,
       n.status,
@@ -544,12 +545,14 @@ export function createNotesPanel(ctx) {
       notes = ctx.notes();
     // Submission order also keeps a newly written note first after seeking back in the film.
     const shown = notes
-      .filter(n => f === 'all' || (f === 'file' ? n.file === ctx.file() : f === 'fixed' ? n.status === 'fixed' : !['approved', 'fixed'].includes(n.status)))
-      .sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0) || Number(b.id) - Number(a.id));
+      .filter(
+        (n: Json) => f === 'all' || (f === 'file' ? n.file === ctx.file() : f === 'fixed' ? n.status === 'fixed' : !['approved', 'fixed'].includes(n.status))
+      )
+      .sort((a: Json, b: Json) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0) || Number(b.id) - Number(a.id));
     const topChanged = (shown[0]?.id ?? null) !== firstShownId;
     firstShownId = shown[0]?.id ?? null;
     const keep = new Set(),
-      els = shown.map(n => {
+      els = shown.map((n: Json) => {
         keep.add(n.id);
         const c = cache.get(n.id),
           s = sigOf(n);
@@ -569,13 +572,13 @@ export function createNotesPanel(ctx) {
             : 'No notes yet. Click a problem area in the video to place a marker, write your note, then press Enter. Use the tools on the left to draw.'
         )
       );
-    else if (els.length !== list.children.length || els.some((e, i) => list.children[i] !== e)) list.replaceChildren(...els);
+    else if (els.length !== list.children.length || els.some((e: Json, i: Json) => list.children[i] !== e)) list.replaceChildren(...els);
     if (topChanged) list.scrollTop = 0;
-    const open = notes.filter(n => ['open', 'reopened'].includes(n.status)).length;
+    const open = notes.filter((n: Json) => ['open', 'reopened'].includes(n.status)).length;
     sendBtn.textContent = `Send to ${agentName()} (${open})`;
     sendBtn.disabled = !open;
     ctx.onCount?.(open);
-    const fixed = notes.filter(n => n.status === 'fixed').length;
+    const fixed = notes.filter((n: Json) => n.status === 'fixed').length;
     tourBtn.hidden = !fixed;
     tourBtn.textContent = `✓ Check fixes (${fixed})`;
     if (!oldAsked && notes.length) refreshOld();
@@ -592,7 +595,7 @@ export function createNotesPanel(ctx) {
   }
   // scrolls the list only: scrollIntoView also scrolled the page, so picking a note in a narrow window moved the
   // player and timeline away from under the mouse
-  function scrollTo(id) {
+  function scrollTo(id: Json) {
     const c = list.querySelector(`[data-id="${id}"]`);
     if (!c) return;
     const lr = list.getBoundingClientRect(),

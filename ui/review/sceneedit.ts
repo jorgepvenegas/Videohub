@@ -1,11 +1,11 @@
-// @ts-nocheck
 // Scene editor on the live preview (pages that offer window.VH_EDIT: the 3D studio engine, engine/tweaks.js).
 // The user moves the camera, an object or a screen item right in the picture, or moves a cut; the change is saved to
 // the scene's tweaks.json at once and every later preview and render draws it. No code change, no Claude, no tokens.
 import { h, api, toast, confirmBox } from '../app.ts';
+import type { Json } from '../app.ts';
 
 const STEPS = [0.01, 0.1, 1];
-const TC = s => {
+const TC = (s: Json) => {
   const m = Math.floor(s / 60),
     r = s - m * 60;
   return `${m}:${r.toFixed(2).padStart(5, '0')}`;
@@ -15,7 +15,7 @@ const TC = s => {
 // tells it the panel's own ↶ took the newest scene step);
 // keysActive(): false while the timeline is the active area (Delete / arrows / Esc are its keys then);
 // applyNow(): the review page's sound build (one queue for every editor); onSoundSaved(r): its levels were saved
-export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, onClose, history, keysActive, applyNow, onSoundSaved }) {
+export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, onClose, history, keysActive, applyNow, onSoundSaved }: Json) {
   const btn = h(
     'button',
     {
@@ -26,22 +26,22 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     '✏️ Edit scene'
   );
   let open = false,
-    E = null,
+    E: Json = null,
     mode = 'cam',
-    sel = null,
+    sel: Json = null,
     scope = 'shot',
     step = 0.1,
-    undo = [],
-    saveTimer = 0,
+    undo: Json = [],
+    saveTimer: ReturnType<typeof setTimeout> | number = 0, // 1 while the sound is being applied
     savedAt = 0;
-  let items = [],
-    osel = null,
-    cut = null;
-  let snd = null,
-    sndShot = null,
-    sndApplied = null,
+  let items: Json = [],
+    osel: Json = null,
+    cut: Json = null;
+  let snd: Json = null,
+    sndShot: Json = null,
+    sndApplied: Json = null,
     sndBusy = false,
-    sndBase = null; // sound: what the film's mix allows, the shot on screen, the levels last put in        // screen items of this frame, the selected one; the cut being moved
+    sndBase: Json = null; // sound: what the film's mix allows, the shot on screen, the levels last put in        // screen items of this frame, the selected one; the cut being moved
   const cv = h('canvas', { class: 'sedit-cv' });
   const ov = h('div', { class: 'sedit-ov' }, cv);
   const panel = h('div', { class: 'sedit-panel' });
@@ -103,7 +103,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     onOpen?.();
     window.addEventListener('keydown', onKey, true);
   }
-  function close(silent) {
+  function close(silent?: Json) {
     if (!open) return;
     try {
       E?.freeStop();
@@ -119,7 +119,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     onClose?.();
     if (!silent) src.currentTime = src.currentTime;
   }
-  function onKey(e) {
+  function onKey(e: Json) {
     if (e.target.matches?.('input, textarea, select')) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
       if (history) return;
@@ -141,14 +141,14 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
       e.preventDefault();
       e.stopImmediatePropagation();
       const n = e.shiftKey ? 20 : 2,
-        d = { ArrowLeft: [-n, 0], ArrowRight: [n, 0], ArrowUp: [0, -n], ArrowDown: [0, n] }[e.key];
+        d = ({ ArrowLeft: [-n, 0], ArrowRight: [n, 0], ArrowUp: [0, -n], ArrowDown: [0, n] } as Record<string, number[]>)[e.key];
       change(() => E.ovMove(key(), osel, d[0], d[1]));
       refreshItems();
     }
   }
 
   // ---- changes: remember the state before for undo, save shortly after
-  function change(fn) {
+  function change(fn: Json) {
     undo.push(E.get());
     if (undo.length > 80) undo.shift();
     history?.push('scene');
@@ -157,7 +157,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     draw();
     return r;
   }
-  function back(quiet) {
+  function back(quiet?: Json) {
     const prev = undo.pop();
     if (!prev) {
       if (!quiet) toast('Nothing to undo');
@@ -168,7 +168,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     if (mode === 'ovl') refreshItems();
     // the cut on show keeps its shift / transition from the restored snapshot (the panel label reads it)
     if (cut) {
-      const c = (prev.cuts || []).find(x => Math.abs(x.at - cut.at) < 1e-3);
+      const c = (prev.cuts || []).find((x: Json) => Math.abs(x.at - cut.at) < 1e-3);
       cut.d = c ? c.d || 0 : 0;
       cut.tr = c?.tr ? { ...c.tr } : null;
       cut.film = +(cut.at + cut.d).toFixed(4);
@@ -200,15 +200,15 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
       savedAt = Date.now();
       paint();
       if (ops) onSoundSaved?.(r); // the mixer's chips show the same levels; the queue marks the sound to rebuild
-    } catch (e) {
+    } catch (e: Json) {
       toast('Could not save tweaks.json: ' + e.message, true);
     }
   }
   // "shot|field" pairs this editor changed; only those go into soundOps
-  const touched = new Set();
-  function soundDiff(base, cur) {
+  const touched = new Set<string>();
+  function soundDiff(base: Json, cur: Json) {
     const set = new Map(),
-      find = (L, k) => (L || []).find(e => e.shot === k) || null;
+      find = (L: Json, k: Json) => (L || []).find((e: Json) => e.shot === k) || null;
     for (const tf of touched) {
       const i = tf.lastIndexOf('|'),
         shot = tf.slice(0, i),
@@ -225,7 +225,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     return set.size ? { set: [...set.values()] } : null;
   }
   // a level saved elsewhere (timeline, Channels): into the page's copy, unless this editor has an unsent change there
-  function syncSound(list) {
+  function syncSound(list: Json) {
     const e = E || edit();
     if (!e || !e.soundSet) return;
     const mine = e.get().sound || [],
@@ -233,30 +233,30 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     for (const tf of touched) {
       const shot = tf.slice(0, tf.lastIndexOf('|')),
         f = tf.slice(tf.lastIndexOf('|') + 1);
-      const a = (sndBase || []).find(x => x.shot === shot),
-        b = mine.find(x => x.shot === shot);
+      const a = (sndBase || []).find((x: Json) => x.shot === shot),
+        b = mine.find((x: Json) => x.shot === shot);
       if ((a?.[f] ?? null) !== (b?.[f] ?? null)) pend.add(shot);
     }
-    const shots = new Set([...(list || []).map(x => x.shot), ...mine.map(x => x.shot)]);
+    const shots = new Set([...(list || []).map((x: Json) => x.shot), ...mine.map((x: Json) => x.shot)]);
     for (const shot of shots) {
       if (pend.has(shot)) continue;
-      const n = (list || []).find(x => x.shot === shot),
-        o = mine.find(x => x.shot === shot);
+      const n = (list || []).find((x: Json) => x.shot === shot),
+        o = mine.find((x: Json) => x.shot === shot);
       try {
         e.soundSet(n ? { ...n } : { shot, t0: o.t0, t1: o.t1 });
       } catch {}
     }
-    sndBase = (list || []).map(x => ({ ...x }));
+    sndBase = (list || []).map((x: Json) => ({ ...x }));
     if (open) paint();
   }
 
   // ---- mouse on the picture
-  const ndc = e => {
+  const ndc = (e: Json) => {
     const r = ov.getBoundingClientRect();
     return [((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1)];
   };
-  const toPx = p => [((p[0] + 1) / 2) * 1920, ((1 - p[1]) / 2) * 1080];
-  let drag = null;
+  const toPx = (p: Json) => [((p[0] + 1) / 2) * 1920, ((1 - p[1]) / 2) * 1080];
+  let drag: Json = null;
   ov.addEventListener('contextmenu', e => e.preventDefault());
   ov.addEventListener('pointerdown', e => {
     e.preventDefault();
@@ -328,7 +328,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     { passive: false }
   );
 
-  function pickAt(p) {
+  function pickAt(p: Json) {
     const r = E.pick(p[0], p[1]);
     if (!r) {
       sel = null;
@@ -340,7 +340,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     draw();
     paint();
   }
-  function selectLevel(d) {
+  function selectLevel(d: Json) {
     if (!sel) return;
     const i = Math.max(0, Math.min(sel.chain.length - 1, sel.i + d));
     sel = { chain: sel.chain, i, ...sel.chain[i] };
@@ -355,21 +355,21 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
       items = [];
     }
   }
-  function itemAt([x, y]) {
+  function itemAt([x, y]: Json) {
     return (
       items
-        .filter(it => x >= it.box[0] - 6 && x <= it.box[2] + 6 && y >= it.box[1] - 6 && y <= it.box[3] + 6)
-        .sort((a, b) => (a.box[2] - a.box[0]) * (a.box[3] - a.box[1]) - (b.box[2] - b.box[0]) * (b.box[3] - b.box[1]))[0] || null
+        .filter((it: Json) => x >= it.box[0] - 6 && x <= it.box[2] + 6 && y >= it.box[1] - 6 && y <= it.box[3] + 6)
+        .sort((a: Json, b: Json) => (a.box[2] - a.box[0]) * (a.box[3] - a.box[1]) - (b.box[2] - b.box[0]) * (b.box[3] - b.box[1]))[0] || null
     );
   }
-  function scaleItem(k) {
-    const it = items.find(i => i.id === osel);
+  function scaleItem(k: Json) {
+    const it = items.find((i: Json) => i.id === osel);
     if (!it) return;
     change(() => E.ovScale(key(), osel, k, (it.box[0] + it.box[2]) / 2, (it.box[1] + it.box[3]) / 2));
     refreshItems();
     draw();
   }
-  const itemName = it =>
+  const itemName = (it: Json) =>
     it.text ? `“${it.text}”` : it.kind === 'custom' ? `drawing ${+it.id.split('#').pop() + 1}` : `${it.kind} ${+it.id.split('#').pop() + 1}`;
 
   // boxes on the picture: the selected object, or the screen items
@@ -377,7 +377,8 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     const r = ov.getBoundingClientRect();
     cv.width = Math.round(r.width);
     cv.height = Math.round(r.height);
-    const g = cv.getContext('2d');
+    // the first getContext('2d') of a canvas always returns a context, so `!` below is safe
+    const g = cv.getContext('2d')!;
     g.clearRect(0, 0, cv.width, cv.height);
     if (mode === 'ovl') {
       const sx = cv.width / 1920,
@@ -396,8 +397,8 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     if (!info?.rect) return;
     sel.size = info.size;
     const [x0, y0, x1, y1] = info.rect,
-      X = x => ((x + 1) / 2) * cv.width,
-      Y = y => ((1 - y) / 2) * cv.height;
+      X = (x: Json) => ((x + 1) / 2) * cv.width,
+      Y = (y: Json) => ((1 - y) / 2) * cv.height;
     g.strokeStyle = '#ffb547';
     g.lineWidth = 2;
     g.setLineDash([6, 4]);
@@ -405,7 +406,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
   }
 
   // ---- cuts: find the next / previous one, show its first frame, move it by frames
-  function goCut(dir) {
+  function goCut(dir: Json) {
     const from = cut ? cut.film + dir / fps() : undefined;
     const r = E.findCut(dir, from, fps());
     if (!r) return toast(dir > 0 ? 'No cut in the next 40 seconds' : 'No cut in the previous 40 seconds');
@@ -413,7 +414,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     src.currentTime = r.film + 0.5 / fps();
     paint();
   }
-  function moveCut(frames) {
+  function moveCut(frames: Json) {
     if (!cut) return;
     change(() => {
       cut.d = E.cutShift(cut.at, frames, fps());
@@ -445,8 +446,8 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     ['#ff5c8a', 'Rose'],
     ['#ffd166', 'Gold']
   ];
-  let playTimer = 0;
-  function playTr(dur) {
+  let playTimer: ReturnType<typeof setTimeout> | 0 = 0;
+  function playTr(dur: Json) {
     if (!cut) return;
     clearTimeout(playTimer);
     src.currentTime = Math.max(0, cut.film - 0.8);
@@ -458,15 +459,15 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
       (0.8 + (dur || 0.5) + 1.2) * 1000
     );
   }
-  function setTr(tr, play = true) {
+  function setTr(tr: Json, play = true) {
     if (!cut) return;
     change(() => E.cutTr(cut.at, tr));
     cut.tr = tr ? { ...tr } : null;
     paint();
     if (play) playTr(tr?.dur);
   }
-  const trDef = type => (caps().transitions || []).find(x => x.id === type) || {};
-  function pickTr(type) {
+  const trDef = (type: Json) => (caps().transitions || []).find((x: Json) => x.id === type) || {};
+  function pickTr(type: Json) {
     const d = trDef(type),
       cur = cut?.tr;
     setTr({
@@ -503,12 +504,12 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     const tr = cut.tr,
       cur = tr ? tr.type : null,
       d = tr ? trDef(tr.type) : {};
-    const out = [
+    const out: Json[] = [
       h('div', { class: 'sedit-hint' }, 'Transition: click to preview it. Without a selection, the film uses its own transition.'),
       h(
         'div',
         { class: 'sedit-items' },
-        list.map(x => b(x.label, x.id === 'cut' ? 'Cut without a transition' : `${x.label} (${x.dur} s)`, () => pickTr(x.id), x.id === cur ? 'on' : ''))
+        list.map((x: Json) => b(x.label, x.id === 'cut' ? 'Cut without a transition' : `${x.label} (${x.dur} s)`, () => pickTr(x.id), x.id === cur ? 'on' : ''))
       )
     ];
     if (tr && tr.type !== 'cut') {
@@ -525,10 +526,10 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
             max: 2.5,
             step: 0.05,
             value: dur,
-            oninput: e => {
+            oninput: (e: Json) => {
               val.textContent = (+e.target.value).toFixed(2) + ' s';
             },
-            onchange: e => setTr({ ...tr, dur: +e.target.value })
+            onchange: (e: Json) => setTr({ ...tr, dur: +e.target.value })
           }),
           val
         )
@@ -555,7 +556,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
                   class: tr.color === c ? 'on' : '',
                   title: l,
                   style: `background:${c};min-width:28px`,
-                  onclick: e => {
+                  onclick: (e: Json) => {
                     e.stopPropagation();
                     setTr({ ...tr, color: c });
                   }
@@ -579,7 +580,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
   }
 
   // ---- panel
-  function setMode(m) {
+  function setMode(m: Json) {
     mode = m;
     try {
       m === 'cam' ? E.freeStart() : E.freeStop();
@@ -601,9 +602,9 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
   }
   const sndEntry = () => {
     const k = scope === 'all' ? '*' : sndShot?.shot;
-    return (E.get().sound || []).find(e => e.shot === k) || null;
+    return (E.get().sound || []).find((e: Json) => e.shot === k) || null;
   };
-  function setLevel(ch, v) {
+  function setLevel(ch: Json, v: Json) {
     if (!sndShot) findSndShot();
     const all = scope === 'all',
       base = sndEntry() || {};
@@ -642,19 +643,19 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
       const at = scope === 'all' ? src.currentTime : Math.max(0, (sndShot?.t0 || 0) - 0.4);
       src.currentTime = at;
       setTimeout(() => src.play(), 250);
-    } catch (e) {
+    } catch (e: Json) {
       toast('Could not apply audio: ' + e.message, true);
     }
     sndBusy = false;
     paint();
   }
-  const b = (label, title, fn, cls) =>
+  const b = (label: Json, title: Json, fn: Json, cls?: Json) =>
     h(
       'button',
       {
         class: cls || '',
         title,
-        onclick: e => {
+        onclick: (e: Json) => {
           e.stopPropagation();
           fn();
         }
@@ -673,7 +674,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     const scopeSel = h(
       'select',
       {
-        onchange: e => {
+        onchange: (e: Json) => {
           scope = e.target.value;
           paint();
         }
@@ -685,7 +686,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
       'select',
       {
         title: 'Step',
-        onchange: e => {
+        onchange: (e: Json) => {
           step = +e.target.value;
         }
       },
@@ -706,7 +707,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
             max: 100,
             step: 0.5,
             value: fs?.fov || 50,
-            oninput: e => {
+            oninput: (e: Json) => {
               E.nav('fov', +e.target.value);
               e.target.nextSibling.textContent = ' ' + (+e.target.value).toFixed(0) + '°';
             }
@@ -801,7 +802,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
           h(
             'div',
             { class: 'sedit-items' },
-            items.slice(0, 16).map(it =>
+            items.slice(0, 16).map((it: Json) =>
               b(
                 itemName(it) + (it.hide ? ' (hidden)' : ''),
                 it.id,
@@ -815,7 +816,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
             )
           )
         );
-      const it = items.find(i => i.id === osel);
+      const it = items.find((i: Json) => i.id === osel);
       if (it) {
         const t = (here.overlays || {})[it.id] || {};
         body.push(
@@ -856,7 +857,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
         );
       }
     } else if (mode === 'snd') {
-      const LBL = { music: 'Music', sfx: 'Effects', vo: 'Voice', all: 'Master' },
+      const LBL: Record<string, string> = { music: 'Music', sfx: 'Effects', vo: 'Voice', all: 'Master' },
         e = sndEntry() || {},
         dirty = JSON.stringify(E.get().sound || []) !== sndApplied;
       body.push(
@@ -886,10 +887,10 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
                 max: 200,
                 step: 5,
                 value: v,
-                oninput: ev => {
+                oninput: (ev: Json) => {
                   out.textContent = ev.target.value + '%';
                 },
-                onchange: ev => setLevel(ch, +ev.target.value / 100)
+                onchange: (ev: Json) => setLevel(ch, +ev.target.value / 100)
               }),
               out
             )
@@ -1010,8 +1011,8 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
       )
     );
   }
-  const describeTweak = t =>
-    [t.dp && `moved (${t.dp.map(n => n.toFixed(2)).join(', ')})`, t.ry && `${t.ry}°`, t.s && `×${t.s.toFixed(2)}`, t.hide && 'hidden']
+  const describeTweak = (t: Json) =>
+    [t.dp && `moved (${t.dp.map((n: Json) => n.toFixed(2)).join(', ')})`, t.ry && `${t.ry}°`, t.s && `×${t.s.toFixed(2)}`, t.hide && 'hidden']
       .filter(Boolean)
       .join(' · ');
 
@@ -1024,7 +1025,7 @@ export function createSceneEditor({ src, projectId, frame, panelHost, onOpen, on
     }
     if (mode === 'ovl') {
       refreshItems();
-      if (osel && !items.some(i => i.id === osel)) osel = null;
+      if (osel && !items.some((i: Json) => i.id === osel)) osel = null;
     }
     if (mode === 'snd') findSndShot();
     draw();

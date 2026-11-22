@@ -1,28 +1,26 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import vm from 'node:vm';
+import { readSource } from '../../scripts/test-source.ts';
+import type { Json } from '../app.ts';
 
 // Run the real source with a controlled frame scheduler and same-origin film iframe.
 // No film rendering, browser, audio file or running VideoHub server is required.
-const source = fs
-  .readFileSync(new URL('./live.ts', import.meta.url), 'utf8')
-  .replace(/^import .+;\r?$/gm, '')
-  .replace('export function createLiveSource', 'function createLiveSource');
+const stripped = readSource(new URL('./live.ts', import.meta.url));
+const source = stripped.slice(stripped.indexOf('export function createLiveSource')).replace('export function createLiveSource', 'function createLiveSource');
 
 function harness({ ready = true } = {}) {
   let now = 0,
     sequence = 0,
-    renderFailure = null,
+    renderFailure: Json = null,
     canvasFailure = false,
-    visibleAt = null;
+    visibleAt: Json = null;
   const timeouts = new Map(),
     intervals = new Map(),
     animationFrames = new Map();
-  const draws = [],
-    statuses = [],
-    iframes = [];
+  const draws: Json = [],
+    statuses: Json = [],
+    iframes: Json = [];
   const filmCanvas = {
     width: 1920,
     height: 1080,
@@ -33,7 +31,7 @@ function harness({ ready = true } = {}) {
   };
   const film = {
     READY: false,
-    renderOut(at) {
+    renderOut(at: Json) {
       draws.push(at);
       if (renderFailure?.(at)) throw new Error('Film drawing failed');
       visibleAt = at;
@@ -63,9 +61,9 @@ function harness({ ready = true } = {}) {
     removeAttribute() {},
     load() {}
   };
-  const h = (tag, attrs = {}) => {
+  const h = (tag: Json, attrs = {}) => {
     if (tag === 'audio') return Object.assign(audio, attrs);
-    const element = {
+    const element: Json = {
       style: {},
       append() {},
       replaceWith() {},
@@ -81,9 +79,9 @@ function harness({ ready = true } = {}) {
     return element;
   };
   const document = {
-    createElement(tag) {
+    createElement(tag: Json) {
       assert.equal(tag, 'canvas');
-      const canvas = { width: 0, height: 0, sample: null, toDataURL: () => 'data:image/jpeg;base64,test' };
+      const canvas: Json = { width: 0, height: 0, sample: null, toDataURL: () => 'data:image/jpeg;base64,test' };
       canvas.getContext = () => ({
         fillRect() {},
         drawImage() {
@@ -93,43 +91,43 @@ function harness({ ready = true } = {}) {
       return canvas;
     }
   };
-  const sandbox = {
+  const sandbox: Json = {
     h,
     document,
     EventTarget,
     Event,
     performance: { now: () => now },
     getComputedStyle: () => ({ display: 'block' }),
-    setInterval: fn => {
+    setInterval: (fn: Json) => {
       const id = ++sequence;
       intervals.set(id, fn);
       return id;
     },
-    clearInterval: id => intervals.delete(id),
-    setTimeout: (fn, delay = 0) => {
+    clearInterval: (id: Json) => intervals.delete(id),
+    setTimeout: (fn: Json, delay = 0) => {
       const id = ++sequence;
       timeouts.set(id, { fn, at: now + delay });
       return id;
     },
-    clearTimeout: id => timeouts.delete(id),
-    requestAnimationFrame: fn => {
+    clearTimeout: (id: Json) => timeouts.delete(id),
+    requestAnimationFrame: (fn: Json) => {
       const id = ++sequence;
       animationFrames.set(id, fn);
       return id;
     },
-    cancelAnimationFrame: id => animationFrames.delete(id)
+    cancelAnimationFrame: (id: Json) => animationFrames.delete(id)
   };
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox);
   const src = sandbox.createLiveSource(
     { url: '/film/index.html', audio: '/film/mix.wav', w: 1920, h: 1080, dur: 120, fps: 60 },
-    { onStatus: s => statuses.push(s) }
+    { onStatus: (s: Json) => statuses.push(s) }
   );
   const makeReady = () => {
     film.READY = true;
     for (const fn of [...intervals.values()]) fn();
   };
-  const advance = (milliseconds, flush = false) => {
+  const advance = (milliseconds: Json, flush = false) => {
     now += milliseconds;
     if (flush) {
       while (true) {
@@ -162,10 +160,10 @@ function harness({ ready = true } = {}) {
     get visibleAt() {
       return visibleAt;
     },
-    failRender: predicate => {
+    failRender: (predicate: Json) => {
       renderFailure = predicate;
     },
-    failCanvas: value => {
+    failCanvas: (value: Json) => {
       canvasFailure = value;
     }
   };
@@ -182,8 +180,8 @@ test('annotation pause freezes the displayed frame when the live clock is five s
   assert.throws(() => {
     h.src.displayedTime = 3;
   }, TypeError);
-  const frameTimes = [];
-  h.src.requestVideoFrameCallback((_, meta) => frameTimes.push(meta.mediaTime));
+  const frameTimes: Json = [];
+  h.src.requestVideoFrameCallback((_: Json, meta: Json) => frameTimes.push(meta.mediaTime));
   const beforeFreeze = h.draws.length;
   h.src.pauseAt(h.src.displayedTime);
   assert.equal(h.src.paused, true);
@@ -257,7 +255,7 @@ test('playing seeks and paused seeks followed immediately by play both finish on
 
 test('background seek fallbacks present only the latest target, including while playing', async () => {
   const h = harness();
-  const times = [];
+  const times: Json = [];
   h.src.addEventListener('seeked', () => times.push(h.src.displayedTime));
   h.src.currentTime = 15;
   h.advance(80);
@@ -318,7 +316,7 @@ test('snap restores the displayed picture and preserves pending playback state e
   assert.equal(h.src.currentTime, 25);
   assert.equal(h.src.displayedTime, 10);
   assert.equal(h.src.seeking, true);
-  h.failRender(at => at === 50);
+  h.failRender((at: Json) => at === 50);
   assert.equal(h.src.snap(50), null);
   assert.equal(h.visibleAt, 10);
   assert.equal(h.src.currentTime, 25);
@@ -365,7 +363,7 @@ test('failed draws do not advertise a new displayed frame', () => {
   const h = harness();
   h.src.currentTime = 10;
   h.frame();
-  h.failRender(at => at === 30);
+  h.failRender((at: Json) => at === 30);
   h.src.currentTime = 30;
   h.frame();
   assert.equal(h.src.displayedTime, 10);
@@ -394,7 +392,7 @@ test('metadata does not complete a seek started by its listener before the reque
 
 test('newly ready sources publish their displayed time without pretending to complete a seek', () => {
   const h = harness({ ready: false });
-  const times = [];
+  const times: Json = [];
   let seeks = 0;
   h.src.addEventListener('timeupdate', () => times.push(h.src.displayedTime));
   h.src.addEventListener('seeked', () => seeks++);

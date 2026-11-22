@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { readSource } from '../../scripts/test-source.ts';
 
 // Exercise the real draft/click/save functions without starting the router, SSE,
 // a film, a render or a real note request. Playback and DOM effects are observed.
@@ -287,10 +288,8 @@ test('a delayed failed save parks its old draft and never overwrites a newer act
 });
 
 test('the real notes composer writes to the switched draft and its shelf exposes explicit restoration', () => {
-  const panelSource = fs
-    .readFileSync(new URL('./notes.ts', import.meta.url), 'utf8')
-    .replace(/^import .+;\r?$/gm, '')
-    .replace('export function createNotesPanel', 'function createNotesPanel');
+  const notes = readSource(new URL('./notes.ts', import.meta.url));
+  const panelSource = notes.slice(notes.indexOf('const put')).replace('export function createNotesPanel', 'function createNotesPanel');
   function node(tag, attrs = {}, ...children) {
     return {
       tag,

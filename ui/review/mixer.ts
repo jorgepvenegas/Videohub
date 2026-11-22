@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Live mixer (P3c, replaces stems.js): channel levels, M/S, the master and the "Channels" section of the Sounds tab.
 // Levels live where the render reads them, tweaks.json "sound" (no new key): the whole-film level of vo / music / sfx
 // and the master (`all`) on the {shot:'*'} entry, range levels on 'range a–b' (scope select; older films: 'aralık a–b'), "🔇 Remove music" =
@@ -13,22 +12,23 @@
 import { h, api, toast } from '../app.ts';
 import { createHistory } from './history.ts';
 import { soundEnv, applyOps, opsToward, clipPlan } from './soundenv.ts';
+import type { Json } from '../app.ts';
 
-const KEY = { vo: 'vo', music: 'music', sfx: 'sfx', mix: 'all' }; // row id → tweaks.json sound field
+const KEY: Record<string, string> = { vo: 'vo', music: 'music', sfx: 'sfx', mix: 'all' }; // row id → tweaks.json sound field
 const STEM = ['vo', 'music', 'sfx'];
 const BUS = 'add-music'; // the Added sounds level sits on the first added-sound row
-const pct = g => Math.round(g * 100) + '%';
-const isDuck = s => String(s).startsWith('duck:');
-const owned = s => s === '*' || String(s).startsWith('range ') || String(s).startsWith('aral\u0131k ') || isDuck(s);
-const tcs = s => {
+const pct = (g: Json) => Math.round(g * 100) + '%';
+const isDuck = (s: Json) => String(s).startsWith('duck:');
+const owned = (s: Json) => s === '*' || String(s).startsWith('range ') || String(s).startsWith('aral\u0131k ') || isDuck(s);
+const tcs = (s: Json) => {
   s = Math.max(0, +s || 0);
   const m = Math.floor(s / 60);
   return `${m}:${(s - m * 60).toFixed(2).padStart(5, '0')}`;
 };
-const clamp = g => Math.max(0, Math.min(2, Math.round(g * 100) / 100));
+const clamp = (g: Json) => Math.max(0, Math.min(2, Math.round(g * 100) / 100));
 const T_PLACE = 'You cannot listen to separate channels in this film; use "Apply to film" to hear changes';
 const T_EXTRA = 'This layer is for listening only and cannot be applied to the film';
-const APPROX = {
+const APPROX: Record<string, string> = {
   stems:
     'Voice, music and effects play from separate files, so you hear level changes immediately; the film audio is rebuilt at the same levels. Small differences are possible: the render extracts voice from the mix, reduces peaks above the limit to 0.95 and softens clipping in added sounds; this preview only uses a limiter. Compare with "Built audio".',
   studio:
@@ -36,40 +36,40 @@ const APPROX = {
   other: 'This film has a single audio mix: channel levels affect listening only; the "Film audio" level is applied to the film.'
 };
 
-export function createMixer({ media, projectId, live, dur, range, clips, clipUrl, applyQueue, history: router, status, onSaved, scaleClips }) {
+export function createMixer({ media, projectId, live, dur, range, clips, clipUrl, applyQueue, history: router, status, onSaved, scaleClips }: Json) {
   const el = h('div', { class: 'mx' });
-  let layers = [],
-    cues = null,
-    info = null,
-    server = [],
-    inflight = null,
-    inflightP = null,
+  let layers: Json = [],
+    cues: Json = null,
+    info: Json = null,
+    server: Json = [],
+    inflight: Json = null,
+    inflightP: Json = null,
     pend = new Map(),
     ver = 0;
-  let builtList = [],
+  let builtList: Json = [],
     builtKey = '[]',
-    builtClips = null,
+    builtClips: Json = null,
     scope = 'all',
-    ab = null,
-    listen = {},
+    ab: Json = null,
+    listen: Record<string, number> = {},
     busFactor = 1,
-    gesture = null,
-    saveTimer = 0;
+    gesture: Json = null,
+    saveTimer: ReturnType<typeof setTimeout> | 0 = 0;
   let busShown = false,
-    ac = null,
-    master = null,
-    busG = null,
+    ac: Json = null,
+    master: Json = null,
+    busG: Json = null,
     active = false,
-    timer = 0,
-    envTimer = 0,
+    timer: ReturnType<typeof setInterval> | 0 = 0,
+    envTimer: ReturnType<typeof setInterval> | 0 = 0,
     M = { volume: 1, muted: false },
     lastRate = 1;
   const audios = new Map(),
     nodes = new Map(),
     decoded = new Map(),
-    playing = new Set(),
-    views = new Set(),
-    subs = [];
+    playing = new Set<Json>(),
+    views = new Set<Json>(),
+    subs: Json = [];
   const msKey = 'vh-ms-' + projectId;
   const ms = (() => {
     try {
@@ -86,7 +86,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
   };
 
   // ---- the sound list: the server's, plus the PATCH in flight, plus the changes not sent yet
-  let memo = { ver: -1, list: [] };
+  let memo: { ver: number; list: Json } = { ver: -1, list: [] };
   const list = () => {
     if (memo.ver !== ver) memo = { ver, list: applyOps(applyOps(server, inflight), { set: [...pend.values()] }) };
     return memo.list;
@@ -96,11 +96,11 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     envs = null;
   };
   const mode = () => info?.mode || 'none';
-  const layer = id => layers.find(l => l.id === id) || null;
+  const layer = (id: Json) => layers.find((l: Json) => l.id === id) || null;
   // can this row's level go into the film's mix (else it is listening-only)
-  const savable = id => (STEM.includes(id) ? ['stems', 'studio'].includes(mode()) : id === 'mix' ? ['stems', 'all', 'studio'].includes(mode()) : false);
-  const canListen = id => !!layer(id)?.audio;
-  const engineOk = () => layers.some(l => l.audio);
+  const savable = (id: Json) => (STEM.includes(id) ? ['stems', 'studio'].includes(mode()) : id === 'mix' ? ['stems', 'all', 'studio'].includes(mode()) : false);
+  const canListen = (id: Json) => !!layer(id)?.audio;
+  const engineOk = () => layers.some((l: Json) => l.audio);
   // the stems add up to the film's sound (the engine can stand in for the built mix)
   const faithful = () => ['stems', 'studio'].includes(mode()) && STEM.every(id => layer(id)?.audio);
   function scopeKey() {
@@ -108,8 +108,8 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     const r = range();
     return r ? { shot: `range ${r[0].toFixed(2)}–${r[1].toFixed(2)}`, t0: +r[0].toFixed(3), t1: +r[1].toFixed(3) } : null;
   }
-  const entry = (L, shot) => (L || []).find(e => e.shot === shot) || null;
-  function levelOf(id) {
+  const entry = (L: Json, shot: Json) => (L || []).find((e: Json) => e.shot === shot) || null;
+  function levelOf(id: Json) {
     if (id === BUS) return busFactor;
     if (savable(id)) {
       const k = scopeKey();
@@ -118,16 +118,18 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     return listen[id] ?? 1;
   }
   // the value the film has (built): double-click and "Undo" go back to it
-  function filmLevel(id) {
+  function filmLevel(id: Json) {
     if (!savable(id)) return 1;
     const k = scopeKey();
     return k ? (entry(builtList, k.shot)?.[KEY[id]] ?? 1) : 1;
   }
-  const msGain = id => (ms.solo.size ? (ms.solo.has(id) ? 1 : 0) : ms.mute.has(id) ? 0 : 1);
+  const msGain = (id: Json) => (ms.solo.size ? (ms.solo.has(id) ? 1 : 0) : ms.mute.has(id) ? 0 : 1);
   const msOn = () => ms.mute.size > 0 || ms.solo.size > 0;
   const listenOn = () => Object.values(listen).some(g => Math.abs(g - 1) > 0.004) || Math.abs(busFactor - 1) > 0.004;
   const clipsKey = () =>
-    JSON.stringify((clips() || []).filter(c => !c.mute).map(c => [c.src, +c.t, c.gain ?? 1, c.fin ?? 0, c.fout ?? 0, c.trim ?? 0, c.len ?? null, !!c.loop]));
+    JSON.stringify(
+      (clips() || []).filter((c: Json) => !c.mute).map((c: Json) => [c.src, +c.t, c.gain ?? 1, c.fin ?? 0, c.fout ?? 0, c.trim ?? 0, c.len ?? null, !!c.loop])
+    );
   const unbuilt = () =>
     !!(
       pend.size ||
@@ -139,13 +141,14 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     );
   const mixerDirty = () =>
     list()
-      .filter(e => owned(e.shot))
-      .some(e => JSON.stringify(e) !== JSON.stringify(entry(builtList, e.shot))) || builtList.filter(e => owned(e.shot)).some(e => !entry(list(), e.shot));
+      .filter((e: Json) => owned(e.shot))
+      .some((e: Json) => JSON.stringify(e) !== JSON.stringify(entry(builtList, e.shot))) ||
+    builtList.filter((e: Json) => owned(e.shot)).some((e: Json) => !entry(list(), e.shot));
 
   // ---- history (domain 'sound'): the mixer's own entries ('*', 'range …') only
   const hist = createHistory({
-    snapshot: () => JSON.stringify(list().filter(e => owned(e.shot))),
-    restore: s => {
+    snapshot: () => JSON.stringify(list().filter((e: Json) => owned(e.shot))),
+    restore: (s: Json) => {
       const ops = opsToward(list(), JSON.parse(s), owned);
       if (ops) {
         for (const o of ops.set) mergePend(o);
@@ -157,7 +160,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     onPush: () => router?.push()
   });
   const step = () => (gesture ? hist.touch() : hist.push());
-  function mergePend(o) {
+  function mergePend(o: Json) {
     const p = pend.get(o.shot) || { shot: o.shot };
     pend.set(o.shot, Object.assign(p, o));
   }
@@ -183,7 +186,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
         bump();
         onSaved?.(r);
         applyQueue?.request('levels');
-      } catch (e) {
+      } catch (e: Json) {
         inflight = null;
         bump();
         toast('Could not save the sound level: ' + e.message, true);
@@ -196,7 +199,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
   }
 
   // ---- edits
-  function setLevel(id, g) {
+  function setLevel(id: Json, g: Json) {
     g = clamp(+g || 0);
     if (id === BUS) {
       if (!clips()?.length) return;
@@ -223,11 +226,11 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     listen[id] = g;
     update();
   }
-  function begin(id) {
+  function begin(id: Json) {
     gesture = id;
     if (savable(id)) hist.arm();
   }
-  function end(id) {
+  function end(id: Json) {
     if (gesture !== id) return;
     gesture = null;
     // the Added sounds level: every clip's gain × factor, one undo step (soundedit's history)
@@ -239,7 +242,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
       update();
     }
   }
-  function resetLevel(id) {
+  function resetLevel(id: Json) {
     if (id === BUS) {
       busFactor = 1;
       update();
@@ -251,14 +254,14 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
       update();
     }
   }
-  function toggle(set, id) {
+  function toggle(set: Json, id: Json) {
     if (!canListen(id)) return;
     set.has(id) ? set.delete(id) : set.add(id);
     saveMS();
     update();
   }
   // whole film: take the film's music out (0) or put it back (field removed)
-  function musicOut(off) {
+  function musicOut(off: Json) {
     scope = 'all';
     step();
     mergePend({ ...scopeKey(), music: off ? 0 : null });
@@ -270,7 +273,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     // the mixer's entries back to the built film's
     const ops = opsToward(
       list(),
-      builtList.filter(e => owned(e.shot)),
+      builtList.filter((e: Json) => owned(e.shot)),
       owned
     );
     if (!ops) return;
@@ -286,8 +289,8 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
   }
 
   // ---- listening engine
-  let envs = null;
-  function envOf(id) {
+  let envs: Json = null;
+  function envOf(id: Json) {
     if (!envs) {
       const L = list();
       envs = { vo: soundEnv(L, 'vo'), music: soundEnv(L, 'music'), sfx: soundEnv(L, 'sfx'), all: soundEnv(L, 'all') };
@@ -295,7 +298,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     const all = ['stems', 'all', 'studio'].includes(mode()) ? envs.all : null;
     const own = STEM.includes(id) && savable(id) ? envs[id] : null,
       k = STEM.includes(id) && savable(id) ? 1 : (listen[id] ?? 1);
-    return t => (own ? own(t) : k) * (all ? all(t) : 1);
+    return (t: Json) => (own ? own(t) : k) * (all ? all(t) : 1);
   }
   function want() {
     if (!engineOk() || ab === 'built') return false;
@@ -370,13 +373,13 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     media.volume = M.volume;
     media.muted = M.muted; // the master's state goes back to the player
   }
-  const onMedia = e => {
+  const onMedia = (e: Json) => {
     sync(true);
     applyEnv();
     if (e.type === 'pause') stopClips();
     else scheduleClips();
   };
-  function sync(force) {
+  function sync(force: Json) {
     if (!active) return;
     if (!media.muted) media.muted = true; // the stems are the sound now
     const t = +media.currentTime || 0,
@@ -408,12 +411,12 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     for (const [id, g] of nodes) g.gain.setTargetAtTime(msGain(id) * envOf(id)(t), ac.currentTime, 0.02);
   }
   // added clips: decoded once per file, scheduled from the playhead with their fades
-  function buffer(src) {
+  function buffer(src: Json) {
     if (!decoded.has(src))
       decoded.set(
         src,
         fetch(clipUrl(src))
-          .then(r => {
+          .then((r: Json) => {
             if (!r.ok) throw new Error(r.status);
             return r.arrayBuffer();
           })
@@ -440,7 +443,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     if (!active || !ac || media.paused) return;
     for (const c of clips() || []) {
       if (c.mute || !c.src) continue;
-      buffer(c.src).then(buf => {
+      buffer(c.src).then((buf: Json) => {
         if (!buf || my !== schedTok || !active || media.paused) return;
         const rate = media.playbackRate || 1,
           P = clipPlan(c, +media.currentTime || 0, rate, buf.duration, dur());
@@ -471,7 +474,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
   }
 
   // ---- views: header controls (timeline + this section) update themselves on every change
-  function chip(id) {
+  function chip(id: Json) {
     const off = id !== BUS && id !== 'mix' && !STEM.includes(id); // extra stems: no level
     const c = h('span', { class: 'tl2-lvl' });
     const paint = () => {
@@ -491,8 +494,8 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
               (savable(id) ? (scope === 'range' ? ' · applies to the selected range' : ' · applies to the whole film') : ' · listening only');
       c.dataset.dis = dis ? '1' : '';
     };
-    let drag = null,
-      wheelT = 0;
+    let drag: Json = null,
+      wheelT: ReturnType<typeof setTimeout> | 0 = 0;
     c.addEventListener('pointerdown', e => {
       if (e.button !== 0 || c.dataset.dis) return;
       e.preventDefault();
@@ -537,12 +540,12 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     view(c, paint);
     return c;
   }
-  function msBtn(id, which) {
+  function msBtn(id: Json, which: Json) {
     const b = h(
       'button',
       {
         class: 'tl2-ms',
-        onclick: e => {
+        onclick: (e: Json) => {
           e.stopPropagation();
           toggle(which === 'M' ? ms.mute : ms.solo, id);
         }
@@ -564,14 +567,14 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     });
     return b;
   }
-  function view(node, paint) {
+  function view(node: Json, paint: Json) {
     const v = { node, paint, seen: false };
     views.add(v);
     paint();
     return node;
   }
   // a row's controls: M, S, level (the Film audio row: the master level; Added music: all clips; extra stems: M/S)
-  function controls(id) {
+  function controls(id: Json) {
     if (id === 'add-sfx' || id === 'cues') return null;
     const box = h('span', { class: 'tl2-hctl' });
     if (id !== 'mix' && id !== BUS) box.append(msBtn(id, 'M'), msBtn(id, 'S'));
@@ -596,13 +599,13 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
   // ---- P4: the film's music lowered / removed over the I/O range ('duck:<id>' entries multiply the music curve)
   let duckLevel = 0.3,
     duckFade = 0.5,
-    duckSel = null,
+    duckSel: Json = null,
     duckKey = '';
   const duckEl = h('div', { class: 'mx-duck' });
-  const ducks = () => list().filter(e => isDuck(e.shot) && e.music != null);
+  const ducks = () => list().filter((e: Json) => isDuck(e.shot) && e.music != null);
   const musicSep = () => ['stems', 'studio'].includes(mode()) && !!layer('music');
-  const r3 = n => Math.round(n * 1000) / 1000;
-  function addDuck(level) {
+  const r3 = (n: Json) => Math.round(n * 1000) / 1000;
+  function addDuck(level: Json) {
     const r = range();
     if (!r) {
       toast('Select a range with I / O first', true);
@@ -627,7 +630,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     update();
     toast(level < 0.004 ? `Music removed from ${tcs(t0)}–${tcs(t1)}` : `Music lowered to ${Math.round(level * 100)}% from ${tcs(t0)}–${tcs(t1)}`);
   }
-  function setDuck(shot, patch) {
+  function setDuck(shot: Json, patch: Json) {
     const d = entry(list(), shot);
     if (!d) return;
     hist.push();
@@ -636,7 +639,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     schedule();
     update();
   }
-  function removeDuck(shot) {
+  function removeDuck(shot: Json) {
     const d = entry(list(), shot);
     if (!d) return false;
     hist.push();
@@ -647,7 +650,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     update();
     return true;
   }
-  function selectDuck(shot) {
+  function selectDuck(shot: Json) {
     duckSel = shot && entry(list(), shot) ? shot : null;
     notify();
   }
@@ -656,7 +659,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
       ok = musicSep(),
       sel = duckSel && entry(list(), duckSel);
     if (duckSel && !sel) duckSel = null;
-    const key = JSON.stringify([!!r && r.map(x => x.toFixed(2)), ok, ducks(), duckSel]);
+    const key = JSON.stringify([!!r && r.map((x: Json) => x.toFixed(2)), ok, ducks(), duckSel]);
     if (key === duckKey) return;
     duckKey = key;
     const lvlOut = h('span', { class: 'tl2-lval' }, Math.round(duckLevel * 100) + '%');
@@ -684,7 +687,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
             step: 5,
             value: Math.round(duckLevel * 100),
             title: 'Reduced level',
-            oninput: e => {
+            oninput: (e: Json) => {
               duckLevel = +e.target.value / 100;
               lvlOut.textContent = e.target.value + '%';
             }
@@ -702,7 +705,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
               step: 0.1,
               value: duckFade,
               style: { width: '56px' },
-              onchange: e => {
+              onchange: (e: Json) => {
                 const v = +e.target.value;
                 if (Number.isFinite(v)) duckFade = Math.max(0.1, Math.min(3, v));
               }
@@ -718,7 +721,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
           h(
             'div',
             { class: 'tl2-lrow' },
-            ...L.map(d =>
+            ...L.map((d: Json) =>
               h(
                 'button',
                 {
@@ -750,10 +753,10 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
                 max: 100,
                 step: 5,
                 value: Math.round(sel.music * 100),
-                oninput: e => {
+                oninput: (e: Json) => {
                   out.textContent = e.target.value + '%';
                 },
-                onchange: e => setDuck(sel.shot, { music: +e.target.value / 100 })
+                onchange: (e: Json) => setDuck(sel.shot, { music: +e.target.value / 100 })
               }),
               out
             ),
@@ -768,7 +771,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
                 step: 0.1,
                 value: sel.fade ?? 0.12,
                 style: { width: '56px' },
-                onchange: e => {
+                onchange: (e: Json) => {
                   const v = +e.target.value;
                   if (Number.isFinite(v)) setDuck(sel.shot, { fade: Math.max(0.1, Math.min(3, v)) });
                 }
@@ -798,7 +801,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     });
     const rows = [
       ...(mode() !== 'none' ? [{ id: 'mix', label: 'Film audio' }] : []),
-      ...layers.map(l => ({ id: l.id, label: l.label })),
+      ...layers.map((l: Json) => ({ id: l.id, label: l.label })),
       ...((clips() || []).length || ['stems', 'all', 'studio'].includes(mode()) ? [{ id: BUS, label: 'Added sounds' }] : [])
     ];
     if (!layers.length) rowsEl.append(h('div', { class: 'dim' }, 'No sound layers (mix only)'));
@@ -813,7 +816,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
       busy = !!applyQueue?.busy(),
       dirty = !!(applyQueue?.dirty() || pend.size || inflight);
     headEl.title = APPROX[m] || APPROX.other;
-    headEl.querySelector('.mx-title').title = headEl.title;
+    (headEl.querySelector('.mx-title') as Json).title = headEl.title;
     abEl.replaceChildren(
       ...(engineOk()
         ? [
@@ -843,7 +846,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
           : '';
     pillEl.hidden = !pill;
     pillEl.textContent = pill;
-    const any = layers.some(l => KEY[l.id]) || canBuild;
+    const any = layers.some((l: Json) => KEY[l.id]) || canBuild;
     actsEl.replaceChildren(
       ...[
         any
@@ -851,7 +854,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
               'select',
               {
                 title: 'Apply levels to',
-                onchange: e => {
+                onchange: (e: Json) => {
                   scope = e.target.value;
                   update();
                 }
@@ -926,15 +929,15 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     // P4 ducks: the timeline's music bands (every entry with a music level) + their gestures
     musicBands: () =>
       list()
-        .filter(e => e.music != null)
-        .map(e => ({ ...e, duck: isDuck(e.shot), sel: e.shot === duckSel })),
+        .filter((e: Json) => e.music != null)
+        .map((e: Json) => ({ ...e, duck: isDuck(e.shot), sel: e.shot === duckSel })),
     addDuck,
     setDuck,
     removeDuck,
     selectDuck,
     duckSelected: () => (duckSel && entry(list(), duckSel)) || null,
     // L: { layers (studio placeholders included), cues }; soundInfo from sound-info; storedSound = tweaks.json sound
-    setLayers(L, soundInfo, storedSound) {
+    setLayers(L: Json, soundInfo: Json, storedSound: Json) {
       layers = (L && L.layers) || [];
       cues = L && L.cues && L.cues.length ? L.cues : null;
       info = soundInfo || info;
@@ -951,14 +954,14 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
       update();
     },
     state() {
-      const rows = {};
-      for (const id of ['mix', ...layers.map(l => l.id), BUS])
+      const rows: Json = {};
+      for (const id of ['mix', ...layers.map((l: Json) => l.id), BUS])
         rows[id] = { level: levelOf(id), film: filmLevel(id), savable: savable(id), mute: ms.mute.has(id), solo: ms.solo.has(id), canListen: canListen(id) };
       return { rows, active, soloOn: ms.solo.size > 0, scope, ab, mode: mode(), list: list() };
     },
     setLevel,
-    toggleMute: id => toggle(ms.mute, id),
-    toggleSolo: id => toggle(ms.solo, id),
+    toggleMute: (id: Json) => toggle(ms.mute, id),
+    toggleSolo: (id: Json) => toggle(ms.solo, id),
     begin,
     end,
     resetLevel,
@@ -968,23 +971,23 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
       saveMS();
       update();
     },
-    audible: id => msGain(id) > 0 && levelOf(id) > 0.004,
+    audible: (id: Json) => msGain(id) > 0 && levelOf(id) > 0.004,
     canListen,
     controls,
     active: () => active,
     // the clips changed (loaded = first load: that is what the built mix has)
-    clipsChanged(loaded) {
+    clipsChanged(loaded: Json) {
       if (loaded || builtClips == null) builtClips = clipsKey();
       if (!busShown && (clips() || []).length) paintRows();
       update();
       if (active) scheduleClips();
     },
-    duckChanged(L) {
+    duckChanged(L: Json) {
       server = Array.isArray(L) ? L : server;
       bump();
       update();
     },
-    setStored(L) {
+    setStored(L: Json) {
       if (!Array.isArray(L)) return;
       server = L;
       bump();
@@ -998,7 +1001,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
       update();
     },
     refresh: () => update(),
-    setMaster({ volume, muted } = {}) {
+    setMaster({ volume, muted }: Json = {}) {
       if (active) {
         if (volume != null) M.volume = volume;
         if (muted != null) M.muted = muted;
@@ -1020,7 +1023,7 @@ export function createMixer({ media, projectId, live, dur, range, clips, clipUrl
     undo: () => hist.undo(),
     redo: () => hist.redo(),
     flush,
-    onChange(cb) {
+    onChange(cb: Json) {
       subs.push(cb);
       return () => {
         const i = subs.indexOf(cb);

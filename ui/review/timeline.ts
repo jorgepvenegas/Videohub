@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Multi-track timeline (P3a): a ruler on top, then one row per track with a DOM header on the left (name; a click
 // collapses the row, remembered in localStorage 'vh-tl-rows') and a canvas on the right, and an overview bar of the
 // whole film at the bottom (its window = the view: drag pans, drag an edge zooms). Rows (ui/review/tracks.ts):
@@ -13,28 +12,30 @@ import { h } from '../app.ts';
 import { createView } from './tlview.ts';
 import { ls } from './dock.ts';
 import { buildRows, tickSpec, fmtTick, clipLen, assignLane, findDragSnap, snapEdgeTime, edgeScrollStep } from './tracks.ts';
+import type { Json } from '../app.ts';
 
-const STATUS_COLOR = { open: '#e6c14d', claude: '#f08a3c', fixed: '#46c480', approved: '#3a7d58', reopened: '#e85454' };
+const STATUS_COLOR: Record<string, string> = { open: '#e6c14d', claude: '#f08a3c', fixed: '#46c480', approved: '#3a7d58', reopened: '#e85454' };
 const RULER = 24,
   PLAY = '#ff5c6c',
   ROWS_KEY = 'vh-tl-rows';
 const HINT = 'Ctrl+wheel: zoom · Shift+wheel: pan · wheel on ruler: zoom · double-click: whole film';
 // scene lane colours (cycled); a scene's set name keeps its colour when the film comes back to it
 const SCENE_COLORS = ['#3d5a8c', '#7a4f8c', '#3d7a63', '#8c6a3d', '#8c3d4f', '#3d7a85', '#6a7a3d', '#5a4f8c'];
-const mmss = s => {
+const mmss = (s: Json) => {
   s = Math.max(0, s);
   const m = Math.floor(s / 60),
     r = Math.floor(s % 60);
   return `${m}:${String(r).padStart(2, '0')}`;
 };
-const tcs = s => `${mmss(s)}.${String(Math.floor((Math.max(0, s) % 1) * 100)).padStart(2, '0')}`;
+const tcs = (s: Json) => `${mmss(s)}.${String(Math.floor((Math.max(0, s) % 1) * 100)).padStart(2, '0')}`;
 
-export function createTimeline(ctx) {
+export function createTimeline(ctx: Json) {
   // ---- DOM
   const rcv = h('canvas', { class: 'tl2-ruler', title: HINT }),
-    rg = rcv.getContext('2d');
+    // the first getContext('2d') of a canvas always returns a context, so `!` below is safe
+    rg = rcv.getContext('2d')!;
   const cv = h('canvas', { class: 'tl2' }),
-    g = cv.getContext('2d');
+    g = cv.getContext('2d')!;
   // the corner: the zoom readout (click = whole film), or the sound build's state when there is one (setStatus)
   const cornerTxt = h('span', { class: 'tl2-ctxt' }),
     cornerStat = h('span', { class: 'tl2-cstat', hidden: true });
@@ -63,34 +64,34 @@ export function createTimeline(ctx) {
   tip.append(tipCv, tipTxt);
 
   // ---- state
-  let strip = null,
-    stripImg = null,
-    waveImg = null,
-    tr = null,
-    layers = [],
-    cues = null,
-    scenes = [],
+  let strip: Json = null,
+    stripImg: Json = null,
+    waveImg: Json = null,
+    tr: Json = null,
+    layers: Json = [],
+    cues: Json = null,
+    scenes: Json = [],
     selScene = -1;
-  let mixer = null,
-    clips = null,
-    clipSel = null,
-    clipHooks = {},
-    clipOps = null,
-    clipDrag = null,
-    clipHover = null,
-    dragging = null,
-    hoverX = null,
-    hoverRow = null;
-  let bands = [],
-    bandOps = null,
-    bandDrag = null,
-    dropAt = null; // P4: music-level bands on the Music row; a drop's target
-  const layerImg = {},
+  let mixer: Json = null,
+    clips: Json = null,
+    clipSel: Json = null,
+    clipHooks: Json = {},
+    clipOps: Json = null,
+    clipDrag: Json = null,
+    clipHover: Json = null,
+    dragging: Json = null,
+    hoverX: Json = null,
+    hoverRow: Json = null;
+  let bands: Json = [],
+    bandOps: Json = null,
+    bandDrag: Json = null,
+    dropAt: Json = null; // P4: music-level bands on the Music row; a drop's target
+  const layerImg: Record<string, Json> = {},
     peaks = new Map(),
     waveCache = new Map(),
     asked = new Set();
   let collapsed = new Set(ls.get(ROWS_KEY, []) || []),
-    rows = [],
+    rows: Json = [],
     H = 40,
     headEls = new Map();
   const dur = () => ctx.dur() || 1;
@@ -102,28 +103,28 @@ export function createTimeline(ctx) {
   let cw = 600,
     dpr = 1;
   const W = () => cw;
-  const tx = t => ((t - v()[0]) / (v()[1] - v()[0])) * W();
-  const xt = x => v()[0] + Math.max(0, Math.min(1, x / W())) * (v()[1] - v()[0]);
+  const tx = (t: Json) => ((t - v()[0]) / (v()[1] - v()[0])) * W();
+  const xt = (x: Json) => v()[0] + Math.max(0, Math.min(1, x / W())) * (v()[1] - v()[0]);
   const pps = () => W() / (v()[1] - v()[0]);
-  const rowOf = id => rows.find(r => r.id === id) || null;
-  const rowAt = y => rows.find(r => y >= r.y && y < r.y + r.h) || null;
-  const colorOf = (sc, i) => {
+  const rowOf = (id: Json) => rows.find((r: Json) => r.id === id) || null;
+  const rowAt = (y: Json) => rows.find((r: Json) => y >= r.y && y < r.y + r.h) || null;
+  const colorOf = (sc: Json, i: Json) => {
     const k = sc.set || sc.name;
     let hsh = 0;
     for (const c of String(k)) hsh = (hsh * 31 + c.charCodeAt(0)) >>> 0;
     return SCENE_COLORS[(sc.set ? hsh : i) % SCENE_COLORS.length];
   };
-  const on = id => (ctx.layerOn ? ctx.layerOn(id) : true);
+  const on = (id: Json) => (ctx.layerOn ? ctx.layerOn(id) : true);
 
   // ---- rows + headers
   function relayout(live = true) {
     // live = false while being built: the caller's ctx (dur, time…) is not ready yet
     // an old clip without a lane gets one once (timestamp order); it is saved with it on the next real change
-    if (clips) for (const c of clips.filter(q => !Number.isInteger(q.lane)).sort((p, q) => p.t - q.t)) c.lane = assignLane(clips, c, dur());
+    if (clips) for (const c of clips.filter((q: Json) => !Number.isInteger(q.lane)).sort((p: Json, q: Json) => p.t - q.t)) c.lane = assignLane(clips, c, dur());
     rows = buildRows({ live: !!ctx.live, strip, scenes, transcript: tr, layers, cues, clips, canClips: !!clips, collapsed });
     H = Math.max(
       20,
-      rows.reduce((s, r) => s + r.h, 0)
+      rows.reduce((s: Json, r: Json) => s + r.h, 0)
     );
     heads.innerHTML = '';
     headEls = new Map();
@@ -159,7 +160,7 @@ export function createTimeline(ctx) {
     waveCache.clear();
     if (live) size();
   }
-  function toggleRow(id) {
+  function toggleRow(id: Json) {
     collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
     ls.set(ROWS_KEY, [...collapsed]);
     relayout();
@@ -199,7 +200,7 @@ export function createTimeline(ctx) {
     return out;
   }
   const KY = RULER - 7;
-  function diamond(c, x, y) {
+  function diamond(c: Json, x: Json, y: Json) {
     const r = 5.5;
     c.beginPath();
     c.moveTo(x, y - r);
@@ -284,7 +285,7 @@ export function createTimeline(ctx) {
     g.clearRect(0, 0, w, H);
     g.fillStyle = '#16171c';
     g.fillRect(0, 0, w, H);
-    rows.forEach((r, i) => {
+    rows.forEach((r: Json, i: Json) => {
       g.save();
       g.beginPath();
       g.rect(0, r.y, w, r.h);
@@ -297,13 +298,12 @@ export function createTimeline(ctx) {
         he.off = dim;
         he.el.classList.toggle('off', dim);
       }
-      ({ pic: drawPic, mix: drawMix, scenes: drawScenes, notes: drawNotes, text: drawText, layer: drawLayer, cues: drawLayer, clips: drawClips })[r.kind]?.(
-        r,
-        a,
-        b,
-        now,
-        dim
-      );
+      (
+        { pic: drawPic, mix: drawMix, scenes: drawScenes, notes: drawNotes, text: drawText, layer: drawLayer, cues: drawLayer, clips: drawClips } as Record<
+          string,
+          Json
+        >
+      )[r.kind]?.(r, a, b, now, dim);
       if (r.id === 'music' && bands.length) drawBands(r);
       g.restore();
       g.fillStyle = '#0d0e12';
@@ -340,7 +340,7 @@ export function createTimeline(ctx) {
     g.fillRect(px - 1, 0, 2, H);
   }
   // over the picture and the film sound: cuts, notes, the range tint, changed ranges, the hover line
-  function overlays(r, chunks) {
+  function overlays(r: Json, chunks: Json) {
     const w = W(),
       y = r.y,
       hh = r.h;
@@ -359,7 +359,7 @@ export function createTimeline(ctx) {
       g.fillStyle = ctx.loopOn() ? 'rgba(230,193,77,.16)' : 'rgba(230,193,77,.08)';
       g.fillRect(K[0].x, y, Math.max(1, K[1].x - K[0].x), hh);
     }
-    scenes.forEach((sc, i) => {
+    scenes.forEach((sc: Json, i: Json) => {
       if (!i) return;
       const x = tx(sc.t0);
       if (x > 0 && x < w) {
@@ -379,7 +379,7 @@ export function createTimeline(ctx) {
       g.fillRect(hoverX, y, 1, hh);
     }
   }
-  function drawPic(r, a, b) {
+  function drawPic(r: Json, a: Json, b: Json) {
     const w = W();
     if (strip && stripImg) {
       const i0 = Math.max(0, Math.floor(a / strip.step)),
@@ -395,11 +395,11 @@ export function createTimeline(ctx) {
     }
     overlays(r, true);
   }
-  function drawMix(r) {
+  function drawMix(r: Json) {
     wave('mix', r, '#9aa0b0', waveImg);
     overlays(r, !rowOf('pic'));
   }
-  function drawScenes(r, a, b, now) {
+  function drawScenes(r: Json, a: Json, b: Json, now: Json) {
     const w = W(),
       y0 = r.y,
       hh = r.h;
@@ -407,7 +407,7 @@ export function createTimeline(ctx) {
     g.fillRect(0, y0, w, hh);
     g.font = `600 ${hh < 18 ? 9 : 10.5}px Segoe UI`;
     g.textBaseline = 'middle';
-    scenes.forEach((sc, i) => {
+    scenes.forEach((sc: Json, i: Json) => {
       const x0 = tx(sc.t0),
         x1 = tx(sc.t1);
       if (x1 < 0 || x0 > w) return;
@@ -434,13 +434,13 @@ export function createTimeline(ctx) {
     });
   }
   // notes in their row, grouped by screen distance
-  let groups = [];
+  let groups: Json = [];
   function noteGroups() {
     const out = [];
     for (const n of ctx
       .notes()
       .slice()
-      .sort((p, q) => p.t - q.t)) {
+      .sort((p: Json, q: Json) => p.t - q.t)) {
       const x = tx(n.t);
       if (x < -10 || x > W() + 10) continue;
       const last = out[out.length - 1];
@@ -451,14 +451,14 @@ export function createTimeline(ctx) {
     }
     return out;
   }
-  const groupAt = (x, r) =>
+  const groupAt = (x: Json, r: Json) =>
     r && r.kind === 'notes'
       ? groups
           .slice()
-          .sort((p, q) => Math.abs(p.x - x) - Math.abs(q.x - x))
-          .find(gr => Math.abs(gr.x - x) < 12) || null
+          .sort((p: Json, q: Json) => Math.abs(p.x - x) - Math.abs(q.x - x))
+          .find((gr: Json) => Math.abs(gr.x - x) < 12) || null
       : null;
-  function drawNotes(r) {
+  function drawNotes(r: Json) {
     const w = W(),
       sel = ctx.selected(),
       y0 = r.y,
@@ -479,7 +479,7 @@ export function createTimeline(ctx) {
     g.textBaseline = 'middle';
     g.textAlign = 'center';
     for (const gr of groups) {
-      const hasSel = gr.notes.some(n => n.id === sel),
+      const hasSel = gr.notes.some((n: Json) => n.id === sel),
         c = STATUS_COLOR[gr.notes[0].status] || '#e6c14d',
         cy = y0 + hh / 2 - 1;
       if (gr.notes.length === 1) {
@@ -508,7 +508,7 @@ export function createTimeline(ctx) {
     g.textAlign = 'left';
   }
   const textItems = () => (tr.words.length && pps() > 90 ? tr.words : tr.phrases);
-  function drawText(r, a, b, now) {
+  function drawText(r: Json, a: Json, b: Json, now: Json) {
     const w = W(),
       y0 = r.y,
       hh = r.h;
@@ -516,7 +516,7 @@ export function createTimeline(ctx) {
     g.fillRect(0, y0, w, hh);
     g.font = `${hh < 18 ? 9 : 11}px Segoe UI`;
     g.textBaseline = 'middle';
-    textItems().forEach(([s, e, txt], i) => {
+    textItems().forEach(([s, e, txt]: Json, i: Json) => {
       const x0 = tx(s),
         x1 = tx(e);
       if (x1 < 0 || x0 > w) return;
@@ -534,7 +534,7 @@ export function createTimeline(ctx) {
       }
     });
   }
-  function drawLayer(r, a, b, now, dim) {
+  function drawLayer(r: Json, a: Json, b: Json, now: Json, dim: Json) {
     const w = W(),
       y0 = r.y,
       hh = r.h;
@@ -566,8 +566,8 @@ export function createTimeline(ctx) {
     g.globalAlpha = 1;
   }
   // music levels over time (P4): dark band, yellow ramps as wide as the fade, label; ducks can be selected / resized
-  const bandSpan = e => (bandDrag && bandDrag.shot === e.shot ? [bandDrag.t0, bandDrag.t1] : [e.t0, e.t1]);
-  function drawBands(r) {
+  const bandSpan = (e: Json) => (bandDrag && bandDrag.shot === e.shot ? [bandDrag.t0, bandDrag.t1] : [e.t0, e.t1]);
+  function drawBands(r: Json) {
     const w = W(),
       y = r.y,
       hh = r.h,
@@ -597,7 +597,7 @@ export function createTimeline(ctx) {
     }
   }
   // a duck band under the pointer: its edge (6 px) or body; the other bands are drawn only
-  function bandHit(x) {
+  function bandHit(x: Json) {
     for (let i = bands.length - 1; i >= 0; i--) {
       const e = bands[i];
       if (!e.duck) continue;
@@ -610,7 +610,7 @@ export function createTimeline(ctx) {
     return null;
   }
   // a row's waveform: peaks drawn per device pixel (cached while the view stays), else the PNG stretched
-  function wave(id, r, color, img) {
+  function wave(id: Json, r: Json, color: Json, img: Json) {
     const w = W(),
       [a, b] = v(),
       P = peaks.get(id);
@@ -621,9 +621,9 @@ export function createTimeline(ctx) {
         const oc = c?.cv || document.createElement('canvas');
         oc.width = Math.max(1, Math.round(w * dpr));
         oc.height = Math.max(1, Math.round((r.h - 2) * dpr));
-        const og = oc.getContext('2d');
+        const og = oc.getContext('2d')!;
         og.clearRect(0, 0, oc.width, oc.height);
-        paintPeaks(og, P, x => a + (x / oc.width) * (b - a), 0, oc.width, oc.height / 2, oc.height / 2 - dpr, color, 1);
+        paintPeaks(og, P, (x: Json) => a + (x / oc.width) * (b - a), 0, oc.width, oc.height / 2, oc.height / 2 - dpr, color, 1);
         c = { key, cv: oc };
         waveCache.set(id, c);
       }
@@ -631,11 +631,11 @@ export function createTimeline(ctx) {
     } else if (img) g.drawImage(img, (a / dur()) * img.width, 0, ((b - a) / dur()) * img.width, img.height, 0, r.y + 1, w, r.h - 2);
   }
   // min/max of the buckets under each column; tAt(x) = the source time at column x; sqrt scale like the PNGs
-  function paintPeaks(c, P, tAt, x0, x1, ymid, half, color, step) {
+  function paintPeaks(c: Json, P: Json, tAt: Json, x0: Json, x1: Json, ymid: Json, half: Json, color: Json, step: Json) {
     const d = P.data,
       nb = d.length / 2,
       rate = P.rate,
-      amp = v => (v < 0 ? -1 : 1) * Math.sqrt(Math.abs(v) / 127);
+      amp = (v: Json) => (v < 0 ? -1 : 1) * Math.sqrt(Math.abs(v) / 127);
     c.fillStyle = color;
     for (let x = x0; x < x1; x += step) {
       let i0 = Math.floor(tAt(x) * rate),
@@ -658,13 +658,13 @@ export function createTimeline(ctx) {
   // the playhead before the drag, scene starts, other clip edges, cues and 0; Shift = no snap; Alt = copy; another lane
   // or the other row = lane / kind), 8 px edges = trim (snap 12 px), 12 px squares at the top corners = fades (hover,
   // clips ≥ 70 px; double-click = 0). The clip itself changes only on release: one commit through setClipOps.
-  const laneOf = (c, r) => Math.max(0, Math.min(r.lanes - 1, Number.isInteger(c.lane) ? c.lane : 0));
-  const kindOf = c => (c.kind === 'music' ? 'music' : 'sfx');
+  const laneOf = (c: Json, r: Json) => Math.max(0, Math.min(r.lanes - 1, Number.isInteger(c.lane) ? c.lane : 0));
+  const kindOf = (c: Json) => (c.kind === 'music' ? 'music' : 'sfx');
   const EDGE = 8,
     FADE = 12,
     FADE_MIN_W = 70,
     MOVE_PX = 5;
-  function clipBox(c, r) {
+  function clipBox(c: Json, r: Json) {
     const lh = r.h / r.lanes,
       len = clipLen(c, dur()),
       x0 = tx(c.t),
@@ -673,13 +673,13 @@ export function createTimeline(ctx) {
     return { x0, x1, top, bh: Math.max(4, lh - 6), lh, len };
   }
   // the fade squares: centred on the fade's end, never over the trim edges
-  function fadeHandles(c, B) {
+  function fadeHandles(c: Json, B: Json): Record<string, { x: number; y: number }> {
     const p = pps(),
       fi = Math.max(B.x0 + EDGE + FADE / 2, B.x0 + (c.fin || 0) * p),
       fo = Math.min(B.x1 - EDGE - FADE / 2, B.x1 - (c.fout || 0) * p);
     return { fin: { x: fi - FADE / 2, y: B.top }, fout: { x: fo - FADE / 2, y: B.top } };
   }
-  function clipAt(x, y, r) {
+  function clipAt(x: Json, y: Json, r: Json) {
     if (!clips || !r || r.kind !== 'clips') return null;
     const lh = r.h / r.lanes,
       lane = Math.floor((y - r.y) / lh);
@@ -687,11 +687,11 @@ export function createTimeline(ctx) {
       clips
         .slice()
         .reverse()
-        .find(c => kindOf(c) === r.clipKind && laneOf(c, r) === lane && x >= tx(c.t) - 3 && x <= tx(c.t + clipLen(c, dur())) + 3) || null
+        .find((c: Json) => kindOf(c) === r.clipKind && laneOf(c, r) === lane && x >= tx(c.t) - 3 && x <= tx(c.t + clipLen(c, dur())) + 3) || null
     );
   }
   // which part of a clip is under the pointer: fin / fout squares, trimL / trimR edges, body
-  function clipHit(x, y, r) {
+  function clipHit(x: Json, y: Json, r: Json) {
     const c = clipAt(x, y, r);
     if (!c) return null;
     const B = clipBox(c, r),
@@ -706,7 +706,7 @@ export function createTimeline(ctx) {
     }
     return { c, part: 'body' };
   }
-  function drawClip(c, r, { alpha = 1, ghost = false, hover = null } = {}) {
+  function drawClip(c: Json, r: Json, { alpha = 1, ghost = false, hover = null } = {}) {
     const w = W(),
       B = clipBox(c, r),
       { x0, x1, top, bh, lh, len } = B;
@@ -732,7 +732,7 @@ export function createTimeline(ctx) {
         paintPeaks(
           g,
           P,
-          x => {
+          (x: Json) => {
             const s = xt(x) - c.t + trim;
             return c.loop && fd > 0 ? trim + ((s - trim) % Math.max(0.05, fd - trim)) : s;
           },
@@ -827,7 +827,7 @@ export function createTimeline(ctx) {
     }
     g.globalAlpha = 1;
   }
-  function drawClips(r) {
+  function drawClips(r: Json) {
     const w = W(),
       lh = r.h / r.lanes;
     g.fillStyle = r.clipKind === 'music' ? '#121722' : '#17140f';
@@ -867,7 +867,7 @@ export function createTimeline(ctx) {
   }
 
   // ---- tip
-  function showTip(canvas, x, y0, y1, fill) {
+  function showTip(canvas: Json, x: Json, y0: Json, y1: Json, fill: Json) {
     const host = ctx.overlayHost?.() || el;
     if (tip.parentNode !== host) host.append(tip);
     tip.hidden = false;
@@ -879,23 +879,23 @@ export function createTimeline(ctx) {
     tip.style.left = Math.max(4, Math.min(innerWidth - 174, r.left + x - 85)) + 'px';
     tip.style.top = Math.round(top) + 'px';
   }
-  function stripTip(t) {
+  function stripTip(t: Json) {
     // the strip picture at a moment
     if (strip && stripImg) {
-      const tc = tipCv.getContext('2d'),
+      const tc = tipCv.getContext('2d')!,
         i = Math.max(0, Math.min(strip.n - 1, Math.floor(t / strip.step)));
       tipCv.height = Math.round((160 * strip.th) / strip.tw);
       tc.drawImage(stripImg, (i % strip.cols) * strip.tw, Math.floor(i / strip.cols) * strip.th, strip.tw, strip.th, 0, 0, 160, tipCv.height);
       tipCv.hidden = false;
     } else tipCv.hidden = true;
   }
-  function plainTip(t) {
+  function plainTip(t: Json) {
     const fps = ctx.fps(),
       cs = ctx.chunkSec();
     tipTxt.textContent = `${tcs(t)} · frame ${Math.floor(t * fps)}${cs ? ' · chunk ' + Math.floor(t / cs) : ''}`;
     stripTip(t);
   }
-  const cueNear = (x, r) => {
+  const cueNear = (x: Json, r: Json) => {
     if (!cues || !r?.cues) return null;
     let best = null,
       bd = 7;
@@ -908,8 +908,8 @@ export function createTimeline(ctx) {
     }
     return best;
   };
-  const sceneAt = (x, r) => (r && r.kind === 'scenes' ? scenes.find(sc => x >= tx(sc.t0) && x < tx(sc.t1)) || null : null);
-  function fillRowTip(x, y, r) {
+  const sceneAt = (x: Json, r: Json) => (r && r.kind === 'scenes' ? scenes.find((sc: Json) => x >= tx(sc.t0) && x < tx(sc.t1)) || null : null);
+  function fillRowTip(x: Json, y: Json, r: Json) {
     const t = xt(x);
     if (!r) return plainTip(t);
     if (r.kind === 'layer' || r.kind === 'cues') {
@@ -936,7 +936,7 @@ export function createTimeline(ctx) {
       stripTip(sc.t0);
       return;
     }
-    const said = tr && r.kind === 'text' ? tr.phrases.find(([s, e]) => t >= s - 0.05 && t <= e + 0.05) : null;
+    const said = tr && r.kind === 'text' ? tr.phrases.find(([s, e]: Json) => t >= s - 0.05 && t <= e + 0.05) : null;
     if (said) {
       tipTxt.textContent = `${mmss(said[0])} · «${said[2]}» · click: jump here`;
       tipCv.hidden = true;
@@ -947,7 +947,7 @@ export function createTimeline(ctx) {
       const near = gr.notes[0];
       tipTxt.textContent =
         gr.notes.length > 1
-          ? `${gr.notes.length} notes: ${gr.notes.map(n => '#' + n.id).join(' ')} · click: next note`
+          ? `${gr.notes.length} notes: ${gr.notes.map((n: Json) => '#' + n.id).join(' ')} · click: next note`
           : `#${near.id} ${near.text.slice(0, 60)} · click: jump to note`;
       stripTip(near.at ?? near.t);
       return;
@@ -955,17 +955,17 @@ export function createTimeline(ctx) {
     plainTip(t);
   }
 
-  const capture = (node, e) => {
+  const capture = (node: Json, e: Json) => {
     try {
       node.setPointerCapture(e.pointerId);
     } catch {}
   }; // synthetic events have no active pointer
   // ---- ruler: press/drag pauses and scrubs; a diamond jumps to its frame
-  const keyAt = x =>
+  const keyAt = (x: Json) =>
     keys()
       .sort((p, q) => Math.abs(p.x - x) - Math.abs(q.x - x))
       .find(k => Math.abs(k.x - x) < 11) || null;
-  const rx = e => e.clientX - rcv.getBoundingClientRect().left;
+  const rx = (e: Json) => e.clientX - rcv.getBoundingClientRect().left;
   rcv.addEventListener('pointerdown', e => {
     capture(rcv, e);
     const x = rx(e),
@@ -1005,14 +1005,14 @@ export function createTimeline(ctx) {
     draw();
   });
   rcv.addEventListener('dblclick', () => V.fit());
-  corner.addEventListener('click', e => {
+  corner.addEventListener('click', (e: Json) => {
     if (!e.target.closest('button')) V.fit();
   });
 
   // ---- rows canvas (hit order per row: notes, scenes, text, layers/cues, clips, else scrub)
-  const xOf = e => e.clientX - cv.getBoundingClientRect().left,
-    yOf = e => e.clientY - cv.getBoundingClientRect().top;
-  const scrub = t => {
+  const xOf = (e: Json) => e.clientX - cv.getBoundingClientRect().left,
+    yOf = (e: Json) => e.clientY - cv.getBoundingClientRect().top;
+  const scrub = (t: Json) => {
     dragging = { t0: t };
     ctx.seek(t);
     draw();
@@ -1028,7 +1028,7 @@ export function createTimeline(ctx) {
       const gr = groupAt(x, r);
       if (gr) {
         // a note marker; a group steps to its next note on every click
-        const i = gr.notes.findIndex(n => n.id === ctx.selected()),
+        const i = gr.notes.findIndex((n: Json) => n.id === ctx.selected()),
           note = gr.notes[(i + 1) % gr.notes.length];
         ctx.selectNote(note.id);
         ctx.seek(note.at ?? note.t);
@@ -1054,7 +1054,7 @@ export function createTimeline(ctx) {
     if (r.kind === 'text' && tr) {
       // jump to the start of the word / sentence under the pointer (else the next one)
       const items = textItems(),
-        hit = items.find(([s, e2]) => t >= s && t <= e2) || items.find(([s]) => s >= t);
+        hit = items.find(([s, e2]: Json) => t >= s && t <= e2) || items.find(([s]: Json) => s >= t);
       if (hit) {
         ctx.seek(hit[0] + 0.001);
         return;
@@ -1070,7 +1070,7 @@ export function createTimeline(ctx) {
         draw();
         return;
       }
-      if (bands.some(e => e.sel)) bandOps.select(null);
+      if (bands.some((e: Json) => e.sel)) bandOps.select(null);
     }
     if (r.kind === 'layer' || r.kind === 'cues') {
       const c = cueNear(x, r);
@@ -1116,15 +1116,15 @@ export function createTimeline(ctx) {
     scrub(t); // picture, film sound: scrub
   });
   // ---- clip drag: a ghost follows the pointer; the clip changes once, on release
-  const snapCands = id => [
+  const snapCands = (id: Json) => [
     clipDrag ? clipDrag.playT : ctx.time(),
     0,
-    ...scenes.map(sc => sc.t0),
-    ...(clips || []).filter(c => c.id !== id).flatMap(c => [c.t, c.t + clipLen(c, dur())]),
-    ...(cues || []).map(c => c.t)
+    ...scenes.map((sc: Json) => sc.t0),
+    ...(clips || []).filter((c: Json) => c.id !== id).flatMap((c: Json) => [c.t, c.t + clipLen(c, dur())]),
+    ...(cues || []).map((c: Json) => c.t)
   ];
-  const r3 = n => Math.round(n * 1000) / 1000,
-    sgn = n => (n >= 0 ? '+' : '−') + Math.abs(n).toFixed(2);
+  const r3 = (n: Json) => Math.round(n * 1000) / 1000,
+    sgn = (n: Json) => (n >= 0 ? '+' : '−') + Math.abs(n).toFixed(2);
   function updateClipDrag() {
     const D = clipDrag,
       R = cv.getBoundingClientRect(),
@@ -1137,7 +1137,7 @@ export function createTimeline(ctx) {
       len = clipLen(o, dur()),
       dt = xt(x) - D.tPress,
       cands = D.shift ? [] : snapCands(D.id);
-    let patch,
+    let patch: Json,
       guide = null,
       edge = null;
     if (D.mode === 'move') {
@@ -1196,7 +1196,7 @@ export function createTimeline(ctx) {
     D.guide = guide;
     if (edge != null) ctx.seek(edge); // the playhead shows the edge while trimming, back on release
   }
-  function commitClip(D) {
+  function commitClip(D: Json) {
     if (clipOps) {
       clipOps.begin?.();
       const id = D.mode === 'move' && D.alt ? clipOps.duplicate?.(D.id) : D.id;
@@ -1206,7 +1206,7 @@ export function createTimeline(ctx) {
       }
       clipOps.end?.();
     } else if (!D.alt) {
-      const c = clips && clips.find(q => q.id === D.id);
+      const c = clips && clips.find((q: Json) => q.id === D.id);
       if (c) {
         Object.assign(c, D.patch);
         clipHooks.moving?.(c);
@@ -1232,18 +1232,18 @@ export function createTimeline(ctx) {
     }
     edgeRaf = requestAnimationFrame(edgeLoop);
   }
-  function endClipDrag(commit) {
+  function endClipDrag(commit: Json) {
     const D = clipDrag;
     clipDrag = null;
     cancelAnimationFrame(edgeRaf);
     edgeRaf = 0;
     if (!D) return;
-    const c = clips && clips.find(q => q.id === D.id);
+    const c = clips && clips.find((q: Json) => q.id === D.id);
     if (commit && c && D.moved && D.patch) commitClip(D);
     else if (commit && c && !D.moved && D.mode === 'move') ctx.seek(c.t + 0.001); // a click: go to its start
     if (D.moved && (D.mode === 'trimL' || D.mode === 'trimR')) ctx.seek(D.playT);
   }
-  const CURSOR = { body: 'grab', trimL: 'ew-resize', trimR: 'ew-resize', fin: 'col-resize', fout: 'col-resize' };
+  const CURSOR: Record<string, string> = { body: 'grab', trimL: 'ew-resize', trimR: 'ew-resize', fin: 'col-resize', fout: 'col-resize' };
   cv.addEventListener('pointermove', e => {
     const x = xOf(e),
       y = yOf(e),
@@ -1314,8 +1314,8 @@ export function createTimeline(ctx) {
   });
 
   // ---- drop a sound from the library (application/x-vh-sound) or Explorer (Files) onto the rows (P4)
-  const canDrop = e => [...(e.dataTransfer?.types || [])].some(t => t === 'application/x-vh-sound' || t === 'Files');
-  function dropTarget(e) {
+  const canDrop = (e: Json) => [...(e.dataTransfer?.types || [])].some(t => t === 'application/x-vh-sound' || t === 'Files');
+  function dropTarget(e: Json) {
     const R = cv.getBoundingClientRect(),
       x = e.clientX - R.left,
       y = e.clientY - R.top,
@@ -1327,7 +1327,7 @@ export function createTimeline(ctx) {
     t = Math.max(0, Math.min(dur(), t));
     return { t, kind, lane, row: r, label: `Drop: ${kind === 'music' ? 'Added music' : kind === 'sfx' ? 'Added effects' : 'Added sound'} · ${tcs(t)}` };
   }
-  let dropTimer = 0;
+  let dropTimer: ReturnType<typeof setTimeout> | 0 = 0;
   const clearDrop = () => {
     clearTimeout(dropTimer);
     if (dropAt) {
@@ -1335,7 +1335,7 @@ export function createTimeline(ctx) {
       draw();
     }
   };
-  body.addEventListener('dragover', e => {
+  body.addEventListener('dragover', (e: Json) => {
     if (!canDrop(e) || !ctx.onDrop) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
@@ -1344,10 +1344,10 @@ export function createTimeline(ctx) {
     dropTimer = setTimeout(clearDrop, 450);
     draw();
   });
-  body.addEventListener('dragleave', e => {
+  body.addEventListener('dragleave', (e: Json) => {
     if (!body.contains(e.relatedTarget)) clearDrop();
   });
-  body.addEventListener('drop', e => {
+  body.addEventListener('drop', (e: Json) => {
     if (!canDrop(e) || !ctx.onDrop) return;
     e.preventDefault();
     e.stopPropagation();
@@ -1384,7 +1384,7 @@ export function createTimeline(ctx) {
   });
 
   // ---- wheel: Ctrl = zoom at the pointer; Shift / sideways = pan; plain = zoom on the ruler, native scroll on the rows
-  function onWheel(e, zoomPlain, x) {
+  function onWheel(e: Json, zoomPlain: Json, x: Json) {
     const [a, b] = v(),
       span = b - a,
       sideways = Math.abs(e.deltaX) > Math.abs(e.deltaY);
@@ -1402,8 +1402,8 @@ export function createTimeline(ctx) {
   rcv.addEventListener('wheel', e => onWheel(e, true, rx(e)), { passive: false });
 
   // ---- overview: drag the window = pan, drag an edge = zoom, press outside = centre there
-  let ovDrag = null;
-  const ovT = e => {
+  let ovDrag: Json = null;
+  const ovT = (e: Json) => {
     const r = ovTrack.getBoundingClientRect();
     return Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))) * dur();
   };
@@ -1458,10 +1458,10 @@ export function createTimeline(ctx) {
     el,
     draw,
     view: V,
-    follow(t) {
+    follow(t: Json) {
       V.follow(t, true);
     },
-    setStrip(meta) {
+    setStrip(meta: Json) {
       strip = meta;
       relayout();
       const img = new Image();
@@ -1471,7 +1471,7 @@ export function createTimeline(ctx) {
       };
       img.src = meta.url;
     },
-    setWave(url) {
+    setWave(url: Json) {
       const img = new Image();
       img.onload = () => {
         waveImg = img;
@@ -1479,54 +1479,54 @@ export function createTimeline(ctx) {
       };
       img.src = url;
     },
-    setTranscript(t) {
+    setTranscript(t: Json) {
       tr = t && t.ok ? t : null;
       relayout();
     },
     // clips: the live list (the editor changes it in place); hooks: { select(id), moving(clip), moved(clip) }
-    setClips(list, hooks) {
+    setClips(list: Json, hooks: Json) {
       clips = Array.isArray(list) ? list : null;
       if (hooks) clipHooks = hooks;
       relayout();
     },
     // P3b: { begin(), move(id, patch), end(), remove(id), duplicate(id) → newId }; a gesture commits once through these
-    setClipOps(ops) {
+    setClipOps(ops: Json) {
       clipOps = ops || null;
       relayout();
     },
     // P3c: the mixer gives each row header its M / S / level controls (mixer.controls(rowId)); wider headers
-    setMixer(m) {
+    setMixer(m: Json) {
       mixer = m || null;
       el.classList.toggle('tl2-mx', !!mixer);
       relayout();
     },
     // the corner shows this element (sound build state / 💾) in place of the zoom readout; null = the readout again
-    setStatus(node) {
+    setStatus(node: Json) {
       cornerStat.replaceChildren(...(node ? [node] : []));
       cornerStat.hidden = !node;
       cornerTxt.hidden = !!node;
     },
-    selectClip(id) {
+    selectClip(id: Json) {
       clipSel = id;
       draw();
     },
-    setScenes(list) {
+    setScenes(list: Json) {
       scenes = Array.isArray(list) ? list.filter(x => x && x.t1 > x.t0) : [];
       selScene = -1;
       relayout();
     },
     scenes: () => scenes,
     // the scene around a time (for "next/previous scene" keys)
-    sceneIndexAt(t) {
+    sceneIndexAt(t: Json) {
       for (let i = scenes.length - 1; i >= 0; i--) if (t >= scenes[i].t0 - 1e-3) return i;
       return -1;
     },
-    setLayers(L) {
+    setLayers(L: Json) {
       layers = (L && L.layers) || [];
       cues = L && L.cues && L.cues.length ? L.cues : null;
       relayout();
     },
-    setLayerImage(id, url) {
+    setLayerImage(id: Json, url: Json) {
       const img = new Image();
       img.onload = () => {
         layerImg[id] = img;
@@ -1536,13 +1536,13 @@ export function createTimeline(ctx) {
     },
     // waveform peaks: id = 'mix' | a layer id | a clip's src; { rate, dur, data: Int8Array [min,max,…] }
     // P4: music-level bands (mixer.musicBands()) + ops { select(shot|null), set(shot, {t0, t1}) }
-    setBands(list, ops) {
+    setBands(list: Json, ops: Json) {
       bands = Array.isArray(list) ? list : [];
       if (ops) bandOps = ops;
       draw();
     },
-    bandSelected: () => bands.find(e => e.sel) || null,
-    setPeaks(id, P) {
+    bandSelected: () => bands.find((e: Json) => e.sel) || null,
+    setPeaks(id: Json, P: Json) {
       if (P && P.data) peaks.set(id, P);
       else peaks.delete(id);
       waveCache.delete(id);
@@ -1551,7 +1551,7 @@ export function createTimeline(ctx) {
     setRowsChanged() {
       relayout();
     },
-    rows: () => rows.map(r => ({ id: r.id, label: r.label, h: r.h, y: r.y, collapsed: r.collapsed })),
+    rows: () => rows.map((r: Json) => ({ id: r.id, label: r.label, h: r.h, y: r.y, collapsed: r.collapsed })),
     destroy() {
       ro.disconnect();
       offView();

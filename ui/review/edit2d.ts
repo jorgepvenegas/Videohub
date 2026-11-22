@@ -1,4 +1,3 @@
-// @ts-nocheck
 // "🧩 2D layers" on the live preview (Nov 6, the user: "I need more control in 2D").
 // Pages with window.VH2D (engine-hooks/vh2d.js: the 3D studio's 2D films, spotlight template2d) draw what is edited
 // here on every frame, previews and renders alike:
@@ -6,24 +5,25 @@
 //   actors  the film's characters (drawn through the engine's actor()): moved, scaled or hidden, in one shot or the film
 // Everything is saved at once to the film's tweaks.json ("items2d", "actors2d"); no code change, no Claude.
 import { h, api, toast, confirmBox } from '../app.ts';
+import type { Json } from '../app.ts';
 
-const TC = s => {
+const TC = (s: Json) => {
   s = Math.max(0, +s || 0);
   const m = Math.floor(s / 60);
   return `${m}:${(s - m * 60).toFixed(2).padStart(5, '0')}`;
 };
-const parseTC = v => {
+const parseTC = (v: Json) => {
   const m = /^(?:(\d+):)?(\d+(?:[.,]\d+)?)$/.exec(String(v).trim());
   return m ? +(m[1] || 0) * 60 + +m[2].replace(',', '.') : null;
 };
 const FONTS = ['', 'Montserrat', 'Impact', 'Arial Black', 'Segoe UI', 'Bahnschrift', 'Georgia', 'Consolas'];
-const KIND_TR = { image: 'Image', text: 'Text', rect: 'Box', ellipse: 'Circle', arrow: 'Arrow' };
+const KIND_TR: Record<string, string> = { image: 'Image', text: 'Text', rect: 'Box', ellipse: 'Circle', arrow: 'Arrow' };
 const HS = 9; // handle size (screen px)
 
 // history: { push(tag), undone() } = review.ts's undo router (Ctrl+Z is routed there then; undone(): the panel's ↶
 // took the newest 2D step); keysActive(): false while the timeline
 // is the active area (Delete / arrows / Esc belong to it then)
-export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose, range, scenes, time, dur, history, keysActive }) {
+export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose, range, scenes, time, dur, history, keysActive }: Json) {
   const btn = h(
     'button',
     {
@@ -37,13 +37,13 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
     ov = h('div', { class: 'sedit-ov e2d-ov', tabindex: '-1' }, cv),
     panel = h('div', { class: 'sedit-panel e2d-panel' });
   let open = false,
-    V = null,
-    sel = null,
-    actSel = null,
-    drag = null,
-    undo = [],
-    pending = null,
-    saveTimer = 0,
+    V: Json = null,
+    sel: Json = null,
+    actSel: Json = null,
+    drag: Json = null,
+    undo: Json = [],
+    pending: Json = null,
+    saveTimer: ReturnType<typeof setTimeout> | 0 = 0,
     scope = 'shot',
     newSpan = 'scene',
     listAll = false;
@@ -52,7 +52,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
     accept: 'image/png,image/jpeg,image/webp,image/gif',
     hidden: true,
     onchange: () => {
-      const f = fileIn.files[0];
+      const f = fileIn.files![0]; // a change event means a file was picked
       fileIn.value = '';
       if (f) addImage(f);
     }
@@ -69,9 +69,9 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
   const vh = () => page()?.VH2D || null;
   const W = () => src.info?.w || 1920,
     H = () => src.info?.h || 1080;
-  const data = () => V?.data() || { items2d: [], actors2d: {} };
+  const data = (): Json => V?.data() || { items2d: [], actors2d: {} };
   const items = () => (data().items2d = data().items2d || []);
-  const actorsTw = () => (data().actors2d = data().actors2d || {});
+  const actorsTw = (): Json => (data().actors2d = data().actors2d || {});
   const now = () => +time() || 0;
   const redraw = () => {
     try {
@@ -103,7 +103,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
     draw();
     ov.focus();
   }
-  function close(silent) {
+  function close(silent?: Json) {
     if (!open) return;
     open = false;
     btn.classList.remove('on');
@@ -119,7 +119,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
 
   // ---- coordinates: film px ↔ overlay px
   const R = () => ov.getBoundingClientRect();
-  const toFilm = e => {
+  const toFilm = (e: Json) => {
     const r = R();
     return { x: ((e.clientX - r.left) / r.width) * W(), y: ((e.clientY - r.top) / r.height) * H() };
   };
@@ -127,8 +127,8 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
 
   // ---- what is on screen now
   const visible = () => (V ? V.itemsAt(now()) : []);
-  const itemById = id => items().find(x => x.id === id);
-  function corners(it) {
+  const itemById = (id: Json) => items().find((x: Json) => x.id === id);
+  function corners(it: Json) {
     const b = V.box(it, now()),
       a = (b.rot * Math.PI) / 180,
       c = Math.cos(a),
@@ -140,13 +140,13 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
       [-1, 1]
     ].map(([u, v]) => ({ x: b.x + ((u * b.w) / 2) * c - ((v * b.h) / 2) * s, y: b.y + ((u * b.w) / 2) * s + ((v * b.h) / 2) * c }));
   }
-  function rotHandle(it) {
+  function rotHandle(it: Json) {
     const b = V.box(it, now()),
       a = (b.rot * Math.PI) / 180,
       d = b.h / 2 + 40 / sx();
     return { x: b.x + Math.sin(a) * d, y: b.y - Math.cos(a) * d };
   }
-  function inside(it, p) {
+  function inside(it: Json, p: Json) {
     const b = V.box(it, now()),
       a = (-b.rot * Math.PI) / 180,
       dx = p.x - b.x,
@@ -156,18 +156,19 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
     return Math.abs(u) <= b.w / 2 + 6 / sx() && Math.abs(v) <= b.h / 2 + 6 / sx();
   }
   const actors = () => (V ? V.actors() : []);
-  const actorAt = p =>
+  const actorAt = (p: Json) =>
     actors()
       .slice()
       .reverse()
-      .find(a => Math.abs(p.x - a.x) < Math.max(18 / sx(), a.h * 0.22) && p.y <= a.y + 14 / sx() && p.y >= a.y - a.h - 10 / sx()) || null;
+      .find((a: Json) => Math.abs(p.x - a.x) < Math.max(18 / sx(), a.h * 0.22) && p.y <= a.y + 14 / sx() && p.y >= a.y - a.h - 10 / sx()) || null;
 
   function draw() {
     if (!open) return;
     const r = R();
     cv.width = Math.round(r.width);
     cv.height = Math.round(r.height);
-    const g = cv.getContext('2d'),
+    // the first getContext('2d') of a canvas always returns a context, so `!` below is safe
+    const g = cv.getContext('2d')!,
       k = sx();
     g.clearRect(0, 0, cv.width, cv.height);
     // characters: a bracket from the feet up, named
@@ -240,7 +241,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
     const hit = visible()
       .slice()
       .reverse()
-      .find(x => inside(x, p));
+      .find((x: Json) => inside(x, p));
     if (hit) {
       sel = hit.id;
       actSel = null;
@@ -271,7 +272,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
   ov.addEventListener('pointermove', e => {
     if (!drag) {
       const p = toFilm(e);
-      ov.style.cursor = visible().some(x => inside(x, p)) || actorAt(p) ? 'move' : 'default';
+      ov.style.cursor = visible().some((x: Json) => inside(x, p)) || actorAt(p) ? 'move' : 'default';
       return;
     }
     const p = toFilm(e);
@@ -316,7 +317,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
         if (it.kind === 'text') it.size = Math.max(6, Math.round((it.size || 72) * k));
         changed();
       } else if (actSel) {
-        const a = actors().find(x => x.key === actSel.key && x.shot === actSel.shot) || actSel;
+        const a = actors().find((x: Json) => x.key === actSel.key && x.shot === actSel.shot) || actSel;
         const tw = actorTw(a, true);
         snap();
         tw.s = Math.round((tw.s || 1) * k * 1000) / 1000;
@@ -327,14 +328,14 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
   );
 
   // the tweak of a character in the chosen scope ("this shot" or "*")
-  function actorTw(a, make) {
+  function actorTw(a: Json, make: Json) {
     const key = `${scope === 'all' ? '*' : a.shot}|${a.key}`,
       A = actorsTw();
     if (!A[key] && make) A[key] = {};
     return A[key] || {};
   }
 
-  function onKey(e) {
+  function onKey(e: Json) {
     if (e.target.matches?.('input, textarea, select')) return;
     const it = sel && itemById(sel);
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
@@ -373,12 +374,12 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
       e.stopImmediatePropagation();
       snap();
       const n = e.shiftKey ? 10 : 1,
-        d = { ArrowLeft: [-n, 0], ArrowRight: [n, 0], ArrowUp: [0, -n], ArrowDown: [0, n] }[e.key];
+        d = ({ ArrowLeft: [-n, 0], ArrowRight: [n, 0], ArrowUp: [0, -n], ArrowDown: [0, n] } as Record<string, number[]>)[e.key];
       if (it) {
         it.x += d[0];
         it.y += d[1];
       } else {
-        const a = actors().find(x => x.key === actSel.key && x.shot === actSel.shot) || actSel;
+        const a = actors().find((x: Json) => x.key === actSel.key && x.shot === actSel.shot) || actSel;
         const tw = actorTw(a, true);
         tw.dx = (tw.dx || 0) + d[0];
         tw.dy = (tw.dy || 0) + d[1];
@@ -403,7 +404,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
     if (undo.length > 100) undo.shift();
     history?.push('2d');
   }
-  function back(quiet) {
+  function back(quiet?: Json) {
     pending = null;
     const s = undo.pop();
     if (!s) {
@@ -417,6 +418,8 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
     changed(true);
     return true;
   }
+  // callers pass `true` (unused): the overload keeps them type-correct without touching the runtime signature
+  function changed(_unused?: boolean): void;
   function changed() {
     commit();
     paint();
@@ -428,10 +431,10 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
     saveTimer = 0;
     try {
       // tidy actor tweaks that are back to nothing
-      for (const [k, v] of Object.entries(actorsTw())) if (!v.hide && !+v.dx && !+v.dy && (v.s == null || Math.abs(v.s - 1) < 1e-3)) delete actorsTw()[k];
+      for (const [k, v] of Object.entries<Json>(actorsTw())) if (!v.hide && !+v.dx && !+v.dy && (v.s == null || Math.abs(v.s - 1) < 1e-3)) delete actorsTw()[k];
       // only the 2D keys: everything else in tweaks.json stays as the other editors saved it
       await api(`/api/project/${projectId}/tweaks`, { method: 'PATCH', body: { items2d: items(), actors2d: actorsTw() } });
-    } catch (e) {
+    } catch (e: Json) {
       toast('Could not save 2D layers: ' + e.message, true);
     }
   }
@@ -452,14 +455,14 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
       toast('Select a range first (I and O); added to this scene');
     }
     if (newSpan === 'scene' || newSpan === 'range') {
-      const sc = (scenes() || []).find(s => t >= s.t0 && t < s.t1);
+      const sc = (scenes() || []).find((s: Json) => t >= s.t0 && t < s.t1);
       if (sc) return [sc.t0, sc.t1];
     }
     if (newSpan === 'film') return [0, null];
     return [t, Math.min(D, t + 3)];
   }
   const newId = () => 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  function add(kind, extra = {}) {
+  function add(kind: Json, extra = {}) {
     const [t0, t1] = spanForNew(),
       w = W(),
       hh = H();
@@ -478,25 +481,27 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
       rot: 0,
       op: 1
     };
-    const def = {
-      text: {
-        w: Math.round(w * 0.5),
-        h: Math.round(hh * 0.12),
-        text: 'Text',
-        size: Math.round(Math.min(w, hh) * 0.075),
-        weight: 800,
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeW: 0.16,
-        shadow: true,
-        align: 'center',
-        font: ''
-      },
-      rect: { w: Math.round(w * 0.3), h: Math.round(hh * 0.2), fill: 'rgba(0,0,0,0.55)', line: null, lineW: 0, radius: 24 },
-      ellipse: { w: Math.round(Math.min(w, hh) * 0.3), h: Math.round(Math.min(w, hh) * 0.3), fill: null, line: '#ff3b3b', lineW: 10 },
-      arrow: { w: Math.round(w * 0.22), h: Math.round(hh * 0.06), line: '#ff3b3b', lineW: 16 },
-      image: { w: 400, h: 300 }
-    }[kind];
+    const def = (
+      {
+        text: {
+          w: Math.round(w * 0.5),
+          h: Math.round(hh * 0.12),
+          text: 'Text',
+          size: Math.round(Math.min(w, hh) * 0.075),
+          weight: 800,
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeW: 0.16,
+          shadow: true,
+          align: 'center',
+          font: ''
+        },
+        rect: { w: Math.round(w * 0.3), h: Math.round(hh * 0.2), fill: 'rgba(0,0,0,0.55)', line: null, lineW: 0, radius: 24 },
+        ellipse: { w: Math.round(Math.min(w, hh) * 0.3), h: Math.round(Math.min(w, hh) * 0.3), fill: null, line: '#ff3b3b', lineW: 10 },
+        arrow: { w: Math.round(w * 0.22), h: Math.round(hh * 0.06), line: '#ff3b3b', lineW: 16 },
+        image: { w: 400, h: 300 }
+      } as Record<string, Json>
+    )[kind];
     snap();
     const it = { ...base, ...def, ...extra };
     items().push(it);
@@ -505,16 +510,16 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
     changed(true);
     return it;
   }
-  async function addImage(f) {
+  async function addImage(f: Json) {
     if (f.size > 25 * 1024 * 1024) return toast('Image is larger than 25 MB', true);
-    const dataUrl = await new Promise(ok => {
+    const dataUrl = await new Promise<Json>(ok => {
       const rd = new FileReader();
       rd.onload = () => ok(rd.result);
       rd.readAsDataURL(f);
     });
     try {
       const r = await api(`/api/project/${projectId}/asset2d`, { method: 'POST', body: { name: f.name, data: dataUrl } });
-      const img = await new Promise(ok => {
+      const img = await new Promise<HTMLImageElement | null>(ok => {
         const i = new Image();
         i.onload = () => ok(i);
         i.onerror = () => ok(null);
@@ -524,25 +529,25 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
         w = Math.round(Math.min(W() * 0.35, img?.naturalWidth || 600)),
         hh = Math.round(w / ar);
       add('image', { src: r.src, w, h: hh, name: f.name.replace(/\.[^.]+$/, '') });
-    } catch (e) {
+    } catch (e: Json) {
       toast('Could not add image: ' + e.message, true);
     }
   }
-  function duplicate(it) {
+  function duplicate(it: Json) {
     snap();
     const d = { ...it, id: newId(), x: it.x + 30, y: it.y + 30 };
     items().push(d);
     sel = d.id;
     changed(true);
   }
-  async function remove(it) {
+  async function remove(it: Json) {
     if (!(await confirmBox('Delete layer', h('div', {}, `Delete ${KIND_TR[it.kind]} "${it.name || it.text || ''}"? (Undo with Ctrl+Z)`), 'Delete'))) return;
     snap();
-    data().items2d = items().filter(x => x !== it);
+    data().items2d = items().filter((x: Json) => x !== it);
     sel = null;
     changed(true);
   }
-  function order(it, d) {
+  function order(it: Json, d: Json) {
     const L = items(),
       i = L.indexOf(it),
       j = i + d;
@@ -600,7 +605,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
         h(
           'select',
           {
-            onchange: e => {
+            onchange: (e: Json) => {
               newSpan = e.target.value;
               e.target.blur();
             }
@@ -673,7 +678,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
       );
     if (!L.length) list.append(h('div', { class: 'dim' }, listAll ? 'No layers yet.' : 'No layers visible right now.'));
     panel.append(list);
-    const hidden = Object.entries(actorsTw()).filter(([, v]) => v.hide || v.dx || v.dy || (v.s && v.s !== 1));
+    const hidden = Object.entries<Json>(actorsTw()).filter(([, v]) => v.hide || v.dx || v.dy || (v.s && v.s !== 1));
     if (hidden.length)
       panel.append(
         h(
@@ -697,11 +702,11 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
       );
   }
 
-  function field(label, input) {
+  function field(label: Json, input: Json) {
     return h('label', { class: 'e2d-f' }, h('span', { class: 'dim' }, label), input);
   }
-  function itemPanel(it) {
-    const set = (k, v, live = false) => {
+  function itemPanel(it: Json) {
+    const set = (k: Json, v: Json, live = false) => {
       snap();
       it[k] = v;
       live ? redraw() : changed(true);
@@ -712,7 +717,13 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
         'div',
         { class: 'sedit-row' },
         h('b', {}, KIND_TR[it.kind]),
-        h('input', { type: 'text', value: it.name || '', placeholder: 'name (shown in list)', style: { flex: 1 }, onchange: e => set('name', e.target.value) })
+        h('input', {
+          type: 'text',
+          value: it.name || '',
+          placeholder: 'name (shown in list)',
+          style: { flex: 1 },
+          onchange: (e: Json) => set('name', e.target.value)
+        })
       )
     );
     if (it.kind === 'text') {
@@ -721,7 +732,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
           rows: 2,
           style: { width: '100%' },
           value: it.text || '',
-          oninput: e => {
+          oninput: (e: Json) => {
             snap();
             it.text = e.target.value;
             redraw();
@@ -736,7 +747,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
             h(
               'select',
               {
-                onchange: e => {
+                onchange: (e: Json) => {
                   set('font', e.target.value);
                   e.target.blur();
                 }
@@ -746,14 +757,14 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
           ),
           field(
             'Size',
-            h('input', { type: 'number', min: 6, max: 600, value: it.size, style: { width: '58px' }, onchange: e => set('size', +e.target.value) })
+            h('input', { type: 'number', min: 6, max: 600, value: it.size, style: { width: '58px' }, onchange: (e: Json) => set('size', +e.target.value) })
           ),
           field(
             'Weight',
             h(
               'select',
               {
-                onchange: e => {
+                onchange: (e: Json) => {
                   set('weight', +e.target.value);
                   e.target.blur();
                 }
@@ -765,8 +776,8 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
         h(
           'div',
           { class: 'sedit-row' },
-          field('Color', h('input', { type: 'color', value: hex(it.color, '#ffffff'), onchange: e => set('color', e.target.value) })),
-          field('Outline', h('input', { type: 'color', value: hex(it.stroke, '#000000'), onchange: e => set('stroke', e.target.value) })),
+          field('Color', h('input', { type: 'color', value: hex(it.color, '#ffffff'), onchange: (e: Json) => set('color', e.target.value) })),
+          field('Outline', h('input', { type: 'color', value: hex(it.stroke, '#000000'), onchange: (e: Json) => set('stroke', e.target.value) })),
           field(
             'Outline width',
             h('input', {
@@ -774,11 +785,11 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
               min: 0,
               max: 40,
               value: Math.round((it.strokeW || 0) * 100),
-              oninput: e => set('strokeW', +e.target.value / 100, true),
+              oninput: (e: Json) => set('strokeW', +e.target.value / 100, true),
               onchange: () => changed()
             })
           ),
-          field('Shadow', h('input', { type: 'checkbox', checked: !!it.shadow, onchange: e => set('shadow', e.target.checked) }))
+          field('Shadow', h('input', { type: 'checkbox', checked: !!it.shadow, onchange: (e: Json) => set('shadow', e.target.checked) }))
         )
       );
     }
@@ -787,19 +798,35 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
         h(
           'div',
           { class: 'sedit-row' },
-          it.kind !== 'arrow' ? field('Fill', h('input', { type: 'color', value: hex(it.fill, '#000000'), onchange: e => set('fill', e.target.value) })) : null,
           it.kind !== 'arrow'
-            ? field('No fill', h('input', { type: 'checkbox', checked: !it.fill, onchange: e => set('fill', e.target.checked ? null : '#000000') }))
+            ? field('Fill', h('input', { type: 'color', value: hex(it.fill, '#000000'), onchange: (e: Json) => set('fill', e.target.value) }))
             : null,
-          field('Line', h('input', { type: 'color', value: hex(it.line, '#ff3b3b'), onchange: e => set('line', e.target.value) })),
+          it.kind !== 'arrow'
+            ? field('No fill', h('input', { type: 'checkbox', checked: !it.fill, onchange: (e: Json) => set('fill', e.target.checked ? null : '#000000') }))
+            : null,
+          field('Line', h('input', { type: 'color', value: hex(it.line, '#ff3b3b'), onchange: (e: Json) => set('line', e.target.value) })),
           field(
             'Line width',
-            h('input', { type: 'number', min: 0, max: 200, value: it.lineW || 0, style: { width: '54px' }, onchange: e => set('lineW', +e.target.value) })
+            h('input', {
+              type: 'number',
+              min: 0,
+              max: 200,
+              value: it.lineW || 0,
+              style: { width: '54px' },
+              onchange: (e: Json) => set('lineW', +e.target.value)
+            })
           ),
           it.kind === 'rect'
             ? field(
                 'Corner',
-                h('input', { type: 'number', min: 0, max: 500, value: it.radius || 0, style: { width: '54px' }, onchange: e => set('radius', +e.target.value) })
+                h('input', {
+                  type: 'number',
+                  min: 0,
+                  max: 500,
+                  value: it.radius || 0,
+                  style: { width: '54px' },
+                  onchange: (e: Json) => set('radius', +e.target.value)
+                })
               )
             : null
         )
@@ -816,20 +843,20 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
             min: 0,
             max: 100,
             value: Math.round((it.op ?? 1) * 100),
-            oninput: e => set('op', +e.target.value / 100, true),
+            oninput: (e: Json) => set('op', +e.target.value / 100, true),
             onchange: () => changed()
           })
         ),
         field(
           'Angle',
-          h('input', { type: 'number', step: 1, value: Math.round(it.rot || 0), style: { width: '54px' }, onchange: e => set('rot', +e.target.value) })
+          h('input', { type: 'number', step: 1, value: Math.round(it.rot || 0), style: { width: '54px' }, onchange: (e: Json) => set('rot', +e.target.value) })
         ),
         field(
           'Entrance',
           h(
             'select',
             {
-              onchange: e => {
+              onchange: (e: Json) => {
                 set('anim', e.target.value);
                 e.target.blur();
               }
@@ -846,7 +873,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
       type: 'text',
       value: TC(it.t0),
       style: { width: '70px' },
-      onchange: e => {
+      onchange: (e: Json) => {
         const v = parseTC(e.target.value);
         if (v != null) set('t0', v);
         else e.target.value = TC(it.t0);
@@ -857,7 +884,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
       value: it.t1 == null ? '' : TC(it.t1),
       placeholder: 'end',
       style: { width: '70px' },
-      onchange: e => {
+      onchange: (e: Json) => {
         const v = e.target.value.trim() ? parseTC(e.target.value) : null;
         if (v == null && e.target.value.trim()) {
           e.target.value = TC(it.t1);
@@ -874,7 +901,15 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
         field('End', t1In),
         field(
           'Fade in',
-          h('input', { type: 'number', min: 0, max: 10, step: 0.05, value: it.fin || 0, style: { width: '52px' }, onchange: e => set('fin', +e.target.value) })
+          h('input', {
+            type: 'number',
+            min: 0,
+            max: 10,
+            step: 0.05,
+            value: it.fin || 0,
+            style: { width: '52px' },
+            onchange: (e: Json) => set('fin', +e.target.value)
+          })
         ),
         field(
           'Fade out',
@@ -885,7 +920,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
             step: 0.05,
             value: it.fout || 0,
             style: { width: '52px' },
-            onchange: e => set('fout', +e.target.value)
+            onchange: (e: Json) => set('fout', +e.target.value)
           })
         )
       )
@@ -901,7 +936,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
           {
             class: 'ghost',
             onclick: () => {
-              const sc = (scenes() || []).find(s => now() >= s.t0 && now() < s.t1);
+              const sc = (scenes() || []).find((s: Json) => now() >= s.t0 && now() < s.t1);
               if (!sc) return toast('No scene list');
               snap();
               it.t0 = sc.t0;
@@ -955,7 +990,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
     return box;
   }
   function actorPanel() {
-    const a = actors().find(x => x.key === actSel.key && x.shot === actSel.shot) || actSel,
+    const a = actors().find((x: Json) => x.key === actSel.key && x.shot === actSel.shot) || actSel,
       tw = actorTw(a, false);
     const sOut = h('span', { class: 'tl2-lval' }, Math.round((tw.s || 1) * 100) + '%');
     return h(
@@ -969,7 +1004,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
         h(
           'select',
           {
-            onchange: e => {
+            onchange: (e: Json) => {
               scope = e.target.value;
               e.target.blur();
               paint();
@@ -989,7 +1024,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
           max: 300,
           value: Math.round((tw.s || 1) * 100),
           style: { flex: 1 },
-          oninput: e => {
+          oninput: (e: Json) => {
             snap();
             const t = actorTw(a, true);
             t.s = +e.target.value / 100;
@@ -1037,7 +1072,7 @@ export function createEdit2d({ src, projectId, frame, panelHost, onOpen, onClose
       )
     );
   }
-  const hex = (c, d) => (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c : d);
+  const hex = (c: Json, d: Json) => (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c : d);
 
   const onSeek = () => {
     if (open) {

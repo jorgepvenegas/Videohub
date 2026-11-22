@@ -1,15 +1,15 @@
-// @ts-nocheck
 // Live source: plays a film from its own code instead of a video file. The film page (served by the hub at
 // /live/<id>/...) draws any moment with window.renderOut(t) on fixed-size canvases. This object looks enough
 // like an HTMLVideoElement (currentTime, play/pause, events, requestVideoFrameCallback) for the review player.
 // While playing, the project's audio is the clock; frames that take too long are skipped, never slowed down.
 import { h } from '../app.ts';
+import type { Json } from '../app.ts';
 
-export function createLiveSource(info, { onStatus } = {}) {
+export function createLiveSource(info: Json, { onStatus }: Json = {}) {
   const box = h('div', { class: 'livebox' });
-  let waitTimer = 0,
-    iframe = null,
-    win = null,
+  let waitTimer: ReturnType<typeof setInterval> | 0 = 0,
+    iframe: Json = null,
+    win: Json = null,
     ready = false,
     t = 0,
     paused = true,
@@ -19,22 +19,22 @@ export function createLiveSource(info, { onStatus } = {}) {
     destroyed = false,
     loadVersion = 0,
     seekVersion = 0,
-    seekTimer = 0,
-    playTimer = 0;
+    seekTimer: ReturnType<typeof setTimeout> | 0 = 0,
+    playTimer: ReturnType<typeof setTimeout> | 0 = 0;
   let wantPlay = false; // play asked for while the page was loading: start once it is ready
   let base = { t: 0, at: 0 },
     raf = 0,
     need = false,
-    rvfc = [],
+    rvfc: Json = [],
     frames = 0,
     fpsAt = performance.now(),
     drawMs = 0,
     scale = 1;
   const audio = info.audio ? h('audio', { src: info.audio, preload: 'auto' }) : null;
-  const src = new EventTarget();
-  const fire = type => src.dispatchEvent(new Event(type));
-  const status = s => onStatus && onStatus(s);
-  const clampTime = value => Math.max(0, Math.min(info.dur, +value || 0));
+  const src: Json = new EventTarget();
+  const fire = (type: Json) => src.dispatchEvent(new Event(type));
+  const status = (s: Json) => onStatus && onStatus(s);
+  const clampTime = (value: Json) => Math.max(0, Math.min(info.dur, +value || 0));
 
   function clearSeek() {
     ++seekVersion;
@@ -114,15 +114,15 @@ export function createLiveSource(info, { onStatus } = {}) {
     }, 100));
     f.addEventListener('load', () => {
       try {
-        f.contentWindow.addEventListener('error', e => {
-          f.contentWindow.__vhError = e.message;
+        (f.contentWindow as Json).addEventListener('error', (e: Json) => {
+          (f.contentWindow as Json).__vhError = e.message;
         });
       } catch {}
     });
     // keys pressed while the focus is inside the film page (a click that landed on it) still drive VideoHub (Space = play)
     f.addEventListener('load', () => {
       try {
-        const fw = e => {
+        const fw = (e: Json) => {
           if (e.target?.closest?.('input, textarea, select, [contenteditable]')) return;
           e.preventDefault();
           e.stopPropagation();
@@ -140,8 +140,8 @@ export function createLiveSource(info, { onStatus } = {}) {
             })
           );
         };
-        f.contentWindow.addEventListener('keydown', fw, true);
-        f.contentWindow.addEventListener('keyup', fw, true);
+        (f.contentWindow as Json).addEventListener('keydown', fw, true);
+        (f.contentWindow as Json).addEventListener('keyup', fw, true);
       } catch {}
     });
   }
@@ -153,7 +153,7 @@ export function createLiveSource(info, { onStatus } = {}) {
     try {
       win.renderOut(at);
       displayedTime = at;
-    } catch (e) {
+    } catch (e: Json) {
       status({ state: 'error', error: e.message });
       return;
     }
@@ -255,7 +255,7 @@ export function createLiveSource(info, { onStatus } = {}) {
     pauseAt(seeking ? t : displayedTime);
   }
   // Notes freeze the frame the user actually saw, even if a slow render left the clock several seconds ahead.
-  function pauseAt(at) {
+  function pauseAt(at: Json) {
     if (destroyed) return;
     at = clampTime(at);
     if (paused && !wantPlay && !seeking && !need && t === at && displayedTime === at) return;
@@ -276,11 +276,12 @@ export function createLiveSource(info, { onStatus } = {}) {
   }
 
   // Copy the picture already on screen, without running the film or changing its time.
-  function copyPicture(width) {
+  function copyPicture(width: Json) {
     const c = document.createElement('canvas');
     c.width = width;
     c.height = Math.round((width * info.h) / info.w);
-    const g = c.getContext('2d');
+    // the first getContext('2d') of a canvas always returns a context, so `!` below is safe
+    const g = c.getContext('2d')!;
     g.fillStyle = '#000';
     g.fillRect(0, 0, c.width, c.height);
     const k = c.width / info.w;
@@ -303,24 +304,24 @@ export function createLiveSource(info, { onStatus } = {}) {
   }
   // every frame of the page's canvases, stacked in page order, as one picture: snap() draws it into a canvas now
   // (the page must show that moment), encode() turns it into a JPEG data URL off the main thread
-  function snap(at, width = 1280) {
+  function snap(at: Json, width = 1280) {
     if (!ready || destroyed) return null;
     const keep = displayedTime;
     try {
       win.renderOut(clampTime(at));
       return copyPicture(width);
-    } catch (e) {
+    } catch (e: Json) {
       status({ state: 'error', error: e.message });
       return null;
     } finally {
       try {
         win.renderOut(keep);
-      } catch (e) {
+      } catch (e: Json) {
         status({ state: 'error', error: e.message });
       }
     }
   }
-  const capture = (at, width) => snap(at, width)?.toDataURL('image/jpeg', 0.9) || null;
+  const capture = (at: Json, width: Json) => snap(at, width)?.toDataURL('image/jpeg', 0.9) || null;
 
   Object.defineProperties(src, {
     displayedTime: { get: () => displayedTime },
@@ -387,7 +388,7 @@ export function createLiveSource(info, { onStatus } = {}) {
     capture,
     snap,
     snapDisplayed,
-    requestVideoFrameCallback: cb => {
+    requestVideoFrameCallback: (cb: Json) => {
       if (destroyed) return 0;
       rvfc.push(cb);
       return rvfc.length;
@@ -408,7 +409,7 @@ export function createLiveSource(info, { onStatus } = {}) {
       sync();
     },
     // the hub saw the code change: reload the page and come back to the same moment
-    reload(nextInfo) {
+    reload(nextInfo: Json) {
       if (destroyed) return;
       const wasPlaying = !paused || wantPlay;
       pause();
@@ -420,7 +421,7 @@ export function createLiveSource(info, { onStatus } = {}) {
       load();
       wantPlay = wasPlaying;
     },
-    fit(w) {
+    fit(w: Json) {
       scale = w / info.w;
       if (iframe) iframe.style.transform = `scale(${scale})`;
     },

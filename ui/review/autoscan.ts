@@ -1,12 +1,12 @@
-// @ts-nocheck
 import { agentName } from '../agent.ts';
 // Automatic check of a live film, frame by frame, in the preview page that is already open: no render, no extra
 // Chrome, no Claude, no tokens. Pages with window.qaFrame (3D studio engine/runtime.js) also report the camera inside
 // a mesh, characters sunk into things and 2D labels without depth; every other live page gets the picture checks
 // (black / white frames, flicker, one-frame pops, frozen picture, long holds, hard cuts). Same rules as engine/qa.mjs.
 import { h, api, toast } from '../app.ts';
+import type { Json } from '../app.ts';
 
-const KIND = {
+const KIND: Record<string, string[]> = {
   lens: ['Camera inside an object', '#ff6b6b'],
   bones: ['Character embedded / underground', '#ff6b6b'],
   overlay: ['Text in front of 3D objects', '#ffb547'],
@@ -19,20 +19,20 @@ const KIND = {
   black: ['Black frame', '#d2a8ff'],
   cut: ['Hard cut', '#8b949e']
 };
-const TC = s => {
+const TC = (s: Json) => {
   const m = Math.floor(s / 60),
     r = s - m * 60;
   return `${m}:${r.toFixed(2).padStart(5, '0')}`;
 };
 const N = 160 * 90;
-const mad = (a, b) => {
+const mad = (a: Json, b: Json) => {
   let s = 0;
   for (let i = 0; i < N; i++) s += Math.abs(a[i] - b[i]);
   return s / N;
 };
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+const sleep = (ms: Json) => new Promise(r => setTimeout(r, ms));
 
-export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClose, reloadNotes }) {
+export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClose, reloadNotes }: Json) {
   const btn = h(
     'button',
     {
@@ -46,8 +46,8 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
   let shown = false,
     running = false,
     stop = false,
-    report = null,
-    prog = null,
+    report: Json = null,
+    prog: Json = null,
     added = new Set();
   const win = () => {
     try {
@@ -81,8 +81,9 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
 
   // one frame: the engine's own QA numbers, or a 160x90 luma picture of the page
   const thumb = h('canvas', { width: 160, height: 90 }),
-    tg = thumb.getContext('2d', { willReadFrequently: true });
-  function sample(t) {
+    // the first getContext('2d') of a canvas always returns a context, so `!` below is safe
+    tg = thumb.getContext('2d', { willReadFrequently: true })!;
+  function sample(t: Json) {
     const w = win();
     if (typeof w.qaFrame === 'function') {
       const r = w.qaFrame(t),
@@ -118,10 +119,10 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
     }
     return [Math.max(0, t - 5), Math.min(dur(), t + 5)];
   }
-  async function run(mode) {
+  async function run(mode: Json) {
     if (running) return;
     const jobs = await api('/api/jobs').catch(() => []);
-    if (jobs.some(j => j.state === 'running')) toast('A render is running: scanning may be slow');
+    if (jobs.some((j: Json) => j.state === 'running')) toast('A render is running: scanning may be slow');
     const F = fps(),
       [a, b] = mode === 'shot' ? shotRange() : [0, dur()],
       step = mode === 'quick' ? Math.max(1, Math.round(F / 4)) : 1;
@@ -152,7 +153,7 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
           await sleep(0);
         }
       }
-    } catch (e) {
+    } catch (e: Json) {
       toast('Scan stopped: ' + e.message, true);
     }
     running = false;
@@ -173,13 +174,13 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
     api(`/api/project/${projectId}/autoscan`, { method: 'PUT', body: report }).catch(() => {});
     src.currentTime = keep;
     paint();
-    toast(`Scan finished: ${report.ranges.filter(r => r.kind !== 'cut').length} ranges with issues${cut ? ' (stopped early)' : ''}`);
+    toast(`Scan finished: ${report.ranges.filter((r: Json) => r.kind !== 'cut').length} ranges with issues${cut ? ' (stopped early)' : ''}`);
   }
 
   // engine/qa.mjs rules, merged into ranges per kind and shot
-  function analyze(res, step, F) {
-    const flags = [],
-      flag = (kind, r, info = '') => flags.push({ kind, t: r.f / F, shot: r.shot || '', info });
+  function analyze(res: Json, step: Json, F: Json) {
+    const flags: Json = [],
+      flag = (kind: Json, r: Json, info = '') => flags.push({ kind, t: r.f / F, shot: r.shot || '', info });
     for (let k = 0; k < res.length; k++) {
       const r = res[k];
       if (r.inside > 0) flag('lens', r, `${r.insideName} (${r.inside}/35)`);
@@ -224,9 +225,9 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
       }
     }
     const gap = Math.max(0.25, (step / F) * 1.5),
-      ranges = [];
+      ranges: Json[] = [];
     for (const kind of Object.keys(KIND)) {
-      for (const x of flags.filter(f => f.kind === kind).sort((p, q) => p.t - q.t)) {
+      for (const x of flags.filter((f: Json) => f.kind === kind).sort((p: Json, q: Json) => p.t - q.t)) {
         const last = ranges[ranges.length - 1];
         if (last && last.kind === kind && x.shot === last.shot && x.t - last.t1 <= gap) {
           last.t1 = x.t;
@@ -238,7 +239,7 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
     return ranges;
   }
 
-  async function toNote(r, i) {
+  async function toNote(r: Json, i: Json) {
     const t = (r.t0 + r.t1) / 2,
       img = src.capture ? src.capture(t, 1280) : null;
     try {
@@ -259,7 +260,7 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
       paint();
       toast('Note added');
       reloadNotes?.();
-    } catch (e) {
+    } catch (e: Json) {
       toast('Could not add note: ' + e.message, true);
     }
   }
@@ -270,18 +271,18 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
     if (!prog) return;
     const el = (performance.now() - prog.t0) / 1000,
       left = prog.done ? ((prog.total - prog.done) * el) / prog.done : 0;
-    bar.firstChild.style.width = ((100 * prog.done) / prog.total).toFixed(1) + '%';
+    (bar.firstChild as Json).style.width = ((100 * prog.done) / prog.total).toFixed(1) + '%';
     bar.title = `${prog.done}/${prog.total} frames · ~${Math.ceil(left)} s remaining`;
     const lab = panel.querySelector('.ascan-run');
     if (lab) lab.textContent = `Scanning ${prog.done}/${prog.total} frames · ~${Math.ceil(left)} s remaining`;
   }
-  const b = (label, title, fn, cls) =>
+  const b = (label: Json, title: Json, fn: Json, cls?: Json) =>
     h(
       'button',
       {
         class: cls || '',
         title,
-        onclick: e => {
+        onclick: (e: Json) => {
           e.stopPropagation();
           fn();
         }
@@ -341,14 +342,14 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
       panel.append(h('div', { class: 'dim' }, 'No scans yet.'));
       return;
     }
-    const list = report.ranges.filter(r => showCuts || r.kind !== 'cut'),
-      nCut = report.ranges.length - report.ranges.filter(r => r.kind !== 'cut').length;
+    const list = report.ranges.filter((r: Json) => showCuts || r.kind !== 'cut'),
+      nCut = report.ranges.length - report.ranges.filter((r: Json) => r.kind !== 'cut').length;
     panel.append(
       h(
         'div',
         { class: 'dim ascan-sum' },
         `${new Date(report.at).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })} · ${report.mode === 'quick' ? 'quick' : report.mode === 'shot' ? 'single scene' : 'full'} · ${TC(report.a)}–${TC(report.b)} · ${report.frames} frames${report.partial ? ' · stopped early' : ''} · `,
-        h('b', {}, `${list.filter(r => r.kind !== 'cut').length} issues`),
+        h('b', {}, `${list.filter((r: Json) => r.kind !== 'cut').length} issues`),
         nCut
           ? h(
               'label',
@@ -356,7 +357,7 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
               h('input', {
                 type: 'checkbox',
                 checked: showCuts,
-                onchange: e => {
+                onchange: (e: Json) => {
                   showCuts = e.target.checked;
                   paint();
                 }
@@ -369,7 +370,7 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
     // a strip of the whole film with a tick per range
     const strip = h('canvas', { class: 'ascan-strip', width: 600, height: 26, title: 'Click to jump to that time' });
     const D = dur() || 1,
-      g = strip.getContext('2d');
+      g = strip.getContext('2d')!;
     g.fillStyle = 'rgba(255,255,255,.06)';
     g.fillRect(0, 0, 600, 26);
     g.fillStyle = 'rgba(255,255,255,.12)';
@@ -394,7 +395,7 @@ export function createAutoScan({ src, projectId, frame, panelHost, onOpen, onClo
       h(
         'div',
         { class: 'ascan-list' },
-        list.map(r => {
+        list.map((r: Json) => {
           const i = report.ranges.indexOf(r);
           return h(
             'div',
