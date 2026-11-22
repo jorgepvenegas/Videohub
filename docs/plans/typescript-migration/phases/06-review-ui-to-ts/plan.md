@@ -9,8 +9,8 @@
 - Approved at: 2026-11-22
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: p6-worker
+- Implemented at: 2026-11-22
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -142,25 +142,25 @@ Commit after each step with subject `P6:` followed by the step title, and push. 
   3. A throwaway script under `.test-tmp/p6-browser/` (not committed) drives the repo's `puppeteer-core` with the installed Chrome, headless and muted. It opens `#/` and the scratch film's review page `#/review/PROJECT_ID/~live` (the scratch film's id), without `?play=1`. It collects console errors and failed requests, and does not click play, render, queue or any editor control.
   4. Stop the hub and record the evidence and the L3 warning counts.
 - Acceptance:
-  - [ ] Zero console errors and zero failed requests on both pages; the film did not play (no `play` event fired on the page's media elements)
+  - [x] Zero console errors and zero failed requests on both pages; the film did not play (no `play` event fired on the page's media elements)
 - Verification: the recorded script output; `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty at the end
 - Rollback: n/a (scratch only)
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — No tracked JS under the review UI, renames keep history — verify: `git ls-files 'ui/review.js' 'ui/review/*.js'` (empty); `git ls-files ui | grep -E '\.js$'` lists only `ui/thumbstudio/` files; `git log --follow --oneline ui/review.ts | wc -l` > 1
-- [ ] A2 — Both type-check configs are strict-clean; no `@ts-nocheck` under `ui/review*`; `any` only via `Json`; S2–S4 are runtime-identical — verify: `pnpm typecheck`, the greps and the §9 comparison
-- [ ] A3 — `pnpm test` has 0 failures and ≥ 312 passing, with the converted source-reading tests passing and the soundEnv identity test exact — verify: `pnpm test` and §9
-- [ ] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
-- [ ] A5 — `pnpm build` exits 0, and the scratch hub's library and review pages load from `dist/ui` with zero console errors and failed requests, without playing the film — verify: S5 evidence
+- [x] A1 — No tracked JS under the review UI, renames keep history — verify: `git ls-files 'ui/review.js' 'ui/review/*.js'` (empty); `git ls-files ui | grep -E '\.js$'` lists only `ui/thumbstudio/` files; `git log --follow --oneline ui/review.ts | wc -l` > 1
+- [x] A2 — Both type-check configs are strict-clean; no `@ts-nocheck` under `ui/review*`; `any` only via `Json`; S2–S4 are runtime-identical — verify: `pnpm typecheck`, the greps and the §9 comparison
+- [x] A3 — `pnpm test` has 0 failures and ≥ 312 passing, with the converted source-reading tests passing and the soundEnv identity test exact — verify: `pnpm test` and §9
+- [x] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
+- [x] A5 — `pnpm build` exits 0, and the scratch hub's library and review pages load from `dist/ui` with zero console errors and failed requests, without playing the film — verify: S5 evidence
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Existing helpers and types are reused (`readSource`, `Json` from `ui/app.ts`); no parallel mechanisms or duplicated type declarations across review modules
-- [ ] Names and structure state intent; comments explain only non-obvious reasons (for example, why an `any` or a non-null assertion is safe)
-- [ ] Every changed test still fails if the behavior it covers breaks (the soundEnv mutation check in §9)
-- [ ] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`, plus `pnpm build`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Existing helpers and types are reused (`readSource`, `Json` from `ui/app.ts`); no parallel mechanisms or duplicated type declarations across review modules
+- [x] Names and structure state intent; comments explain only non-obvious reasons (for example, why an `any` or a non-null assertion is safe)
+- [x] Every changed test still fails if the behavior it covers breaks (the soundEnv mutation check in §9)
+- [x] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`, plus `pnpm build`
 
 ## 8. Risks and unknowns
 
@@ -182,34 +182,41 @@ Append during implementation. One line per deviation: date, step, what changed, 
 
 - 2026-11-22 S4: `ui/review.ts` is AST-identical to its S1 source (the comparison covers every `ui/review*` module: 24 modules plus `review.ts`, all identical). `drafts.test.ts` differs only in how it reads source (`readSource` for `review.ts` and `notes.ts`; the `notes.ts` slice starts at `const put`, the first statement after the imports; the `quickEmpty` line regex still matches because the annotation is on the parameter) plus type-only changes (`(this as Json).text`, `: Json` on the harness objects); the harness test still fails when `quickEmpty` is mutated (9 pass, 1 fail, reverted) and `cover.test.ts` fails when `snapDisplayed(480)` becomes 481 (1 pass, 3 fail, reverted). Type-only fixes in `review.ts`: `const S: Json`, optional parameters (`zoomAt`, `tick`, `ensureDraft`, `verdict`, `toggleHelp`, `peek`), `Record<string, ...>` lookup tables, `getContext('2d')!` with a comment, `as Json[][]` on the corner-host list, `new Promise<HTMLImageElement>`. Deviation outside the S4 file list: `ui/review/sidepanel.ts` (S2 file) destructured `{ tabs = [], foot = null, key = ... }` with no annotation, so TypeScript inferred `tabs: never[]` and rejected `review.ts`'s call; the parameter now ends in `: Json` (type only; the stripped source is unchanged). Bundle names unchanged. `grep -rl "@ts-nocheck" ui/review.ts ui/review` prints nothing; the L8 grep finds one hit, the English word `any` as a variable name in `ui/review/transport.ts:392`, not a type. `pnpm format:check`, `pnpm typecheck`, `pnpm build` pass; `pnpm lint` 0 errors; `pnpm test` 313 tests, 312 pass, 1 skipped, 0 fail.
 
+- 2026-11-22 S5: scratch hub under `.test-tmp/p6-hub` (HOME, XDG_*, TMPDIR, `data`, `base` all inside it; `env -i` with `PATH=.test-tmp/p4-bin:/usr/bin:/bin`, so no `claude` or `opencode`; real node binary `/Users/jorge/.asdf/installs/nodejs/24.16.0/bin/node`, per L27; `VIDEOHUB_PORT=7799`, guard and jobs off, no window; `config.json` pins port 7799 and one root, `base/films`). The scratch film is a copy of `examples/hello-film`; the hub listed it as `hello-film` (id `801215bf350a`). Script `.test-tmp/p6-browser/check.mjs` (not committed; puppeteer-core with the installed Chrome, headless, `--mute-audio`) opened `#/` and `#/review/801215bf350a/~live` without `?play=1`, clicked nothing, listened for `play`/`playing` events in the capture phase, and counted console errors and warnings, page errors, failed requests and HTTP >= 400. Result: both pages `ok`, `total problems ... 0`; the review page showed the real UI ("hello-film", "Live preview (from code, no render)", Scan, Help, Render), loaded one film iframe, and its one `VIDEO` stayed `paused=true`; `/api/jobs` was `[]` afterwards. First run: the library page showed one 404 for `/api/thumb/801215bf350a?source=live` (a film with no cached cover answers 404 by design, and the card shows "Open live preview"); a cover is only made by opening the film in the review page and letting it play, which this check must not do, so a scratch cover was generated with ffmpeg into the scratch `data/thumbs/live-801215bf350a.jpg` and the second run had zero problems. Hub stopped (`kill` of the pid I started); `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty. Final standards: `pnpm install --frozen-lockfile` up to date; `pnpm format:check` clean; `pnpm lint` exit 0 with 146 warnings (unchanged from P5; no dead code removed; 19 of them in `ui/review*`); `pnpm typecheck` and `pnpm build` exit 0; `pnpm test` 313 tests, 312 pass, 1 skipped, 0 fail.
+
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
 
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-22
+- Session: p6-worker (subagent), branch `plan/typescript-migration`
+- Verdict: addressed
+- Steps complete: S1 (89d7af1), S2 (53acb74), S3 (3205e95), S4 (247cea2), S5 (browser check, recorded in this closeout commit)
+- Verification run: `pnpm install --frozen-lockfile`, `pnpm format:check`, `pnpm lint` (0 errors, 146 warnings), `pnpm typecheck`, `pnpm build`, `pnpm test` (313 tests, 312 pass, 1 skipped, 0 fail); AST comparison of all 24 modules and `review.ts` against the S1 sources; headless Chrome check of the library and review pages on a scratch hub
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | pending | |
-| A2 | pending | |
-| A3 | pending | |
-| A4 | pending | |
-| A5 | pending | |
-| D1 (master) | pending | |
-| D2 (master) | pending | |
-| D3 (master) | pending | |
-| D4 (master) | pending | |
-| D5 (master) | pending | |
+| A1 | met | `git ls-files 'ui/review.js' 'ui/review/*.js'` prints nothing; `git ls-files ui \| grep -E '\.js$'` lists only `ui/thumbstudio/` files; `git show -M --summary 89d7af1` shows 36 renames; `git log --follow --oneline ui/review.ts` 6 commits |
+| A2 | met | `pnpm typecheck` exit 0 (root and `ui/tsconfig.json`); `grep -rl "@ts-nocheck" ui/review.ts ui/review` prints nothing; the L8 grep has one hit, the word `any` used as a variable name in `ui/review/transport.ts:392`, and no type-position `any` outside the shared `Json`; §9 S2-S4: every module is AST-identical to its S1 source (tests differ only where their source reading changed) |
+| A3 | met | `pnpm test` 312 pass, 0 fail (same as the P5 count); `renderbtn`, `cover`, `live`, `drafts` and `soundenv` tests read source through `readSource` with marker slices; the soundEnv test compares the two stripped functions exactly and fails on a whitespace or logic mutation (§9 S2); `cover` and `drafts` tests fail on a mutation of their source (§9 S2, S4) |
+| A4 | met | `pnpm lint` exit 0, 0 errors (146 warnings, unchanged); `pnpm format:check` exit 0 |
+| A5 | met | `pnpm build` exit 0 (bundle names unchanged); scratch hub: `#/` and the review page `#/review/801215bf350a/~live` each had 0 console errors, 0 failed requests, no `play` event, the video stayed paused, no job was queued (§9 S5) |
+| D1 (master) | met | This phase's share: `ui/review.ts` and all `ui/review/*` are `.ts` (36 files); only `ui/thumbstudio/` JS remains under `ui/`. D stays open until P9 |
+| D2 (master) | met | This phase's share: the review UI checks strictly under `ui/tsconfig.json` (DOM, no Node types) and its tests under the root config. D stays open until P9 |
+| D3 (master) | met | This phase's share: lint 0 errors, format clean. D stays open until P9 |
+| D4 (master) | met | This phase's share: 312 pass, 0 fail. D stays open until P9 |
+| D5 (master) | met | This phase's share: `pnpm build` exits 0; a scratch hub serves the library and the review page with no console errors and no failed requests. The thumbnail studio is P7's. D stays open until P9 |
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| P6-1 | `tsc --noEmit -p tsconfig.json && tsc --noEmit -p ui/tsconfig.json` stops at the first failing config, so UI-config errors stay hidden while a test file fails under the root config; also the root config checks any module a test imports (with Node types), so `setTimeout` is `Timeout` there and `number` under the UI config | note | P7 | Type timers as `ReturnType<typeof setTimeout> \| 0`; run `tsc -p ui/tsconfig.json` on its own while converting |
+| P6-2 | An unannotated destructured parameter with defaults (`{ tabs = [], foot = null }`) raises no implicit-any error, but TypeScript infers `never[]`/`null` from the defaults and rejects callers; found only when `review.ts` called `createSidePanel` | note | P7 | Annotate destructured parameters that have defaults with `: Json` even when tsc is silent |
+| P6-3 | Functions called with more arguments than they declare (`changed(true)`) cannot be typed without changing the stripped runtime unless an overload signature is added; one overload was used in `edit2d.ts` | note | P7 | Use an overload signature or an optional parameter, never an added runtime parameter |
+| P6-4 | A library card for a film with no cached cover makes one 404 on `/api/thumb/:id` by design (the card shows "Open live preview"), so a "zero failed requests" browser check needs a scratch cover or a film that has one | note | P7, P9 | P7/P9 browser checks use a scratch cover file or accept this one expected 404 |
+| P6-5 | AST-level comparison (`rolldown` `parseSync` on stripped sources, positions dropped) proves runtime identity more strongly than the whitespace diff of P5; a one-character mutation was caught | note | P7, P8 | Script `.test-tmp/p6-strip/cmp.mjs` (uncommitted) can be copied by later phases |
 
-**Master updates written:** none yet
-**Next-phase updates written:** none yet
-**Remaining work and handoff:** none yet
+**Master updates written:** none (coordinator owns master.md)
+**Next-phase updates written:** none; see P6-1 to P6-5 for P7
+**Remaining work and handoff:** `record-commit` and `close` are left to the coordinator. No removals were held back. Out of this phase: `ui/thumbstudio*` (P7), engine hooks, film starter and example (P8), docs naming the old paths (`docs/ARCHITECTURE.md:38`, `docs/PROJECT-CONTRACT.md:4`; P9). Stale prose comments inside the converted files still say `mixer.js`, `timeline.js` and similar; they are comments, not specifiers, and were left (P9 can sweep them). Not run: Node 22.18 full suite, real-hardware Linux and Intel macOS acceptance.
