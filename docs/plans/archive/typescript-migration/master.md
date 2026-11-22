@@ -7,7 +7,7 @@
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
 - Size: large
 - Owner: coordinator agent (Claude Code); approvals by Jorge Venegas
-- Plan directory: `docs/plans/typescript-migration`
+- Plan directory: `docs/plans/archive/typescript-migration`
 - Branch: `plan/typescript-migration`
 
 `Status` is one of `draft`, `active`, `complete`, or `blocked`. `approve` sets `active`; `close` sets `complete` when every phase is done.
