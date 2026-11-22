@@ -4,10 +4,10 @@
 - Phase: P1
 - Plan version: 2
 - Validated against master version: 12
-- Status: in_progress
+- Status: done
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-21
-- Commit: pending
+- Commit: f115aeb
 - Implementation mode: subagent
 - Implemented by: p1-toolchain
 - Implemented at: 2026-11-21
@@ -192,16 +192,16 @@ Append during implementation. One line per deviation: date, step, what changed, 
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | pass | `tsc` 7.0.2; `pnpm typecheck` exit 0; tsconfig has `strict`, `allowJs`, `erasableSyntaxOnly` |
-| A2 | pass | `pnpm lint` 0 errors; 12 downgraded rules and counts listed in §9 |
-| A3 | pass | Probe in §9: `.ts`<->`.js` mixed imports, `.test.ts` under `node --test` and `tsc`; `pnpm test` collected a temporary `.test.ts` (300 tests). Not run on Node 22.18 |
-| A4 | pass | `pnpm test` 299 tests, 298 pass, 0 fail after formatting |
-| A5 | pass | `pnpm format:check` exit 0; format commit f1d0719 is formatter output only (150 files) |
-| A6 | pass | CLAUDE.md runtime-only native rule and new commands; `engines.node` `>=22.18`; `install.mjs` rejects Node < 22.18 (commit 9324086) |
-| D2 (master) | advanced | strict tsconfig and `pnpm typecheck` exist and pass (no `allowJs` removal until P9) |
-| D3 (master) | advanced | lint 0 errors and format clean on the JS codebase |
-| D4 (master) | advanced | suite at baseline (298 pass, 0 fail) after formatting |
-| D9 (master) | advanced | CLAUDE.md pre-commit commands updated; other docs remain for P9 |
+| A1 | met | `tsc` 7.0.2; `pnpm typecheck` exit 0; tsconfig has `strict`, `allowJs`, `erasableSyntaxOnly` |
+| A2 | met | `pnpm lint` 0 errors; 12 downgraded rules and counts listed in §9 |
+| A3 | met | Probe in §9: `.ts`<->`.js` mixed imports, `.test.ts` under `node --test` and `tsc`; `pnpm test` collected a temporary `.test.ts` (300 tests). Not run on Node 22.18 |
+| A4 | met | `pnpm test` 299 tests, 298 pass, 0 fail after formatting |
+| A5 | met | `pnpm format:check` exit 0; format commit f1d0719 is formatter output only (150 files) |
+| A6 | met | CLAUDE.md runtime-only native rule and new commands; `engines.node` `>=22.18`; `install.mjs` rejects Node < 22.18 (commit 9324086) |
+| D2 (master) | met | P1 share met (D stays open in master until P9): strict tsconfig and `pnpm typecheck` exist and pass (no `allowJs` removal until P9) |
+| D3 (master) | met | P1 share met (D stays open in master until P9): lint 0 errors and format clean on the JS codebase |
+| D4 (master) | met | P1 share met (D stays open in master until P9): suite at baseline (298 pass, 0 fail) after formatting |
+| D9 (master) | met | P1 share met (D stays open in master until P9): CLAUDE.md pre-commit commands updated; other docs remain for P9 |
 
 **Discoveries no earlier plan predicted:**
 

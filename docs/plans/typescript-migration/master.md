@@ -1,7 +1,7 @@
 # Master Plan — TypeScript migration
 
 - Plan ID: `typescript-migration`
-- Master version: 12
+- Master version: 17
 - Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
@@ -85,7 +85,7 @@ flowchart LR
 
 | ID | Phase | Outcome | Depends on | Status | Plan |
 |---|---|---|---|---|---|
-| P1 | Toolchain and format baseline | TypeScript 7, oxlint and oxfmt are pinned and wired into `pnpm typecheck`/`lint`/`format:check`; `pnpm test` also runs `.test.ts`; Node ≥ 22.18 is declared; the repo is formatted once (Vite arrives in P5) | none | in_progress | [plan](phases/01-toolchain-and-format-baseline/plan.md) |
+| P1 | Toolchain and format baseline | TypeScript 7, oxlint and oxfmt are pinned and wired into `pnpm typecheck`/`lint`/`format:check`; `pnpm test` also runs `.test.ts`; Node ≥ 22.18 is declared; the repo is formatted once (Vite arrives in P5) | none | done | [plan](phases/01-toolchain-and-format-baseline/plan.md) |
 | P2 | Server core modules to TS | Every top-level `server/*.js` module except the entry/tool layer (`hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib.mjs`, `vhsound.mjs`) plus their tests are strict `.ts`; one shared test helper strips types for source-reading tests | P1 | planned | pending |
 | P3 | Server entry points and thumbstudio to TS | `server/hub`, `mcp`, `cli`, `tools`, `mcp-selftest`, `sfxlib`, `vhsound` and `server/thumbstudio/` (except tests importing `ui/thumbstudio`, which move in P7) are `.ts`; every in-repo reference to the entry points uses `.ts` | P2 | planned | pending |
 | P4 | Installer, scripts and upgrade path to TS | `scripts/` and the lifecycle entry points are `.ts`; shell scripts gate Node ≥ 22.18; setup registers `.ts` entries; update from a JS-era install stops the old hub and re-points MCP and login items | P3 | planned | pending |
@@ -125,6 +125,11 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | ID | Date | Phase | Affects | Discovery | Type | Action taken | Status |
 |---|---|---|---|---|---|---|---|
 | L1 | 2026-11-21 | P1 | P1 | oxfmt wraps declarations and one-line route() calls in server/hub.js; server/hub-paths.test.js tests 1-2 extract source by single line (startsWith / line regex) and break with SyntaxError after formatting. The third test in the same file already slices between markers and survives. | phase-amend | P1 S6 amended (plan v2): only the source-extraction expressions in server/hub-paths.test.js tests 1-2 may change to marker-based slicing like test 3; assertions, contexts and test names unchanged; change lands in the toolchain-side commit before the format-only commit | open |
+| L2 | 2026-11-21 | P1 | P2 | server/encoders.js:45 passes an async executor to new Promise (oxlint no-async-promise-executor); a throw inside would not reject | next-phase-amend | P2 plan must address it explicitly: type it as-is, or propose a fix as a user-approved behavior change | open |
+| L3 | 2026-11-21 | P1 | P2-P9 | 12 oxlint rules downgraded to warn (146 warnings: no-unused-vars 56, no-unused-expressions 30, …; list in P1 plan §9). Includes unused guardExe/meta/soundOps in server/hub.js and drawSubjectBlock in ui/thumbstudio/scene.js | note | Converting phases may remove dead code their files carry only when it is provably unused; P9 decides whether to re-escalate rules to error | open |
+| L4 | 2026-11-21 | P1 | P2-P9 | oxfmt reflows statements, so tests that pull code out of source text must slice between stable markers (format-proof), never pick single lines | note | Every phase keeps files oxfmt-formatted and writes or converts source-reading tests with marker slicing; complements C7's type-strip helper | open |
+| L5 | 2026-11-21 | P1 | P9 | Format-only commit f1d0719 grew tracked JS from 40,441 to 60,041 lines (+48%) | note | P9 adds .git-blame-ignore-revs with f1d0719 if the user wants it (dot file: check the upload rule first) | open |
+| L6 | 2026-11-21 | P1 | P4 | Type stripping verified only on Node 24.16 locally; Node 22.18 behavior (warnings, .ts import resolution) unverified | note | P4 verifies on Node 22.18 if obtainable (for example via a scratch Node download under .test-tmp), otherwise records the residual risk | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
@@ -147,6 +152,7 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 
 | Phase | Date | Verdict | Criteria met | Commit | Report |
 |---|---|---|---|---|---|
+| P1 | 2026-11-21 | addressed | A1, A2, A3, A4, A5, A6 | f115aeb | [report](phases/01-toolchain-and-format-baseline/plan.md) |
 
 ## 12. Resume brief
 
