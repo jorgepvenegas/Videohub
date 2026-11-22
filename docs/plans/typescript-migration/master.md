@@ -94,7 +94,7 @@ flowchart LR
 | P7 | Thumbnail studio UI to TS | `ui/thumbstudio/` (and the server tests importing it) are `.ts`; the thumbnail studio works in a scratch hub | P5 | done | [plan](phases/07-thumbnail-studio-ui-to-ts/plan.md) |
 | P8 | Engine hooks to TS | `engine-hooks/vh2d` and `vhtweaks` are strict `.ts` (with a local `three` declaration, C13); Vite builds them into stable, readable `dist/engine-hooks/vh2d.js` and `vhtweaks.js` that engines copy; `three` stays external | P4,P5 | done | [plan](phases/08-engine-hooks-to-ts/plan.md) |
 | P10 | Film starter and example to TS | templates/new-film and examples/hello-film use render.ts, make-audio.ts and film.ts; hub live preview and render.ts serve film.ts stripped; render.js and film.js films still preview and render; one scratch render after the user reviews the preview | P8 | done | [plan](phases/10-film-starter-and-example-to-ts/plan.md) |
-| P9 | Strict repo-wide, no JS left, docs | `allowJs` removed, strict repo-wide, a test fails on any tracked JS file, CLAUDE.md/docs/skill/README updated; full D1–D9 verification | P6,P7,P10 | planned | pending |
+| P9 | Strict repo-wide, no JS left, docs | `allowJs` removed, strict repo-wide, a test fails on any tracked JS file, CLAUDE.md/docs/skill/README updated; full D1–D9 verification | P6,P7,P10 | ready | [plan](phases/09-strict-repo-wide-no-js-left-docs/plan.md) |
 
 Status: `planned`, `ready`, `in_progress`, `done`, `blocked`, `needs_replan`, `superseded`.
 `ready` means the user has explicitly approved that phase plan. A written plan is not `ready` until it passes the approval gate. Later phases may stay as outlines; add them with `add-phase --outline`, then write the plan with `write-plan` just before the phase starts and stop for approval.
