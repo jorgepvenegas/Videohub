@@ -1,11 +1,11 @@
-// @ts-nocheck
+import type { Json } from '../app.ts';
 // Editor layout helpers (P1, no-scroll editor): safe storage, drag splitters that write a CSS length var,
 // a one-line row that hides its least important children into a "⋯" menu, and a small popover.
 // No imports: the pure parts are tested in node (dock.test.js).
 
 // localStorage that never throws (private window, blocked site data); values are JSON
 export const ls = {
-  get(k, d) {
+  get(k: Json, d: Json) {
     try {
       const v = globalThis.localStorage.getItem(k);
       return v == null ? d : JSON.parse(v);
@@ -13,7 +13,7 @@ export const ls = {
       return d;
     }
   },
-  set(k, v) {
+  set(k: Json, v: Json) {
     try {
       if (v == null) globalThis.localStorage.removeItem(k);
       else globalThis.localStorage.setItem(k, JSON.stringify(v));
@@ -21,17 +21,17 @@ export const ls = {
   }
 };
 
-export const clampPx = (v, min, max) => Math.round(Math.max(min, Math.min(Math.max(min, max), v)));
+export const clampPx = (v: Json, min: Json, max: Json) => Math.round(Math.max(min, Math.min(Math.max(min, max), v)));
 
 // which children to hide first: lowest priority, ties rightmost first; 9+ or no priority never; items = [{ pri, idx }]
-export function hideOrder(items) {
+export function hideOrder(items: Json) {
   return items
-    .filter(it => Number.isFinite(it.pri) && it.pri < 9)
-    .sort((a, b) => a.pri - b.pri || b.idx - a.idx)
-    .map(it => it.idx);
+    .filter((it: Json) => Number.isFinite(it.pri) && it.pri < 9)
+    .sort((a: Json, b: Json) => a.pri - b.pri || b.idx - a.idx)
+    .map((it: Json) => it.idx);
 }
 
-const el = (tag, cls, attrs = {}) => {
+const el = (tag: Json, cls: Json, attrs = {}) => {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
   for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
@@ -41,7 +41,7 @@ const el = (tag, cls, attrs = {}) => {
 // Drag handle that writes a CSS length var on `root`. axis 'y': dragging up grows; 'x': dragging left grows.
 // `want` is what the user asked for (saved); the applied value is `want` clamped to [min, max()] now, so a
 // window that grows back gives the user's size back.
-export function createSplitter({ root, cssVar, axis = 'y', key, def, min = 0, max = () => Infinity, onChange }) {
+export function createSplitter({ root, cssVar, axis = 'y', key, def, min = 0, max = () => Infinity, onChange }: Json) {
   const handle = el('div', 'rv2-split', {
     'data-axis': axis,
     role: 'separator',
@@ -49,10 +49,10 @@ export function createSplitter({ root, cssVar, axis = 'y', key, def, min = 0, ma
     title: 'Drag to resize · double-click to reset'
   });
   let want = key ? ls.get(key, null) : null,
-    val = null,
-    drag = null;
+    val: Json = null,
+    drag: Json = null;
   if (!Number.isFinite(want)) want = null;
-  function apply(v) {
+  function apply(v: Json) {
     const nv = clampPx(v, min, max());
     if (nv === val) return;
     val = nv;
@@ -61,15 +61,15 @@ export function createSplitter({ root, cssVar, axis = 'y', key, def, min = 0, ma
     onChange?.(val);
   }
   const clamp = () => apply(want ?? def());
-  const pos = e => (axis === 'y' ? e.clientY : e.clientX);
-  handle.addEventListener('pointerdown', e => {
+  const pos = (e: Json) => (axis === 'y' ? e.clientY : e.clientX);
+  handle.addEventListener('pointerdown', (e: Json) => {
     if (e.button !== 0) return;
     e.preventDefault();
     handle.setPointerCapture(e.pointerId);
     handle.classList.add('drag');
     drag = { p: pos(e), v: val ?? want ?? def() };
   });
-  handle.addEventListener('pointermove', e => {
+  handle.addEventListener('pointermove', (e: Json) => {
     if (!drag) return;
     want = drag.v + (drag.p - pos(e));
     apply(want);
@@ -96,7 +96,7 @@ export function createSplitter({ root, cssVar, axis = 'y', key, def, min = 0, ma
     clamp,
     reset,
     get: () => val,
-    set(px) {
+    set(px: Json) {
       want = px;
       apply(px);
       if (key) ls.set(key, val);
@@ -109,7 +109,7 @@ export function createSplitter({ root, cssVar, axis = 'y', key, def, min = 0, ma
 
 // Small popover next to `anchor`, appended to `host` (position: fixed, so overflow:hidden parents never cut it).
 // Closes on Esc, on a click outside, or through the returned close().
-export function openPop({ anchor, host, content, side = 'below', onClose }) {
+export function openPop({ anchor, host, content, side = 'below', onClose }: Json) {
   const pop = el('div', 'rv2-pop');
   pop.append(content);
   (host || document.body).append(pop);
@@ -129,10 +129,10 @@ export function openPop({ anchor, host, content, side = 'below', onClose }) {
     document.removeEventListener('keydown', onKey, true);
     onClose?.();
   };
-  const outside = e => {
+  const outside = (e: Json) => {
     if (!pop.contains(e.target) && !anchor.contains(e.target)) close();
   };
-  const onKey = e => {
+  const onKey = (e: Json) => {
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
@@ -149,9 +149,9 @@ export function openPop({ anchor, host, content, side = 'below', onClose }) {
 // Hide children of a one-line row by priority until it fits; hidden ones go into the "⋯" menu at the end.
 // Children carry data-pri (1 = hide first); children without it never hide. Hiding uses a class, so the app's own
 // `hidden` attribute stays its own business.
-export function fitRow(row, { more, host }) {
-  let hiddenEls = [],
-    pop = null,
+export function fitRow(row: Json, { more, host }: Json) {
+  let hiddenEls: Json = [],
+    pop: Json = null,
     raf = 0;
   function refit() {
     raf = 0;
@@ -175,7 +175,7 @@ export function fitRow(row, { more, host }) {
     if (!raf) raf = requestAnimationFrame(refit);
   };
   // a menu entry for a hidden child: buttons click the original, selects mirror it, groups list their buttons
-  function entries(c) {
+  function entries(c: Json) {
     if (c.tagName === 'SELECT') {
       const s = c.cloneNode(true);
       s.value = c.value;
@@ -188,7 +188,7 @@ export function fitRow(row, { more, host }) {
       return [s];
     }
     // a slider (volume, timeline zoom): a live copy that drives the original
-    const slider = r => {
+    const slider = (r: Json) => {
       const s = r.cloneNode(true);
       s.value = r.value;
       s.removeAttribute('class');
@@ -240,7 +240,7 @@ export function fitRow(row, { more, host }) {
   ro.observe(row);
   // the app shows/hides buttons and changes their text (render progress): refit on those too; text changes inside a
   // [data-fit-static] element (fixed width, e.g. the transport's timecode, rewritten every frame) never refit
-  const isStatic = r => r.type !== 'attributes' && !!(r.target.nodeType === 1 ? r.target : r.target.parentElement)?.closest?.('[data-fit-static]');
+  const isStatic = (r: Json) => r.type !== 'attributes' && !!(r.target.nodeType === 1 ? r.target : r.target.parentElement)?.closest?.('[data-fit-static]');
   const mo = new MutationObserver(recs => {
     if (recs.some(r => !isStatic(r))) later();
   });

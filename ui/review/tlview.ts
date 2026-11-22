@@ -1,20 +1,20 @@
-// @ts-nocheck
 // Timeline view state (P2): which part of the film the timeline shows, zoom/pan, and "follow the playhead".
 // Pure (no DOM); kept by the P3 timeline rewrite. The view is null (= the whole film) when its span reaches the film.
 import { ls } from './dock.ts';
+import type { Json } from '../app.ts';
 
 const MIN_SPAN = 2;
-const mmss = s => {
+const mmss = (s: Json) => {
   s = Math.max(0, s);
   const m = Math.floor(s / 60),
     r = Math.floor(s % 60);
   return `${m}:${String(r).padStart(2, '0')}`;
 };
 
-export function createView({ dur, key = 'vh-tl-follow' }) {
-  let view = null,
+export function createView({ dur, key = 'vh-tl-follow' }: Json) {
+  let view: Json = null,
     followOn = ls.get(key, true) !== false;
-  const subs = new Set();
+  const subs = new Set<() => void>();
   const D = () => Math.max(1e-3, +dur() || 1);
   const emit = () => {
     for (const cb of subs)
@@ -23,7 +23,7 @@ export function createView({ dur, key = 'vh-tl-follow' }) {
       } catch {}
   };
   // set [a, a + span], clamped into the film; a span reaching the film means "no zoom"
-  function setView(a, span) {
+  function setView(a: Json, span: Json) {
     const d = D();
     span = Math.max(Math.min(MIN_SPAN, d), Math.min(d, span));
     const nv = span >= d - 1e-6 ? null : (a => [a, a + span])(Math.max(0, Math.min(d - span, a)));
@@ -38,7 +38,7 @@ export function createView({ dur, key = 'vh-tl-follow' }) {
     return view ? view.slice() : [0, d];
   };
   // a new span that keeps `at` under the same x (default: the middle of the view)
-  function zoomTo(span, at) {
+  function zoomTo(span: Json, at: Json) {
     const [a, b] = get(),
       s = b - a;
     if (at == null || !Number.isFinite(at)) at = (a + b) / 2;
@@ -57,7 +57,7 @@ export function createView({ dur, key = 'vh-tl-follow' }) {
       return b - a;
     },
     zoomTo,
-    zoomBy(k, at) {
+    zoomBy(k: Json, at: Json) {
       const [a, b] = get();
       zoomTo((b - a) * k, at);
     },
@@ -68,7 +68,7 @@ export function createView({ dur, key = 'vh-tl-follow' }) {
       }
     },
     // show a..b with a small margin on both sides (pad = share of the range)
-    zoomToRange(a, b, pad = 0.05) {
+    zoomToRange(a: Json, b: Json, pad = 0.05) {
       if (!(b > a)) return;
       const len = b - a,
         span = len * (1 + 2 * pad),
@@ -77,18 +77,18 @@ export function createView({ dur, key = 'vh-tl-follow' }) {
         ns = Math.max(Math.min(MIN_SPAN, d), Math.min(d, span));
       setView(mid - ns / 2, ns);
     },
-    panBy(sec) {
+    panBy(sec: Json) {
       if (!view) return;
       setView(view[0] + sec, view[1] - view[0]);
     },
-    setFollow(on) {
+    setFollow(on: Json) {
       followOn = !!on;
       ls.set(key, followOn);
       emit();
     },
     followOn: () => followOn,
     // page jump: while playing and zoomed, a playhead leaving the view (or nearing its right edge) turns the page
-    follow(t, playing = true) {
+    follow(t: Json, playing = true) {
       if (!followOn || !playing || !view || !Number.isFinite(t)) return false;
       const [a, b] = view,
         s = b - a;
@@ -102,7 +102,7 @@ export function createView({ dur, key = 'vh-tl-follow' }) {
         s = b - a;
       return `visible: ${mmss(a)}–${mmss(b)} (${s < 60 ? s.toFixed(1) + ' s' : mmss(s)})`;
     },
-    onChange(cb) {
+    onChange(cb: Json) {
       subs.add(cb);
       return () => subs.delete(cb);
     }

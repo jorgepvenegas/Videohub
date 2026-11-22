@@ -1,9 +1,9 @@
-// @ts-nocheck
+import type { Json } from '../app.ts';
 // Refresh a project's cached cover from the live player the user already opened.
 // No hidden player, renderOut(), seeking or background refresh queue.
-export function createLiveCover({ source, save, visible = () => !document.hidden }) {
-  let attemptedRevision = null,
-    timer = null,
+export function createLiveCover({ source, save, visible = () => !document.hidden }: Json) {
+  let attemptedRevision: Json = null,
+    timer: Json = null,
     stopped = false;
   return {
     update() {

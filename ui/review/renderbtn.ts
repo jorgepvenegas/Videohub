@@ -1,16 +1,16 @@
-// @ts-nocheck
 import { agentName } from '../agent.ts';
 // "Render" in the live preview: the user decides to render (their rule: no render before they say so).
 // The render goes through VideoHub's queue (one at a time, RAM protection). Full film, or, when the project can
 // re-render parts and there are notes Claude fixed, only the parts those notes touch. Progress shows on the button.
 import { h, api, toast, confirmBox, onHubEvent, folderButton } from '../app.ts';
+import type { Json } from '../app.ts';
 
 const FIXED = ['fixed', 'claude'];
 
-export function createRenderButton(p, { notes }) {
+export function createRenderButton(p: Json, { notes }: Json) {
   const id = p.id;
   const btn = h('button', { class: 'primary rv2-render', title: 'Render the film through the VideoHub queue' }, '🎬 Render');
-  let job = null; // this project's queued/running job
+  let job: Json = null; // this project's queued/running job
   let choosing = false;
   const show = () => {
     if (choosing) {
@@ -32,11 +32,11 @@ export function createRenderButton(p, { notes }) {
   // a job of this project already in the queue (started by Claude or another window)
   api('/api/jobs')
     .then(js => {
-      job = js.find(j => j.project === id && ['queued', 'running'].includes(j.state)) || null;
+      job = js.find((j: Json) => j.project === id && ['queued', 'running'].includes(j.state)) || null;
       show();
     })
     .catch(() => {});
-  const off = onHubEvent('job', ev => {
+  const off = onHubEvent('job', (ev: Json) => {
     const j = ev?.job;
     if (!j || j.project !== id) return;
     const was = job;
@@ -64,20 +64,20 @@ export function createRenderButton(p, { notes }) {
       return;
     }
     const fixed = notes()
-      .filter(n => FIXED.includes(n.status))
-      .map(n => n.id);
+      .filter((n: Json) => FIXED.includes(n.status))
+      .map((n: Json) => n.id);
     const canPart = !!rc.chunkSec && fixed.length > 0 && (p.studio || p.family === 'A');
     // settings: only what this project's render understands, defaults from its recipe
     const set = { workers: ro.workers?.default || 2, fps: ro.fps?.default || null, codec: ro.codecDefault || 'auto' };
-    const sel = (label, help, values, cur, onch, fmt = v => v) =>
+    const sel = (label: Json, help: Json, values: Json, cur: Json, onch: Json, fmt = (v: Json) => v) =>
       h(
         'label',
         { class: 'rset', title: help },
         h('span', { class: 'dim' }, label),
         h(
           'select',
-          { onchange: e => onch(e.target.value) },
-          values.map(v => h('option', { value: v, selected: String(v) === String(cur) }, fmt(v)))
+          { onchange: (e: Json) => onch(e.target.value) },
+          values.map((v: Json) => h('option', { value: v, selected: String(v) === String(cur) }, fmt(v)))
         )
       );
     const fpsSel = ro.fps
@@ -89,7 +89,7 @@ export function createRenderButton(p, { notes }) {
             .filter((v, i, a) => a.indexOf(v) === i)
             .sort((a, b) => a - b),
           set.fps,
-          v => {
+          (v: Json) => {
             set.fps = +v;
             updInfo();
           }
@@ -103,7 +103,7 @@ export function createRenderButton(p, { notes }) {
         'Render workers running at once (more workers need more RAM)',
         Array.from({ length: ro.workers?.max || 4 }, (_, i) => i + 1),
         set.workers,
-        v => {
+        (v: Json) => {
           set.workers = +v;
         }
       ),
@@ -116,7 +116,7 @@ export function createRenderButton(p, { notes }) {
               : 'auto: NVENC with NVIDIA, otherwise x264 (AMD AMF is offered too, but it lost detail in tests)',
             ro.codecs,
             set.codec,
-            v => {
+            (v: Json) => {
               set.codec = v;
             },
             v => ro.codecLabels?.[v] || v
@@ -125,7 +125,7 @@ export function createRenderButton(p, { notes }) {
     );
     const mins = rc.env?.DUR ? Math.round((+rc.env.DUR / 60) * 10) / 10 : null;
     let mode = canPart ? 'partial' : 'full';
-    const opt = (m, label, sub) =>
+    const opt = (m: Json, label: Json, sub: Json) =>
       h(
         'label',
         { class: 'row', style: { gap: '8px', alignItems: 'flex-start', margin: '6px 0' } },
@@ -143,7 +143,7 @@ export function createRenderButton(p, { notes }) {
     // what comes out and where
     const inf = ro.info || {},
       next = inf.next || {};
-    const MMSS = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+    const MMSS = (s: Json) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
     const fileEl = h('b', { class: 'mono' }),
       dirEl = h('span', { class: 'mono dim', style: { fontSize: '12px', wordBreak: 'break-all' } }),
       infoEl = h('div', { class: 'rfacts' });
@@ -182,14 +182,14 @@ export function createRenderButton(p, { notes }) {
       type: 'text',
       value: copyTo,
       placeholder: 'not selected (project folder only)',
-      oninput: e => {
+      oninput: (e: Json) => {
         copyTo = e.target.value.trim();
       },
       style: { flex: '1', minWidth: '0' }
     });
     const pick = folderButton(
       () => copyTo || lastDir || null,
-      p => {
+      (p: Json) => {
         copyTo = p;
         copyIn.value = p;
       },
@@ -253,7 +253,7 @@ export function createRenderButton(p, { notes }) {
     );
     if (!ok) return;
     try {
-      const env = {};
+      const env: Json = {};
       if (set.fps && mode === 'full' && set.fps !== ro.fps?.default) env.FPS = String(set.fps);
       if (ro.codecs && set.codec !== (ro.codecDefault || 'auto')) env[ro.codecEnv || 'CODEC'] = set.codec;
       job = await api('/api/jobs', {
@@ -271,7 +271,7 @@ export function createRenderButton(p, { notes }) {
         mode === 'partial' ? `Partial render queued: ${job.chunks?.length || ''} chunks` : mode === 'preview' ? 'Preview render queued' : 'Full render queued'
       );
       if (job.ramNote) toast(job.ramNote);
-    } catch (e) {
+    } catch (e: Json) {
       toast('Could not start render: ' + e.message, true);
     }
   }
@@ -281,7 +281,7 @@ export function createRenderButton(p, { notes }) {
     btn.disabled = true;
     try {
       await chooseRender();
-    } catch (e) {
+    } catch (e: Json) {
       toast('Could not open render settings: ' + e.message, true);
     } finally {
       choosing = false;

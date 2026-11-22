@@ -1,13 +1,13 @@
-// @ts-nocheck
+import type { Json } from '../app.ts';
 // Quick tooltips for the editor: every button / field with a `title` shows it in a styled bubble after 250 ms
 // (the browser's own tooltip waits ~1 s and is easy to miss, so icon-only buttons stayed a riddle).
 // The title moves to data-vhtip while the pointer is on the element, so the native one does not show twice.
-export function installTips(root, host = () => root) {
+export function installTips(root: Json, host = () => root) {
   const bub = document.createElement('div');
   bub.className = 'vh-tip';
   bub.hidden = true;
-  let cur = null,
-    timer = 0;
+  let cur: Json = null,
+    timer: ReturnType<typeof setTimeout> | 0 = 0;
   function hide() {
     clearTimeout(timer);
     bub.hidden = true;
@@ -42,7 +42,7 @@ export function installTips(root, host = () => root) {
     bub.style.left = left + 'px';
     bub.style.top = Math.max(4, top) + 'px';
   }
-  const onOver = e => {
+  const onOver = (e: Json) => {
     const el = e.target.closest?.('[title]');
     if (el === cur) return;
     hide();
@@ -52,7 +52,7 @@ export function installTips(root, host = () => root) {
     el.title = '';
     timer = setTimeout(show, 250);
   };
-  const onOut = e => {
+  const onOut = (e: Json) => {
     if (cur && !cur.contains(e.relatedTarget)) hide();
   };
   root.addEventListener('pointerover', onOver);

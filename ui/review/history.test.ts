@@ -1,14 +1,14 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHistory } from './history.ts';
+import type { Json } from '../app.ts';
 
 function make() {
   const st = { v: [1] };
   let pushes = 0;
   const H = createHistory({
     snapshot: () => JSON.stringify(st.v),
-    restore: s => {
+    restore: (s: Json) => {
       st.v = JSON.parse(s);
     },
     max: 3,

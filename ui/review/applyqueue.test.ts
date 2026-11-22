@@ -1,28 +1,28 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApplyQueue } from './applyqueue.ts';
+import type { Json } from '../app.ts';
 
 // fake timers + an apply() we resolve by hand
-function rig(mode) {
+function rig(mode: Json) {
   const T = new Map();
   let id = 0;
   const timers = {
-    set: (f, ms) => {
+    set: (f: Json, ms: Json) => {
       T.set(++id, f);
       return id;
     },
-    clear: t => T.delete(t)
+    clear: (t: Json) => T.delete(t)
   };
   const fire = () => {
     const fs = [...T.values()];
     T.clear();
     fs.forEach(f => f());
   };
-  const calls = [],
-    built = [];
+  const calls: Json = [],
+    built: Json = [];
   const apply = () => new Promise(res => calls.push(res));
-  const Q = createApplyQueue({ apply, mode: () => mode, timers, onBuilt: r => built.push(r) });
+  const Q = createApplyQueue({ apply, mode: () => mode, timers, onBuilt: (r: Json) => built.push(r) });
   const tick = () => new Promise(r => setTimeout(r, 0));
   return { Q, fire, calls, built, tick, pending: () => T.size };
 }

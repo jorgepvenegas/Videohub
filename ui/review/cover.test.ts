@@ -1,42 +1,43 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import vm from 'node:vm';
+import { readSource } from '../../scripts/test-source.ts';
+import type { Json } from '../app.ts';
 
-const code = fs.readFileSync(new URL('./cover.ts', import.meta.url), 'utf8').replace('export function', 'function');
+const stripped = readSource(new URL('./cover.ts', import.meta.url));
+const code = stripped.slice(stripped.indexOf('export function createLiveCover')).replace('export function', 'function');
 function harness() {
   let isVisible = true,
     copies = 0,
     fail = false,
     sequence = 0;
   const pending = new Map(),
-    saves = [];
+    saves: Json = [];
   const source = {
     info: { revision: 'v1' },
     displayedTime: 2,
     duration: 120,
     seeking: false,
-    snapDisplayed(width) {
+    snapDisplayed(width: Json) {
       copies++;
       assert.equal(width, 480);
       return { toDataURL: () => 'data:image/jpeg;base64,picture' };
     }
   };
-  const ctx = {
-    setTimeout: fn => {
+  const ctx: Json = {
+    setTimeout: (fn: Json) => {
       const id = ++sequence;
       pending.set(id, fn);
       return id;
     },
-    clearTimeout: id => pending.delete(id)
+    clearTimeout: (id: Json) => pending.delete(id)
   };
   vm.createContext(ctx);
   vm.runInContext(code, ctx);
   const cover = ctx.createLiveCover({
     source,
     visible: () => isVisible,
-    save: async data => {
+    save: async (data: Json) => {
       saves.push(data);
       if (fail) throw new Error('offline');
     }

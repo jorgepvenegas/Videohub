@@ -1,9 +1,9 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildRows, assignLane, laneCount, tickSpec, fmtTick, findDragSnap, snapEdgeTime, edgeScrollStep, clipLen } from './tracks.ts';
+import type { Json } from '../app.ts';
 
-const near = (a, b) => Math.abs(a - b) < 1e-9;
+const near = (a: Json, b: Json) => Math.abs(a - b) < 1e-9;
 
 test('buildRows: order, heights, collapse, placeholders and clip lanes', () => {
   const layers = [
@@ -23,15 +23,15 @@ test('buildRows: order, heights, collapse, placeholders and clip lanes', () => {
     collapsed: new Set(['notes'])
   });
   assert.deepEqual(
-    R.map(r => r.id),
+    R.map((r: Json) => r.id),
     ['pic', 'mix', 'scenes', 'notes', 'text', 'vo', 'music', 'st_x', 'cues', 'add-music', 'add-sfx']
   );
   assert.deepEqual(
-    R.map(r => r.h),
+    R.map((r: Json) => r.h),
     [40, 26, 24, 14, 22, 30, 30, 26, 20, 26, 78]
   );
-  assert.equal(R.find(r => r.id === 'add-sfx').lanes, 3);
-  assert.equal(R.find(r => r.id === 'st_x').header.level, false);
+  assert.equal(R.find((r: Json) => r.id === 'add-sfx').lanes, 3);
+  assert.equal(R.find((r: Json) => r.id === 'st_x').header.level, false);
   let y = 0;
   for (const r of R) {
     assert.equal(r.y, y);
@@ -49,7 +49,7 @@ test('buildRows: order, heights, collapse, placeholders and clip lanes', () => {
     canClips: false
   });
   assert.deepEqual(
-    L.map(r => r.id),
+    L.map((r: Json) => r.id),
     ['mix', 'notes', 'sfx']
   );
   assert.equal(L[2].cues, true);

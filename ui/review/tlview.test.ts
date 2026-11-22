@@ -1,11 +1,15 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createView } from './tlview.ts';
+import type { Json } from '../app.ts';
 
-const near = (a, b) => Math.abs(a - b) < 1e-9;
+const near = (a: Json, b: Json) => Math.abs(a - b) < 1e-9;
 const store = new Map();
-globalThis.localStorage = { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
+(globalThis as Json).localStorage = {
+  getItem: (k: Json) => (store.has(k) ? store.get(k) : null),
+  setItem: (k: Json, v: Json) => store.set(k, String(v)),
+  removeItem: (k: Json) => store.delete(k)
+};
 
 test('view: whole film until zoomed; span clamped to [2, dur]; zoomBy keeps the anchor under the same x', () => {
   const V = createView({ dur: () => 100 });

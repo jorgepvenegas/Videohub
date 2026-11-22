@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type { Json } from '../app.ts';
 // One queue for rebuilding the film's sound after a level / clip / duck change (review.ts creates it).
 //   stems / all  request() debounces (1.2 s), then builds; changes while it builds cause exactly one more build after
 //   studio       the engine's build takes minutes: request() only marks it dirty; "💾 Apply to film" calls applyNow()
@@ -11,11 +11,11 @@ export function createApplyQueue({
   onBuilt,
   onBusy,
   onError,
-  timers = { set: (f, ms) => setTimeout(f, ms), clear: t => clearTimeout(t) }
-}) {
+  timers = { set: (f: Json, ms: Json) => setTimeout(f, ms), clear: (t: Json) => clearTimeout(t) }
+}: Json) {
   let timer = 0,
-    running = null,
-    queued = null,
+    running: Json = null,
+    queued: Json = null,
     dirty = false;
   const auto = () => ['stems', 'all'].includes(mode());
   const notify = () => onBusy?.({ busy: !!running || !!queued, dirty });
@@ -63,7 +63,7 @@ export function createApplyQueue({
     return queued;
   }
   return {
-    request(reason) {
+    request(reason: Json) {
       const m = mode();
       if (!m || m === 'none') return;
       dirty = true;

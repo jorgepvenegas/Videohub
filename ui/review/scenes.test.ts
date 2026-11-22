@@ -1,7 +1,7 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { scenesFromPage, mapPieces, sample, tidy } from './scenes.ts';
+import type { Json } from '../app.ts';
 
 test('VH_SCENES wins, as array or function', () => {
   const a = scenesFromPage({ VH_SCENES: [{ name: 'a', t0: 0, t1: 2 }], SHOTS: [{ id: 'x', t0: 0, t1: 9 }] }, 10);
@@ -54,7 +54,7 @@ test('hd2d pieces map old shot times to film time, black pieces skipped', () => 
 });
 
 test('sampled shot names become runs; same-name neighbours join', () => {
-  const r = sample(t => (t < 1 ? 'one' : t < 2.5 ? 'two' : 'one'), 4);
+  const r = sample((t: Json) => (t < 1 ? 'one' : t < 2.5 ? 'two' : 'one'), 4);
   assert.deepEqual(
     r.map(s => s.name),
     ['one', 'two', 'one']

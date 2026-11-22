@@ -1,10 +1,10 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseTime, fmtTC, createShuttle } from './transport.ts';
+import type { Json } from '../app.ts';
 
 const F = 30,
-  frameOf = t => Math.floor(t * F + 1e-4);
+  frameOf = (t: Json) => Math.floor(t * F + 1e-4);
 
 test('parseTime: every form lands on the right frame', () => {
   assert.equal(frameOf(parseTime('0:10:00', F)), 300); // m:ss:ff
@@ -39,10 +39,10 @@ test('fmtTC: the old m:ss.cc look, never :60', () => {
 });
 
 function rig(start = 5) {
-  const S = { t: start, playing: false, rate: 1, base: 1, seeking: false, seeks: 0, frames: [], clock: 0, changes: [] };
+  const S = { t: start, playing: false, rate: 1, base: 1, seeking: false, seeks: 0, frames: [] as Json[], clock: 0, changes: [] as Json[] };
   const sh = createShuttle({
     now: () => S.t,
-    seek: t => {
+    seek: (t: Json) => {
       S.t = Math.max(0, t);
       S.seeks++;
     },
@@ -52,14 +52,14 @@ function rig(start = 5) {
     pause: () => {
       S.playing = false;
     },
-    setPlaybackRate: r => {
+    setPlaybackRate: (r: Json) => {
       S.rate = r;
     },
     baseRate: () => S.base,
     seeking: () => S.seeking,
-    onChange: s => S.changes.push(s),
+    onChange: (s: Json) => S.changes.push(s),
     fps: () => F,
-    raf: cb => {
+    raf: (cb: Json) => {
       S.frames.push(cb);
       return S.frames.length;
     },

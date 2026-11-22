@@ -1,9 +1,9 @@
-// @ts-nocheck
+import type { Json } from '../app.ts';
 // Drawing shapes in 0..1 frame coordinates: pen, arrow, rect, ellipse, pin, text.
 export const COLORS = ['#ff4d4d', '#ffb02e', '#3ee089', '#5aa9ff', '#ffffff'];
 export const WIDTHS = [1, 2, 3.5];
 
-export function bbox(shapes) {
+export function bbox(shapes: Json) {
   let x0 = 1,
     y0 = 1,
     x1 = 0,
@@ -23,15 +23,15 @@ export function bbox(shapes) {
   return [Math.max(0, x0), Math.max(0, y0), Math.min(1, x1), Math.min(1, y1)];
 }
 
-function path(c, s, W, H) {
-  const P = s.pts.map(([x, y]) => [x * W, y * H]);
+function path(c: Json, s: Json, W: Json, H: Json) {
+  const P = s.pts.map(([x, y]: Json) => [x * W, y * H]);
   c.beginPath();
   if (s.type === 'pin') {
     c.arc(P[0][0], P[0][1], Math.max(9, W * 0.011), 0, 7);
     return;
   }
   if (s.type === 'pen') {
-    P.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
+    P.forEach(([x, y]: Json, i: Json) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
     return;
   }
   const [a, b] = [P[0], P[P.length - 1]];
@@ -51,10 +51,10 @@ function path(c, s, W, H) {
 
 // a solid numbered dot with a white ring, readable on any background
 const DARK_TEXT = new Set(['#ffb02e', '#3ee089', '#ffffff']);
-export const pinR = (W, w = 1) => Math.max(10, W * 0.012) * (0.9 + 0.1 * w);
+export const pinR = (W: Json, w = 1) => Math.max(10, W * 0.012) * (0.9 + 0.1 * w);
 export const PIN_HEAD = 2.1; // head centre sits this many radii above the point
 // a map-pin marker: numbered head above, tip on the exact spot, so the spot itself stays visible
-function pin(c, s, W, H) {
+function pin(c: Json, s: Json, W: Json, H: Json) {
   const x = s.pts[0][0] * W,
     y = s.pts[0][1] * H,
     r = pinR(W, s.width || 1),
@@ -94,7 +94,7 @@ function pin(c, s, W, H) {
   }
 }
 
-export function paint(c, shapes, W, H, alpha = 1) {
+export function paint(c: Json, shapes: Json, W: Json, H: Json, alpha = 1) {
   c.save();
   c.globalAlpha = alpha;
   c.lineCap = 'round';
@@ -125,10 +125,10 @@ export function paint(c, shapes, W, H, alpha = 1) {
 }
 
 // index of the shape nearest to a point (for the eraser), or -1
-export function hit(shapes, pt, tol = 0.025) {
+export function hit(shapes: Json, pt: Json, tol = 0.025) {
   let best = -1,
     bd = tol;
-  shapes.forEach((s, i) => {
+  shapes.forEach((s: Json, i: Json) => {
     let d = Infinity;
     if (s.type === 'text') {
       const [x0, y0, x1, y1] = bbox([s]);

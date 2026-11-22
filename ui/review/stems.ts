@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Sound layers under the timeline: a row per stem with a level slider (0–200 %), mute (M) and solo (S).
 // Listening: while every layer is as the film has it, the player's own sound plays; once a level differs, or something
 // is muted/soloed, the player is muted and the stems play in its place through Web Audio gains (so above 100 % works),
@@ -7,33 +6,34 @@
 // only that entry's fields) and the review page's apply queue rebuilds the film's mix (server/sound.js; the untouched
 // mix stays as *.vhorig.wav; 3D studio: the engine's build at once, since the button asked for it).
 import { h, api, toast } from '../app.ts';
+import type { Json } from '../app.ts';
 
-const KEY = { vo: 'vo', music: 'music', sfx: 'sfx' }; // layer id → tweaks.json sound key
-const pct = g => Math.round(g * 100) + '%';
+const KEY: Record<string, string> = { vo: 'vo', music: 'music', sfx: 'sfx' }; // layer id → tweaks.json sound key
+const pct = (g: Json) => Math.round(g * 100) + '%';
 
-export function createStems({ media, projectId, dur, range, live, reloadAudio, applyQueue, status, onSaved }) {
+export function createStems({ media, projectId, dur, range, live, reloadAudio, applyQueue, status, onSaved }: Json) {
   const el = h('div', { class: 'tl2-layers' });
-  let layers = [],
-    cues = null,
+  let layers: Json = [],
+    cues: Json = null,
     audios = new Map(),
     nodes = new Map(),
-    ac = null,
+    ac: Json = null,
     mute = new Set(),
     solo = new Set();
   let active = false,
     wasMuted = false,
     timer = 0,
-    onChange = null,
+    onChange: Json = null,
     scope = 'all',
-    info = null,
-    stored = [],
+    info: Json = null,
+    stored: Json = [],
     busy = false;
-  const gain = {},
-    base = {}; // what the slider says, what the film has now (for the chosen scope)
-  const audible = id => (solo.size ? solo.has(id) : !mute.has(id));
-  const levelOf = id => (audible(id) ? (gain[id] ?? 1) : 0);
-  const apply = () => layers.filter(l => KEY[l.id]); // layers whose level can go into the film's mix
-  const dirty = () => apply().some(l => Math.abs((gain[l.id] ?? 1) - (base[l.id] ?? 1)) > 0.004);
+  const gain: Record<string, number> = {},
+    base: Record<string, number> = {}; // what the slider says, what the film has now (for the chosen scope)
+  const audible = (id: Json) => (solo.size ? solo.has(id) : !mute.has(id));
+  const levelOf = (id: Json) => (audible(id) ? (gain[id] ?? 1) : 0);
+  const apply = () => layers.filter((l: Json) => KEY[l.id]); // layers whose level can go into the film's mix
+  const dirty = () => apply().some((l: Json) => Math.abs((gain[l.id] ?? 1) - (base[l.id] ?? 1)) > 0.004);
   const scopeKey = () => {
     if (scope === 'all') return { shot: '*', t0: 0, t1: dur() || 1e6 };
     const r = range();
@@ -42,7 +42,7 @@ export function createStems({ media, projectId, dur, range, live, reloadAudio, a
   // the film's levels for this scope (from tweaks.json), shown as the sliders' starting point
   function loadBase() {
     const k = scopeKey(),
-      e = k && stored.find(x => x.shot === k.shot);
+      e = k && stored.find((x: Json) => x.shot === k.shot);
     for (const l of apply()) {
       base[l.id] = e && e[KEY[l.id]] != null ? +e[KEY[l.id]] : 1;
       gain[l.id] = base[l.id];
@@ -66,7 +66,7 @@ export function createStems({ media, projectId, dur, range, live, reloadAudio, a
         step: 5,
         value: Math.round((gain[l.id] ?? 1) * 100),
         title: 'Level (double-click: restore the film level)',
-        oninput: e => {
+        oninput: (e: Json) => {
           gain[l.id] = +e.target.value / 100;
           out.textContent = pct(gain[l.id]);
           update(false);
@@ -93,7 +93,7 @@ export function createStems({ media, projectId, dur, range, live, reloadAudio, a
     }
     if (cues) row.append(h('span', { class: 'dim' }, `${cues.length} effect cues`));
     // the one-click wish: take the film's music out (or put it back), whole film
-    if (canApply && apply().some(l => l.id === 'music')) {
+    if (canApply && apply().some((l: Json) => l.id === 'music')) {
       const off = scope === 'all' && (base.music ?? 1) < 0.004;
       row.append(
         h(
@@ -123,7 +123,7 @@ export function createStems({ media, projectId, dur, range, live, reloadAudio, a
         'select',
         {
           title: 'Where to apply these levels',
-          onchange: e => {
+          onchange: (e: Json) => {
             scope = e.target.value;
             loadBase();
             update();
@@ -180,13 +180,13 @@ export function createStems({ media, projectId, dur, range, live, reloadAudio, a
     );
     el.append(act);
   }
-  function toggle(set, id) {
+  function toggle(set: Json, id: Json) {
     set.has(id) ? set.delete(id) : set.add(id);
     update();
   }
   function update(repaint = true) {
     // only real stems can be heard on their own; a studio film's channels (no stem files) are set and applied only
-    const want = layers.some(l => l.audio) && (mute.size > 0 || solo.size > 0 || dirty());
+    const want = layers.some((l: Json) => l.audio) && (mute.size > 0 || solo.size > 0 || dirty());
     if (want && !active) start();
     else if (!want && active) stop();
     if (active) sync(true);
@@ -228,7 +228,7 @@ export function createStems({ media, projectId, dur, range, live, reloadAudio, a
     media.muted = wasMuted;
   }
   const onMedia = () => sync(true);
-  function sync(force) {
+  function sync(force: Json) {
     if (!active) return;
     if (!media.muted) media.muted = true; // the stems are the sound now
     const t = +media.currentTime || 0,
@@ -262,7 +262,7 @@ export function createStems({ media, projectId, dur, range, live, reloadAudio, a
     try {
       // this scope's entry, field by field: a level back at 100 % removes its field (and the entry when none is left);
       // fields of other channels (the scene editor's "Overall") stay
-      const e = { ...k };
+      const e: Json = { ...k };
       for (const l of apply()) {
         const g = gain[l.id] ?? 1;
         e[KEY[l.id]] = Math.abs(g - 1) > 0.004 ? +g.toFixed(3) : null;
@@ -280,7 +280,7 @@ export function createStems({ media, projectId, dur, range, live, reloadAudio, a
       } // the queue reports a failed build
       else applyQueue?.request('levels');
       return;
-    } catch (err) {
+    } catch (err: Json) {
       toast('Could not apply: ' + err.message, true);
     }
     busy = false;
@@ -289,7 +289,7 @@ export function createStems({ media, projectId, dur, range, live, reloadAudio, a
   paint();
   return {
     el,
-    async set(L, cb) {
+    async set(L: Json, cb: Json) {
       layers = L.layers || [];
       cues = L.cues && L.cues.length ? L.cues : null;
       onChange = cb || null;
@@ -300,15 +300,15 @@ export function createStems({ media, projectId, dur, range, live, reloadAudio, a
           .catch(() => [])
       ]);
       // a 3D studio film has no stem files but its engine mixes voice / music / effects on separate buses: offer their levels
-      if (info?.mode === 'studio' && !layers.some(l => KEY[l.id]))
+      if (info?.mode === 'studio' && !layers.some((l: Json) => KEY[l.id]))
         layers = [{ id: 'vo', label: 'Voice' }, { id: 'music', label: 'Music' }, { id: 'sfx', label: 'Effects' }, ...layers];
       loadBase();
       update();
     },
-    audible: id => levelOf(id) > 0.004,
+    audible: (id: Json) => levelOf(id) > 0.004,
     refresh: () => paint(),
     // the film's levels changed elsewhere (scene editor, another tab's PATCH): new starting point for the sliders
-    setStored(list) {
+    setStored(list: Json) {
       const wasDirty = dirty();
       stored = Array.isArray(list) ? list : [];
       if (!wasDirty) {

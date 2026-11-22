@@ -1,28 +1,26 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import vm from 'node:vm';
+import { readSource } from '../../scripts/test-source.ts';
+import type { Json } from '../app.ts';
 
-const code = fs
-  .readFileSync(new URL('./renderbtn.ts', import.meta.url), 'utf8')
-  .replace(/^import .+;\r?$/gm, '')
-  .replace('export function', 'function');
+const stripped = readSource(new URL('./renderbtn.ts', import.meta.url));
+const code = stripped.slice(stripped.indexOf('const FIXED')).replace('export function', 'function');
 
 test('rapid clicks and a late job-list response cannot open duplicate render dialogs', async () => {
-  let finishList,
-    finishDialog,
+  let finishList: Json,
+    finishDialog: Json,
     dialogs = 0,
     queued = 0;
-  const h = (tag, attrs = {}, ...children) => ({
+  const h = (tag: Json, attrs = {}, ...children: Json[]) => ({
     ...attrs,
     children,
-    replaceChildren(...next) {
+    replaceChildren(...next: Json[]) {
       this.children = next;
     },
     classList: { add() {}, remove() {} }
   });
-  const ctx = {
+  const ctx: Json = {
     h,
     onHubEvent: () => () => {},
     folderButton: () => h('button'),
@@ -34,7 +32,7 @@ test('rapid clicks and a late job-list response cannot open duplicate render dia
         finishDialog = resolve;
       });
     },
-    api: (url, opts) => {
+    api: (url: Json, opts: Json) => {
       if (url === '/api/jobs' && !opts)
         return new Promise(resolve => {
           finishList = resolve;
@@ -67,21 +65,21 @@ test('rapid clicks and a late job-list response cannot open duplicate render dia
 test('the render dialog offers a probed VideoToolbox encoder without starting a job on cancellation', async () => {
   let body,
     queued = 0;
-  const h = (tag, attrs = {}, ...children) => ({
+  const h = (tag: Json, attrs = {}, ...children: Json[]) => ({
     tag,
     ...attrs,
     children: children.flat(Infinity).filter(x => x != null),
-    replaceChildren(...next) {
+    replaceChildren(...next: Json[]) {
       this.children = next;
     }
   });
-  const ctx = {
+  const ctx: Json = {
     h,
     onHubEvent: () => () => {},
     folderButton: () => h('button'),
     toast() {},
     localStorage: { getItem: () => null },
-    api: async (url, opts) => {
+    api: async (url: Json, opts: Json) => {
       if (url === '/api/jobs') {
         if (opts) queued++;
         return [];
@@ -96,7 +94,7 @@ test('the render dialog offers a probed VideoToolbox encoder without starting a 
         info: {}
       };
     },
-    confirmBox: async (title, content) => {
+    confirmBox: async (title: Json, content: Json) => {
       body = content;
       return false;
     }
@@ -105,7 +103,7 @@ test('the render dialog offers a probed VideoToolbox encoder without starting a 
   vm.runInContext(code, ctx);
   const { el } = ctx.createRenderButton({ id: 'mac-template' }, { notes: () => [] });
   await el.onclick();
-  const walk = node => (typeof node === 'object' && node ? [node, ...(node.children || []).flatMap(walk)] : []);
+  const walk = (node: Json) => (typeof node === 'object' && node ? [node, ...(node.children || []).flatMap(walk)] : []);
   const option = walk(body).find(n => n.tag === 'option' && n.value === 'videotoolbox');
   assert.ok(option);
   assert.deepEqual(option.children, ['Mac graphics (VideoToolbox)']);

@@ -1,21 +1,18 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readSource } from '../../scripts/test-source.ts';
 import { soundEnv, applyOps, opsToward, clipPlan } from './soundenv.ts';
+import type { Json } from '../app.ts';
 
-const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
-// server/vhsound.ts is read with its types stripped to whitespace (soundenv.js has none until P6), so whitespace, and the parentheses a typed single arrow parameter needs, are normalized before comparing
-const fnText = (file, name) => {
+// the `!` marks results the tests below use straight away: a null would throw there and fail the test anyway
+const near = (a: Json, b: Json, e = 1e-6) => Math.abs(a - b) < e;
+// both files are read with their types stripped to whitespace, and carry the same annotations, so the two functions compare as exact text
+const fnText = (file: Json, name: Json) => {
   const s = readSource(new URL(file, import.meta.url)).replace(/\r\n/g, '\n'),
     i = s.indexOf('export function ' + name + '(');
   assert.ok(i >= 0, name + ' in ' + file);
   const j = s.indexOf('\n}\n', i);
-  return s
-    .slice(i, j + 2)
-    .replace(/\(\s*(\w+)\s*\)\s*=>/g, '$1 =>')
-    .replace(/\s+/g, ' ')
-    .replace(/ ?([()[\]{},;]) ?/g, '$1');
+  return s.slice(i, j + 2);
 };
 
 test('soundEnv is the same source as server/vhsound.ts', () => {
@@ -31,11 +28,11 @@ test('soundEnv: levels add up, ramps, nothing to do → null', () => {
       { shot: 'range 10.00–20.00', t0: 10, t1: 20, music: 0.5 }
     ],
     'music'
-  );
+  )!;
   assert.ok(near(f(5), 0.5));
   assert.ok(near(f(15), 0));
   assert.ok(near(f(50), 0.5));
-  const g = soundEnv([{ shot: 'a', t0: 10, t1: 20, vo: 2 }], 'vo');
+  const g = soundEnv([{ shot: 'a', t0: 10, t1: 20, vo: 2 }], 'vo')!;
   assert.ok(near(g(10), 1.5));
   assert.ok(near(g(9), 1));
   assert.ok(near(g(15), 2));
@@ -51,7 +48,7 @@ test('applyOps: field merge, null removes, no level left → dropped, sorted', (
     ]
   });
   assert.deepEqual(
-    L.map(e => e.shot),
+    L.map((e: Json) => e.shot),
     ['b', '*']
   );
   assert.equal(L[0].sfx, 4);
@@ -62,7 +59,7 @@ test('applyOps: field merge, null removes, no level left → dropped, sorted', (
 });
 
 test('opsToward: only owned shots, only fields that differ', () => {
-  const owned = s => s === '*' || s.startsWith('range ');
+  const owned = (s: Json) => s === '*' || s.startsWith('range ');
   const cur = [
     { shot: '*', t0: 0, t1: 9, music: 0.5, vo: 2 },
     { shot: 'sh1', t0: 1, t1: 2, sfx: 0 }
@@ -71,7 +68,7 @@ test('opsToward: only owned shots, only fields that differ', () => {
     { shot: '*', t0: 0, t1: 9, vo: 2 },
     { shot: 'range 1.00–2.00', t0: 1, t1: 2, all: 0.3 }
   ];
-  const o = opsToward(cur, snap, owned);
+  const o = opsToward(cur, snap, owned)!;
   assert.deepEqual(
     o.set.find(e => e.shot === '*'),
     { shot: '*', t0: 0, t1: 9, music: null }
@@ -82,7 +79,7 @@ test('opsToward: only owned shots, only fields that differ', () => {
   );
   assert.equal(o.set.length, 2);
   assert.deepEqual(
-    applyOps(cur, o).filter(e => owned(e.shot)),
+    applyOps(cur, o).filter((e: Json) => owned(e.shot)),
     snap.slice().sort((a, b) => a.t0 - b.t0)
   );
   assert.equal(opsToward(snap, snap, owned), null);
@@ -90,7 +87,7 @@ test('opsToward: only owned shots, only fields that differ', () => {
 
 test('clipPlan: start delay, offsets, trim, loop, fades, end', () => {
   const c = { t: 10, gain: 0.5, fin: 1, fout: 2, trim: 0.5, len: null, loop: false };
-  let P = clipPlan(c, 8, 1, 6.5, 60); // plays 6 s (file 6.5 − trim 0.5) from 10 s
+  let P = clipPlan(c, 8, 1, 6.5, 60)!; // plays 6 s (file 6.5 − trim 0.5) from 10 s
   assert.ok(near(P.delay, 2));
   assert.ok(near(P.offset, 0.5));
   assert.ok(near(P.dur, 6));
@@ -103,7 +100,7 @@ test('clipPlan: start delay, offsets, trim, loop, fades, end', () => {
       [6, 0]
     ]
   );
-  P = clipPlan(c, 12, 2, 6.5, 60); // 2 s in, double speed: no delay, from 2.5 s of the file
+  P = clipPlan(c, 12, 2, 6.5, 60)!; // 2 s in, double speed: no delay, from 2.5 s of the file
   assert.ok(near(P.delay, 0));
   assert.ok(near(P.offset, 2.5));
   assert.ok(near(P.dur, 4));
@@ -112,12 +109,12 @@ test('clipPlan: start delay, offsets, trim, loop, fades, end', () => {
   assert.equal(clipPlan({ ...c, mute: true }, 8, 1, 6.5, 60), null);
   assert.equal(clipPlan({ ...c, gain: 0 }, 8, 1, 6.5, 60), null);
   // loop: to the end of the film, offset wraps inside the file after the trim
-  const L = clipPlan({ ...c, loop: true, fin: 0, fout: 0 }, 23, 1, 6.5, 60);
+  const L = clipPlan({ ...c, loop: true, fin: 0, fout: 0 }, 23, 1, 6.5, 60)!;
   assert.ok(near(L.dur, 37));
   assert.ok(near(L.offset, 0.5 + (13 % 6)));
   assert.equal(L.loop, true);
   assert.ok(near(L.loopStart, 0.5));
   // a len longer than the file stops at the file's end (fade-out never reached, as in mixClips)
-  const N = clipPlan({ ...c, len: 20, fin: 0, fout: 0 }, 10, 1, 6.5, 60);
+  const N = clipPlan({ ...c, len: 20, fin: 0, fout: 0 }, 10, 1, 6.5, 60)!;
   assert.ok(near(N.dur, 6));
 });

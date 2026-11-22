@@ -1,19 +1,19 @@
-// @ts-nocheck
 // Sound library at the top of the Sounds tab (P4): ready-made effects (made on this PC with the 3D studio's synth)
 // and the user's sound folder (config.soundLibDir, default Documents\VideoHub\sounds). Search, ▶ listen (one at a time), "+" adds at the playhead,
 // and every row can be dragged onto the timeline (application/x-vh-sound; timeline.js decides time, row and lane).
 import { h, api, toast } from '../app.ts';
+import type { Json } from '../app.ts';
 
 const MAX_ROWS = 300;
 
-export function createLibrary({ onAdd, onFile }) {
+export function createLibrary({ onAdd, onFile }: Json) {
   const el = h('div', { class: 'lib' });
   const list = h('div', { class: 'lib-list' });
   const player = new Audio();
-  let lib = null,
+  let lib: Json = null,
     tab = 'sfx',
     q = '',
-    playing = null,
+    playing: Json = null,
     building = false;
   player.addEventListener('ended', () => {
     playing = null;
@@ -24,7 +24,7 @@ export function createLibrary({ onAdd, onFile }) {
     type: 'search',
     class: 'lib-q',
     placeholder: 'Search sounds…',
-    oninput: e => {
+    oninput: (e: Json) => {
       q = e.target.value.toLocaleLowerCase('en-US');
       draw();
     }
@@ -54,7 +54,7 @@ export function createLibrary({ onAdd, onFile }) {
     player.pause();
     playing = null;
   }
-  function listen(x) {
+  function listen(x: Json) {
     if (playing === x.file) {
       stop();
       draw();
@@ -74,7 +74,7 @@ export function createLibrary({ onAdd, onFile }) {
     draw();
     try {
       lib = await api('/api/sound-library/build', { method: 'POST' });
-    } catch (e) {
+    } catch (e: Json) {
       toast(e.message, true);
     }
     building = false;
@@ -82,7 +82,7 @@ export function createLibrary({ onAdd, onFile }) {
   }
 
   function draw() {
-    const n = k => lib?.[k]?.length ?? 0;
+    const n = (k: Json) => lib?.[k]?.length ?? 0;
     tabs.replaceChildren(
       ...[
         ['sfx', 'Built-in effects'],
@@ -117,7 +117,7 @@ export function createLibrary({ onAdd, onFile }) {
       );
       return;
     }
-    const all = (lib[tab] || []).filter(x => !q || (x.name + ' ' + x.group).toLocaleLowerCase('en-US').includes(q));
+    const all = (lib[tab] || []).filter((x: Json) => !q || (x.name + ' ' + x.group).toLocaleLowerCase('en-US').includes(q));
     if (!all.length) {
       list.append(h('div', { class: 'dim' }, q ? 'No sounds match your search.' : tab === 'user' ? `No sounds in folder: ${lib.libDir || ''}` : 'No effects.'));
       return;
@@ -136,7 +136,7 @@ export function createLibrary({ onAdd, onFile }) {
         h('span', { class: 'spacer' }),
         h('button', { class: 'ghost', title: 'Add at playhead', onclick: () => onAdd?.(x) }, '+')
       );
-      row.addEventListener('dragstart', e => {
+      row.addEventListener('dragstart', (e: Json) => {
         e.dataTransfer.setData('application/x-vh-sound', JSON.stringify({ file: x.file, name: x.name, group: x.group }));
         e.dataTransfer.effectAllowed = 'copy';
       });

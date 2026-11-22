@@ -1,12 +1,12 @@
-// @ts-nocheck
 // Transport bar (P2): one row under the picture — frame/seek buttons, a typed timecode, speed + J/K/L shuttle,
 // the I/O range, timeline zoom + follow, note / captions / sound / still / fullscreen. What does not fit goes
 // into "⋯" by data-pri (dock.js fitRow). parseTime / fmtTC / createShuttle are pure and tested in node.
 import { fitRow, openPop } from './dock.ts';
+import type { Json } from '../app.ts';
 
 // "1:23.45" m:ss.cc · "1:23:12" m:ss:ff · "83.4" / "83" s · "k1234" "f1234" "#1234" frame · "+2" "-0.5" relative s ·
 // "+10f" "-3k" relative frames · comma = decimal point. → seconds at the middle of the frame it lands on, or null.
-export function parseTime(str, fps, now = 0) {
+export function parseTime(str: Json, fps: Json, now = 0) {
   const v = String(str ?? '')
     .trim()
     .toLowerCase()
@@ -15,8 +15,8 @@ export function parseTime(str, fps, now = 0) {
   if (!v) return null;
   fps = fps > 0 ? fps : 30;
   now = Number.isFinite(+now) ? +now : 0;
-  const frameOf = t => Math.max(0, Math.floor(t * fps + 1e-4)),
-    at = f => (Math.max(0, f) + 0.5) / fps;
+  const frameOf = (t: Json) => Math.max(0, Math.floor(t * fps + 1e-4)),
+    at = (f: Json) => (Math.max(0, f) + 0.5) / fps;
   const num = '(\\d+(?:\\.\\d*)?|\\.\\d+)';
   let m;
   if ((m = v.match(new RegExp(`^([+-])${num}([fk#])?$`)))) {
@@ -41,7 +41,7 @@ export function parseTime(str, fps, now = 0) {
 }
 
 // "m:ss.cc", the old TC look (centiseconds cut, so 59.999 never reads 0:60.00)
-export function fmtTC(t) {
+export function fmtTC(t: Json) {
   const cs = Math.max(0, Math.floor((+t || 0) * 100 + 1e-6)),
     m = Math.floor(cs / 6000),
     r = (cs % 6000) / 100;
@@ -61,18 +61,18 @@ export function createShuttle({
   seeking = () => false,
   onChange,
   fps = () => 30,
-  raf = (...a) => globalThis.requestAnimationFrame(...a),
-  caf = id => globalThis.cancelAnimationFrame?.(id),
+  raf = (...a: [FrameRequestCallback]) => globalThis.requestAnimationFrame(...a),
+  caf = (id: Json) => globalThis.cancelAnimationFrame?.(id),
   clock = () => performance.now()
-}) {
+}: Json) {
   const STEPS = [1, 2, 4, 8];
   let dir = 0,
     sp = 0,
     handle = 0,
     lastClock = 0,
     pos = 0,
-    written = null;
-  const up = s => STEPS[Math.min(STEPS.length - 1, STEPS.indexOf(s) + 1)];
+    written: Json = null;
+  const up = (s: Json) => STEPS[Math.min(STEPS.length - 1, STEPS.indexOf(s) + 1)];
   const speed = () => dir * sp;
   const changed = () => onChange?.(speed());
   const halt = () => {
@@ -151,7 +151,7 @@ export function createShuttle({
 }
 
 // tiny DOM helper (this module must stay importable in node for its tests: no app.js)
-function el(tag, attrs = {}, ...kids) {
+function el(tag: Json, attrs = {}, ...kids: Json[]) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (v == null || v === false) continue;
@@ -165,10 +165,10 @@ function el(tag, attrs = {}, ...kids) {
 // ctx: { now, dur, fps, frame, chunkSec, paused, seek, step, togglePlay, setRate, speeds, range, rangeOk, setIn, setOut,
 //        clearRange, applyRange(aText, bText) → bool, noteForRange, loopOn, toggleLoop, muted, setMuted, volume, setVolume,
 //        captionsAvailable, captionsOn, toggleCaptions, newNote, saveFrame, fullscreen, view /* tlview */, toast, host }
-export function createTransport(ctx) {
+export function createTransport(ctx: Json) {
   const fps = () => ctx.fps() || 30,
     V = ctx.view;
-  const bt = (label, title, fn, pri, cls = 'tbtn') => el('button', { class: cls, title, 'data-pri': pri, onclick: fn }, label);
+  const bt = (label: Json, title: Json, fn: Json, pri: Json, cls = 'tbtn') => el('button', { class: cls, title, 'data-pri': pri, onclick: fn }, label);
   const playBtn = bt('▶', 'Play / pause (Space)', () => ctx.togglePlay(), 9, 'play');
   playBtn.dataset.fitStatic = '';
   // timecode: a button showing where we are; click (or G) turns it into a field that takes any time form
@@ -190,7 +190,7 @@ export function createTransport(ctx) {
   const speedSel = el(
     'select',
     { title: 'Speed ([ / ])', 'data-pri': 6, onchange: () => ctx.setRate(+speedSel.value) },
-    (ctx.speeds || [1]).map(s => el('option', { value: s, selected: s === 1 }, s + '×'))
+    (ctx.speeds || [1]).map((s: Json) => el('option', { value: s, selected: s === 1 }, s + '×'))
   );
   const badge = el('span', { class: 'tp-shuttle', hidden: true, 'data-pri': 9, title: 'J / L: rewind / fast forward · K: stop' });
   // range (I/O): from one frame to another, typed or picked; loop it, or attach it to a note
@@ -306,7 +306,7 @@ export function createTransport(ctx) {
     tcIn.classList.remove('bad');
     tcIn.focus();
   }
-  tcIn.addEventListener('keydown', e => {
+  tcIn.addEventListener('keydown', (e: Json) => {
     e.stopPropagation();
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -338,7 +338,7 @@ export function createTransport(ctx) {
   }
 
   // ---- range edit: the frame fields, no draft needed; in a popover when the group sits in ⋯
-  let rangePop = null;
+  let rangePop: Json = null;
   function editRange() {
     const R = ctx.range(),
       f = ctx.frame();
@@ -374,7 +374,7 @@ export function createTransport(ctx) {
     if (ctx.applyRange(rA.value, rB.value)) closeRange();
   }
   for (const inp of [rA, rB])
-    inp.addEventListener('keydown', e => {
+    inp.addEventListener('keydown', (e: Json) => {
       e.stopPropagation();
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -397,7 +397,7 @@ export function createTransport(ctx) {
     setHidden(rClear, !any);
     rLoop.classList.toggle('on', !!ctx.loopOn());
   }
-  const setHidden = (e, on) => {
+  const setHidden = (e: Json, on: Json) => {
     if (e.hidden !== on) e.hidden = on;
   };
 
@@ -451,7 +451,7 @@ export function createTransport(ctx) {
     setHidden(ccBtn, !ctx.captionsAvailable());
     ccBtn.classList.toggle('on', !!ctx.captionsOn?.());
   }
-  function setShuttle(s) {
+  function setShuttle(s: Json) {
     setHidden(badge, !s);
     if (s) {
       const txt = (s > 0 ? '▶▶ ' : '◀◀ ') + Math.abs(s) + '×';
@@ -468,7 +468,7 @@ export function createTransport(ctx) {
     updRange,
     refit: fit.refit,
     rate: () => +speedSel.value,
-    showRate(r) {
+    showRate(r: Json) {
       const s = String(r);
       if ([...speedSel.options].some(o => o.value === s)) speedSel.value = s;
     },

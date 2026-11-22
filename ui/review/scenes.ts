@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type { Json } from '../app.ts';
 // The film's scenes from the live page, for the timeline's scene lane: [{ name, t0, t1 }] in film seconds.
 // What the engines expose (first one found wins):
 //   window.VH_SCENES      the contract: an array (or a function returning one) of {name|id, t0, t1}
@@ -7,7 +7,7 @@
 //   window.__qaShotAt(t)  3D studio 2D films (film2d.js): the shot name at a time, sampled every 1/20 s
 // Pure (no DOM): tested by ui/review/scenes.test.js.
 
-export function scenesFromPage(win, dur) {
+export function scenesFromPage(win: Json, dur: Json) {
   if (!win) return { scenes: [], source: null };
   const D = +dur || 0;
   try {
@@ -45,7 +45,7 @@ export function scenesFromPage(win, dur) {
     if (typeof win.__qaShotAt === 'function' && D > 0)
       return {
         scenes: tidy(
-          sample(t => win.__qaShotAt(t), D),
+          sample((t: Json) => win.__qaShotAt(t), D),
           D
         ),
         source: '__qaShotAt'
@@ -55,7 +55,7 @@ export function scenesFromPage(win, dur) {
 }
 
 // hd2d: each piece plays old time a..b at film time s..s+d (black gaps and cards have no shot)
-export function mapPieces(shots, pieces) {
+export function mapPieces(shots: Json, pieces: Json) {
   const out = [];
   for (const p of pieces) {
     if (p.black || p.card || !(p.d > 0)) continue;
@@ -71,7 +71,7 @@ export function mapPieces(shots, pieces) {
 }
 
 // runs of the same name, sampled every `step` seconds
-export function sample(nameAt, dur, step = 0.05) {
+export function sample(nameAt: Json, dur: Json, step = 0.05) {
   const out = [];
   let cur = null;
   for (let t = 0; t < dur + 1e-9; t += step) {
@@ -90,18 +90,18 @@ export function sample(nameAt, dur, step = 0.05) {
 }
 
 // sorted, clipped to the film, neighbours with the same name joined, tiny slivers dropped
-export function tidy(list, dur) {
+export function tidy(list: Json, dur: Json) {
   const D = dur > 0 ? dur : Infinity;
   const s = list
-    .filter(x => x && Number.isFinite(+x.t0))
-    .map(x => ({
+    .filter((x: Json) => x && Number.isFinite(+x.t0))
+    .map((x: Json) => ({
       name: String(x.name ?? x.id ?? '').slice(0, 60) || 'scene',
       ...(x.set ? { set: String(x.set) } : {}),
       t0: Math.max(0, +x.t0),
       t1: Math.min(D, x.t1 != null && Number.isFinite(+x.t1) ? +x.t1 : D)
     }))
-    .filter(x => x.t1 - x.t0 > 0.04)
-    .sort((a, b) => a.t0 - b.t0);
+    .filter((x: Json) => x.t1 - x.t0 > 0.04)
+    .sort((a: Json, b: Json) => a.t0 - b.t0);
   const out = [];
   for (const x of s) {
     const last = out[out.length - 1];

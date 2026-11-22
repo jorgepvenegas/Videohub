@@ -1,14 +1,14 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ls, clampPx, hideOrder } from './dock.ts';
+import type { Json } from '../app.ts';
 
 test('ls: JSON round trip, default on missing / broken / throwing storage', () => {
   const store = new Map();
-  globalThis.localStorage = {
-    getItem: k => (store.has(k) ? store.get(k) : null),
-    setItem: (k, v) => store.set(k, String(v)),
-    removeItem: k => store.delete(k)
+  (globalThis as Json).localStorage = {
+    getItem: (k: Json) => (store.has(k) ? store.get(k) : null),
+    setItem: (k: Json, v: Json) => store.set(k, String(v)),
+    removeItem: (k: Json) => store.delete(k)
   };
   ls.set('a', 262);
   assert.equal(ls.get('a', 0), 262);
@@ -19,7 +19,7 @@ test('ls: JSON round trip, default on missing / broken / throwing storage', () =
   assert.equal(ls.get('bad', 5), 5);
   ls.set('a', null);
   assert.equal(ls.get('a', 1), 1);
-  globalThis.localStorage = {
+  (globalThis as Json).localStorage = {
     getItem() {
       throw new Error('blocked');
     },
@@ -32,7 +32,7 @@ test('ls: JSON round trip, default on missing / broken / throwing storage', () =
   };
   assert.equal(ls.get('a', 3), 3);
   assert.doesNotThrow(() => ls.set('a', 1));
-  delete globalThis.localStorage;
+  delete (globalThis as Json).localStorage;
   assert.equal(ls.get('a', 4), 4);
 });
 

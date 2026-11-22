@@ -108,7 +108,7 @@ Commit after each step with subject `P6:` followed by the step title, and push. 
 - Files: `ui/review/shapes.ts`, `scenes.ts`, `history.ts`, `tips.ts`, `cover.ts`, `applyqueue.ts`, `soundenv.ts`, `tlview.ts`, `tracks.ts`, `sidepanel.ts`, `library.ts`, `dock.ts`, `renderbtn.ts`, `stems.ts`, `transport.ts`, and their tests (`dock`, `tlview`, `history`, `scenes`, `applyqueue`, `renderbtn`, `cover`, `tracks`, `soundenv`, `transport`)
 - Change: Remove `@ts-nocheck` and add strict types with DOM types; explicit null handling must match existing behavior. `soundenv.ts` uses the same annotations as `server/vhsound.ts`, and the identity test goes back to an exact comparison of the two stripped functions (L16). `renderbtn` and `cover` tests read source with `readSource` and marker slices. If a module needs types from a later batch, type the boundary locally rather than reaching ahead.
 - Acceptance:
-  - [ ] No `@ts-nocheck` in these files; the stripped comparison shows no runtime difference; the soundEnv test compares exact stripped text and fails when one side changes (mutation recorded in §9)
+  - [x] No `@ts-nocheck` in these files; the stripped comparison shows no runtime difference; the soundEnv test compares exact stripped text and fails when one side changes (mutation recorded in §9)
 - Verification: `grep -l "@ts-nocheck"` over the step's files (no output); `pnpm typecheck && pnpm build && pnpm test 2>&1 | tail -8`; stripped diff recorded in §9
 - Rollback: `git revert HEAD`
 

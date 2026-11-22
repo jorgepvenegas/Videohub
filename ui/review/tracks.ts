@@ -1,11 +1,11 @@
-// @ts-nocheck
+import type { Json } from '../app.ts';
 // Pure helpers for the multi-track timeline (P3a): which rows it shows and how tall, clip lanes, ruler ticks, snapping.
 // No DOM here (tracks.test.js runs it in Node).
 
 export const COLLAPSED_H = 14;
 export const MAX_LANES = 8;
-const STEMS = { vo: 1, music: 1, sfx: 1 };
-const ROW_COLOR = {
+const STEMS: Record<string, number> = { vo: 1, music: 1, sfx: 1 };
+const ROW_COLOR: Record<string, string> = {
   pic: '#8f8f9a',
   mix: '#9aa0b0',
   scenes: '#5a78b0',
@@ -21,20 +21,20 @@ const ROW_COLOR = {
 };
 
 // a clip's length on the timeline (loop: to the end of the film)
-export function clipLen(c, filmDur = Infinity) {
+export function clipLen(c: Json, filmDur = Infinity) {
   return Math.max(0.05, c.len != null ? +c.len : c.loop ? filmDur - c.t : Math.max(0, (c.dur || 0.5) - (c.trim || 0)));
 }
-const hasLane = c => Number.isInteger(c.lane) && c.lane >= 0 && c.lane < MAX_LANES;
+const hasLane = (c: Json) => Number.isInteger(c.lane) && c.lane >= 0 && c.lane < MAX_LANES;
 
 // first lane (0..7) of clip.kind where the clip overlaps no other clip that already has a lane; for a NEW clip
 // (and once for an old clip saved before lanes existed, in timestamp order)
-export function assignLane(clips, clip, filmDur = Infinity) {
+export function assignLane(clips: Json, clip: Json, filmDur = Infinity) {
   const a = +clip.t || 0,
     b = a + clipLen(clip, filmDur),
     kind = clip.kind === 'music' ? 'music' : 'sfx';
   for (let lane = 0; lane < MAX_LANES; lane++) {
     const busy = (clips || []).some(
-      c =>
+      (c: Json) =>
         c !== clip &&
         c.id !== clip.id &&
         hasLane(c) &&
@@ -49,17 +49,17 @@ export function assignLane(clips, clip, filmDur = Infinity) {
 }
 
 // lanes shown for a kind: the highest used lane + one free lane under it (a drop target), at least 1
-export function laneCount(clips, kind) {
+export function laneCount(clips: Json, kind: Json) {
   let max = -1;
   for (const c of clips || []) if ((c.kind === 'music' ? 'music' : 'sfx') === kind && hasLane(c)) max = Math.max(max, c.lane);
   return Math.max(1, Math.min(MAX_LANES, max + 2));
 }
 
 // rows top → bottom; collapsed rows are 14 px; header = which controls the row will carry (P3c), null = none
-export function buildRows({ live, strip, scenes, transcript, layers, cues, clips, canClips, collapsed }) {
+export function buildRows({ live, strip, scenes, transcript, layers, cues, clips, canClips, collapsed }: Json) {
   const C = collapsed instanceof Set ? collapsed : new Set(collapsed || []),
-    rows = [];
-  const add = (id, kind, label, h, color, header = null, extra = {}) =>
+    rows: Json = [];
+  const add = (id: Json, kind: Json, label: Json, h: Json, color: Json, header: Json = null, extra = {}) =>
     rows.push({ id, kind, label, h: C.has(id) ? COLLAPSED_H : h, full: h, collapsed: C.has(id), color, header, ...extra });
   if (!live && strip) add('pic', 'pic', 'Picture', 40, ROW_COLOR.pic);
   add('mix', 'mix', 'Film audio', 26, ROW_COLOR.mix, { mute: false, solo: false, level: true });
@@ -72,7 +72,7 @@ export function buildRows({ live, strip, scenes, transcript, layers, cues, clips
       add(l.id, 'layer', l.label, 30, ROW_COLOR[l.id], { mute: true, solo: true, level: true }, { layer: l, cues: l.id === 'sfx' && !!(cues && cues.length) });
     else add(l.id, 'layer', l.label, 26, ROW_COLOR.st, { mute: true, solo: true, level: false }, { layer: l, extra: true });
   }
-  if (cues && cues.length && !L.some(l => l.id === 'sfx')) add('cues', 'cues', 'Effects', 20, ROW_COLOR.cues, null, { cues: true });
+  if (cues && cues.length && !L.some((l: Json) => l.id === 'sfx')) add('cues', 'cues', 'Effects', 20, ROW_COLOR.cues, null, { cues: true });
   if (canClips)
     for (const k of ['music', 'sfx']) {
       const lanes = laneCount(clips, k);
@@ -95,7 +95,7 @@ export function buildRows({ live, strip, scenes, transcript, layers, cues, clips
 }
 
 // ruler ticks: the first step that leaves ≥ 80 px between labels; minor ticks between them
-export function tickSpec(duration, pxPerSec, fps) {
+export function tickSpec(duration: Json, pxPerSec: Json, fps: Json) {
   const f = fps > 0 ? fps : 30;
   const cands = [1 / f, 2 / f, 5 / f, 10 / f, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1200]
     .sort((p, q) => p - q)
@@ -112,9 +112,9 @@ export function tickSpec(duration, pxPerSec, fps) {
 }
 
 // a tick label: m:ss:ff when the ticks are under a second apart, else m:ss (h:mm:ss from an hour)
-export function fmtTick(t, fps, frames) {
+export function fmtTick(t: Json, fps: Json, frames: Json) {
   t = Math.max(0, t);
-  const p2 = n => String(n).padStart(2, '0');
+  const p2 = (n: Json) => String(n).padStart(2, '0');
   if (frames) {
     const f = fps > 0 ? fps : 30,
       n = Math.round(t * f),
@@ -129,7 +129,7 @@ export function fmtTick(t, fps, frames) {
 }
 
 // snapping a dragged block [start, start + len]: the nearest candidate to either edge within thresholdPx (screen px)
-export function findDragSnap(cands, start, len, pxPerSec, thresholdPx = 8) {
+export function findDragSnap(cands: Json, start: Json, len: Json, pxPerSec: Json, thresholdPx = 8) {
   let best = null,
     bd = Infinity;
   for (const [edge, e] of [
@@ -148,7 +148,7 @@ export function findDragSnap(cands, start, len, pxPerSec, thresholdPx = 8) {
 }
 
 // snapping one edge (trim): the nearest candidate within thresholdPx, else t itself
-export function snapEdgeTime(t, cands, pxPerSec, thresholdPx = 12) {
+export function snapEdgeTime(t: Json, cands: Json, pxPerSec: Json, thresholdPx = 12) {
   let best = t,
     bd = Infinity;
   for (const c of cands || []) {
@@ -163,12 +163,12 @@ export function snapEdgeTime(t, cands, pxPerSec, thresholdPx = 12) {
 }
 
 // auto-pan while dragging near the canvas edges: px per frame, negative at the left edge, 0 until the pointer moved
-export function edgeScrollStep(left, right, clientX, moved) {
+export function edgeScrollStep(left: Json, right: Json, clientX: Json, moved: Json) {
   if (!moved) return 0;
   const Z = 40,
     dl = clientX - left,
     dr = right - clientX;
-  const k = d => Math.min(1, (Z - d) / Z) ** 2;
+  const k = (d: Json) => Math.min(1, (Z - d) / Z) ** 2;
   if (dl < Z && dl <= dr) return -18 * k(dl);
   if (dr < Z) return 18 * k(dr);
   return 0;
