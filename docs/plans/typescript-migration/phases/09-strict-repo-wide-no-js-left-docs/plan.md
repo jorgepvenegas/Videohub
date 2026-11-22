@@ -201,6 +201,9 @@ Commit after each step with subject `P9:` followed by the step title, and push. 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
 
 - 2026-11-22, coordinator, plan defaults under C15: L3 lint rules stay at `warn`; L5 `.git-blame-ignore-revs` not added; L29 `Json` alias kept; L41 dead code kept; L44 hooks build unchanged, docs point to the `.ts` sources. None of these changes user-visible behavior; each is listed in the final report.
+- 2026-11-22, S1 (p9-worker): `grep -nE "allowJs|checkJs" tsconfig.json ui/tsconfig.json` printed nothing. `npx tsc --noEmit -p tsconfig.json` and `-p ui/tsconfig.json` run separately: both exit 0. `node --test scripts/no-js.test.ts`: 1 pass. Revert check: a scratch `ui/zz-scratch.js` made the test fail (`ui/zz-scratch.js` named in the message, 0 pass 1 fail); file removed (created in this session), test passes again.
+- 2026-11-22, S1, L8 repo-wide `any` in type positions (each with its comment): `engine-hooks/vhtweaks.ts:101` `VH_EDIT?: any` (editor methods call each other through it); `examples/hello-film/render.ts:720` and `templates/new-film/render.ts:720` `catch (e: any)` (thrown value of unknown shape); `server/types.ts:5` and `ui/app.ts:11` `type Json = any` (untyped JSON replies). Other grep hits are English prose (`scripts/upload-rules.ts:1`) or a variable named `any` (`ui/review/transport.ts:392`).
+- 2026-11-22, S1, L40 lint-disable comments (only one in the repo, kept): `server/thumbstudio/depth-panel.test.ts:50` `oxlint-disable-next-line typescript/no-this-alias`. No `@ts-ignore`, `@ts-expect-error` or `@ts-nocheck` remains.
 
 ## 10. Closeout
 
