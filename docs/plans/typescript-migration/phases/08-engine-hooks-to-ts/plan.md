@@ -4,10 +4,10 @@
 - Phase: P8
 - Plan version: 2
 - Validated against master version: 61
-- Status: in_progress
+- Status: done
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-22
-- Commit: pending
+- Commit: a604555
 - Implementation mode: subagent
 - Implemented by: p8-worker
 - Implemented at: 2026-11-22

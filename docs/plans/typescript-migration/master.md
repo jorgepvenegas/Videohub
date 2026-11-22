@@ -92,7 +92,7 @@ flowchart LR
 | P5 | Vite UI build and app shell to TS | Vite builds `ui/` into ignored output that the hub serves; setup/update run the build; top-level `ui/*.js` modules (`app`, `agent`, `values`, `system`, `outputs-panel`, `render-status`) and their tests are converted | P4 | done | [plan](phases/05-vite-ui-build-and-app-shell-to-ts/plan.md) |
 | P6 | Review UI to TS | `ui/review/` and `ui/review.js` are `.ts` and build with Vite; review pages work in a scratch hub | P5 | done | [plan](phases/06-review-ui-to-ts/plan.md) |
 | P7 | Thumbnail studio UI to TS | `ui/thumbstudio/` (and the server tests importing it) are `.ts`; the thumbnail studio works in a scratch hub | P5 | done | [plan](phases/07-thumbnail-studio-ui-to-ts/plan.md) |
-| P8 | Engine hooks to TS | `engine-hooks/vh2d` and `vhtweaks` are strict `.ts` (with a local `three` declaration, C13); Vite builds them into stable, readable `dist/engine-hooks/vh2d.js` and `vhtweaks.js` that engines copy; `three` stays external | P4,P5 | in_progress | [plan](phases/08-engine-hooks-to-ts/plan.md) |
+| P8 | Engine hooks to TS | `engine-hooks/vh2d` and `vhtweaks` are strict `.ts` (with a local `three` declaration, C13); Vite builds them into stable, readable `dist/engine-hooks/vh2d.js` and `vhtweaks.js` that engines copy; `three` stays external | P4,P5 | done | [plan](phases/08-engine-hooks-to-ts/plan.md) |
 | P10 | Film starter and example to TS | templates/new-film and examples/hello-film use render.ts, make-audio.ts and film.ts; hub live preview and render.ts serve film.ts stripped; render.js and film.js films still preview and render; one scratch render after the user reviews the preview | P8 | planned | pending |
 | P9 | Strict repo-wide, no JS left, docs | `allowJs` removed, strict repo-wide, a test fails on any tracked JS file, CLAUDE.md/docs/skill/README updated; full D1–D9 verification | P6,P7,P10 | planned | pending |
 
@@ -203,12 +203,13 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 | P5 | 2026-11-22 | addressed | A1, A2, A3, A4, A5, A6 | 1660e85 | [report](phases/05-vite-ui-build-and-app-shell-to-ts/plan.md) |
 | P6 | 2026-11-22 | addressed | A1, A2, A3, A4, A5 | 8241300 | [report](phases/06-review-ui-to-ts/plan.md) |
 | P7 | 2026-11-22 | addressed | A1, A2, A3, A4, A5 | 7a1a29a | [report](phases/07-thumbnail-studio-ui-to-ts/plan.md) |
+| P8 | 2026-11-22 | addressed | A1, A2, A3, A4, A5, A6 | a604555 | [report](phases/08-engine-hooks-to-ts/plan.md) |
 
 ## 12. Resume brief
 
-- Current phase: P8 (plan drafted, awaiting approval)
-- Last verdict: P7 addressed
-- Next action: user reviews the P8 plan; on approval run approve for P8. Then P10, then P9
+- Current phase: P10 (plan not yet written)
+- Last verdict: P8 addressed
+- Next action: write the P10 plan (film starter and example; includes the user preview review and one explicitly requested scratch render), then ask for approval
 - Open decisions: none
 - PR: https://github.com/jorgepvenegas/Videohub/pull/3
 - Last updated: 2026-11-22
