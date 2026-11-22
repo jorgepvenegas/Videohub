@@ -83,7 +83,7 @@ test('foreign integrations and malformed configs remain unchanged', async () => 
     text = JSON.stringify({ mcp: { servers: { videohub: { command: ['node', '/other-install/server/mcp.js'] } } } });
   write(p.config, text);
   write(path.join(p.skill, 'SKILL.md'), 'Other install');
-  write(p.rule, '<!-- videohub:begin -->\n/other-install/server/cli.ts\n<!-- videohub:end -->');
+  write(p.rule, '<!-- videohub:begin -->\n/other-install/server/cli.js\n<!-- videohub:end -->');
   const r = await integrateAgents({ ...o, agents: ['opencode'] });
   assert.deepEqual(r.errors, []);
   assert.equal(fs.readFileSync(p.config, 'utf8'), text);
@@ -149,7 +149,7 @@ test('all injected agent CLI calls receive the selected fake environment', async
 test('uninstall preserves conflicting legacy and V2 MCP entries and removes only its own rule block', async () => {
   const o = scratch(),
     p = agentPaths('opencode', o),
-    foreign = '<!-- videohub:begin -->\n/other-install/server/cli.ts\n<!-- videohub:end -->';
+    foreign = '<!-- videohub:begin -->\n/other-install/server/cli.js\n<!-- videohub:end -->';
   const cfg = {
     mcp: { videohub: { command: ['node', '/other-install/server/mcp.js'] }, servers: { videohub: { command: ['node', path.join(hub, 'server', 'mcp.ts')] } } }
   };
