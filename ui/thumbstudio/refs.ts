@@ -1,8 +1,8 @@
-// @ts-nocheck
 // Reference Image Management Panel (#/thumbstudio/<pid>/<tid> -> References)
 import { h, api, toast, confirmBox } from '../app.ts';
+import type { Json } from '../app.ts';
 
-export function openReferencesModal(pid, tid, brief, { onUpdated }) {
+export function openReferencesModal(pid: Json, tid: Json, brief: Json, { onUpdated }: { onUpdated?: (brief: Json) => void }) {
   const modalBg = h('div', { class: 'modal-bg' });
   const modal = h('div', { class: 'modal', style: { maxWidth: '750px', width: '90%' } });
   modalBg.append(modal);
@@ -37,7 +37,7 @@ export function openReferencesModal(pid, tid, brief, { onUpdated }) {
   content.append(dropZone, fileInput);
 
   fileInput.onchange = e => {
-    const file = e.target.files[0];
+    const file = (e.target as HTMLInputElement).files![0]; // a file input
     if (file) handleUpload(file);
   };
 
@@ -51,7 +51,7 @@ export function openReferencesModal(pid, tid, brief, { onUpdated }) {
   dropZone.ondrop = e => {
     e.preventDefault();
     dropZone.style.borderColor = 'var(--border)';
-    const file = e.dataTransfer.files[0];
+    const file = e.dataTransfer!.files[0]; // a drop event carries its data
     if (file) handleUpload(file);
   };
 
@@ -96,7 +96,7 @@ export function openReferencesModal(pid, tid, brief, { onUpdated }) {
               'select',
               {
                 style: { fontSize: '12px' },
-                onchange: async e => {
+                onchange: async (e: Json) => {
                   ref.role = e.target.value;
                   await api(`/api/thumbstudio/${pid}/${tid}`, { method: 'PUT', body: { refs } });
                   onUpdated && onUpdated(brief);
@@ -112,14 +112,14 @@ export function openReferencesModal(pid, tid, brief, { onUpdated }) {
               'select',
               {
                 style: { fontSize: '12px' },
-                onchange: async e => {
+                onchange: async (e: Json) => {
                   ref.layer = e.target.value || null;
                   await api(`/api/thumbstudio/${pid}/${tid}`, { method: 'PUT', body: { refs } });
                   onUpdated && onUpdated(brief);
                 }
               },
               h('option', { value: '' }, 'Linked Layer: (None)'),
-              (brief.layers || []).map(l => h('option', { value: l.id, selected: ref.layer === l.id }, l.name + ' (' + l.id + ')'))
+              (brief.layers || []).map((l: Json) => h('option', { value: l.id, selected: ref.layer === l.id }, l.name + ' (' + l.id + ')'))
             ),
             h('span', { class: 'spacer' }),
             h(
@@ -131,7 +131,7 @@ export function openReferencesModal(pid, tid, brief, { onUpdated }) {
                 onclick: async () => {
                   const ok = await confirmBox('Remove Reference', h('p', {}, `Delete reference "${ref.id}"?`));
                   if (!ok) return;
-                  brief.refs = refs.filter(r => r.id !== ref.id);
+                  brief.refs = refs.filter((r: Json) => r.id !== ref.id);
                   await api(`/api/thumbstudio/${pid}/${tid}`, { method: 'PUT', body: { refs: brief.refs } });
                   renderList();
                   onUpdated && onUpdated(brief);
@@ -145,7 +145,7 @@ export function openReferencesModal(pid, tid, brief, { onUpdated }) {
             placeholder: 'Add a note (e.g. use the colors and background lighting from this image)',
             value: ref.note || '',
             style: { width: '100%', fontSize: '12px' },
-            onchange: async e => {
+            onchange: async (e: Json) => {
               ref.note = e.target.value;
               await api(`/api/thumbstudio/${pid}/${tid}`, { method: 'PUT', body: { refs } });
               onUpdated && onUpdated(brief);
@@ -157,7 +157,7 @@ export function openReferencesModal(pid, tid, brief, { onUpdated }) {
     }
   }
 
-  async function handleUpload(file) {
+  async function handleUpload(file: Json) {
     const reader = new FileReader();
     reader.onload = async () => {
       try {
@@ -173,7 +173,7 @@ export function openReferencesModal(pid, tid, brief, { onUpdated }) {
         brief.refs = res.brief.refs;
         renderList();
         onUpdated && onUpdated(brief);
-      } catch (err) {
+      } catch (err: Json) {
         toast('Upload failed: ' + err.message, true);
       }
     };

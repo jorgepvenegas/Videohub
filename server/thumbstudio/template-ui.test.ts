@@ -1,37 +1,36 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import vm from 'node:vm';
+import { readSource } from '../../scripts/test-source.ts';
+import type { Json } from '../types.ts';
 import { applyTemplateSlots, loadBuiltinTemplates } from './templates.ts';
 
 // Importing app.js starts routing and SSE. Evaluate the actual gallery module
 // with just its DOM and drawScene dependencies stubbed instead.
-const source = fs
-  .readFileSync(new URL('../../ui/thumbstudio/templates.ts', import.meta.url), 'utf8')
+const source = readSource(new URL('../../ui/thumbstudio/templates.ts', import.meta.url))
   .replace(/^import .+;\r?$/gm, '')
   .replace(/^export function /gm, 'function ');
 const selection = loadBuiltinTemplates().filter(t => t.tags?.includes('reference-picks'));
 
 function harness() {
-  const draws = [],
-    errors = [];
-  function h(tag, props = {}, ...children) {
-    const node = { tag, props, children: children.flat(Infinity).filter(Boolean) };
+  const draws: Json[] = [],
+    errors: Json[] = [];
+  function h(tag: Json, props = {}, ...children: Json[]) {
+    const node: Json = { tag, props, children: children.flat(Infinity).filter(Boolean) };
     if (tag === 'canvas') {
       const context = { canvas: node };
-      node.getContext = kind => {
+      node.getContext = (kind: Json) => {
         assert.equal(kind, '2d');
         return context;
       };
     }
     return node;
   }
-  const sandbox = {
+  const sandbox: Json = {
     h,
-    pill: (kind, label) => h('span', { class: kind }, label),
-    drawScene: (ctx, brief, mode, opts) => draws.push({ ctx, brief, mode, opts }),
-    console: { error: (...args) => errors.push(args) }
+    pill: (kind: Json, label: Json) => h('span', { class: kind }, label),
+    drawScene: (ctx: Json, brief: Json, mode: Json, opts: Json) => draws.push({ ctx, brief, mode, opts }),
+    console: { error: (...args: Json[]) => errors.push(args) }
   };
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox);
@@ -40,17 +39,17 @@ function harness() {
 
 // Layer IDs deliberately differ on the client and server; compare structure
 // using local layer indexes while still checking the camera's target.
-function comparable(applied) {
+function comparable(applied: Json) {
   const clone = JSON.parse(JSON.stringify(applied));
-  const ids = new Map(clone.layers.map((layer, i) => [layer.id, `layer-${i}`]));
-  clone.layers.forEach(layer => {
+  const ids = new Map(clone.layers.map((layer: Json, i: Json) => [layer.id, `layer-${i}`]));
+  clone.layers.forEach((layer: Json) => {
     layer.id = ids.get(layer.id);
   });
   if (clone.camera.focusLayer) clone.camera.focusLayer = ids.get(clone.camera.focusLayer);
   return clone;
 }
 
-function find(node, predicate) {
+function find(node: Json, predicate: Json): Json {
   if (!node || typeof node !== 'object') return null;
   if (predicate(node)) return node;
   for (const child of node.children || []) {
@@ -68,13 +67,13 @@ test('client template slots: all 15 reference layouts match server defaults with
     const applied = applyClientTemplateSlots(template);
     assert.doesNotMatch(JSON.stringify(applied), /\{\{[A-Z0-9_\-]+\}\}/, template.id);
     assert.deepEqual(comparable(applied), comparable(applyTemplateSlots(template)), template.id);
-    assert.equal(new Set(applied.layers.map(l => l.id)).size, applied.layers.length, template.id);
+    assert.equal(new Set(applied.layers.map((l: Json) => l.id)).size, applied.layers.length, template.id);
     assert.ok(
-      applied.layers.every((layer, i) => layer.id !== template.layers[i].id),
+      applied.layers.every((layer: Json, i: Json) => layer.id !== template.layers[i].id),
       template.id
     );
     if (template.camera.focusLayer) {
-      const index = template.layers.findIndex(layer => layer.id === template.camera.focusLayer);
+      const index = template.layers.findIndex((layer: Json) => layer.id === template.camera.focusLayer);
       assert.notEqual(index, -1, template.id);
       assert.equal(applied.camera.focusLayer, applied.layers[index].id, template.id);
     }
@@ -105,8 +104,8 @@ test('gallery cards draw resolved defaults with guides disabled and retain the o
   const gallery = harness();
   for (const template of selection) {
     const original = JSON.stringify(template);
-    const chosen = [];
-    const card = gallery.renderTemplateCard(template, { onApply: tpl => chosen.push(tpl) });
+    const chosen: Json[] = [];
+    const card = gallery.renderTemplateCard(template, { onApply: (tpl: Json) => chosen.push(tpl) });
     const draw = gallery.draws.at(-1);
     assert.equal(gallery.draws.length, selection.indexOf(template) + 1, template.id);
     assert.equal(draw.mode, 'layout', template.id);
@@ -117,7 +116,7 @@ test('gallery cards draw resolved defaults with guides disabled and retain the o
     for (const option of ['isExport', 'showGrid', 'showThirds', 'showLight', 'showHandles', 'showBadge']) {
       assert.equal(draw.opts[option], false, `${template.id}: ${option}`);
     }
-    const applyButton = find(card, node => node.tag === 'button');
+    const applyButton = find(card, (node: Json) => node.tag === 'button');
     let stopped = false;
     applyButton.props.onclick({
       stopPropagation: () => {

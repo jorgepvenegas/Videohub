@@ -1,6 +1,7 @@
-// @ts-nocheck
+import type { Json } from '../app.ts';
 // Scene renderer: drawScene(ctx, brief, mode, opts) — Unified drawing engine for editor & export
 import { getLayerBox, getHandles, HANDLE_SIZE } from './layers.ts';
+import type { Layer } from './layers.ts';
 import { drawFigure } from './figures.ts';
 import { drawEffect } from './shapes.ts';
 import { drawPerspectiveGrid } from './camera.ts';
@@ -9,9 +10,23 @@ import { TEXT_PRESETS } from './catalog.ts';
 
 // effects drawn by code over the final image (never sent to the image model)
 export const OVERLAY_EFFECTS = new Set(['arrow', 'circle', 'x-mark', 'check', 'badge']);
-export const isOverlayLayer = l => l.type === 'text' || (l.type === 'effect' && OVERLAY_EFFECTS.has(l.kind) && l.overlay !== false);
+export const isOverlayLayer = (l: Json) => l.type === 'text' || (l.type === 'effect' && OVERLAY_EFFECTS.has(l.kind) && l.overlay !== false);
 
-export function drawScene(ctx, brief, mode = 'layout', opts = {}) {
+export interface SceneOpts {
+  isExport?: boolean;
+  fileUrl?: (f: string) => string;
+  showGrid?: boolean;
+  showThirds?: boolean;
+  showBadge?: boolean;
+  showLight?: boolean;
+  showHandles?: boolean; // passed by the template previews; the scene does not read it
+  activeGuides?: { type: string; pos: number }[];
+  selectedLayerId?: string | null;
+  variantId?: string;
+  image?: CanvasImageSource | null;
+}
+
+export function drawScene(ctx: CanvasRenderingContext2D, brief: Json, mode = 'layout', opts: SceneOpts = {}) {
   const W = ctx.canvas.width;
   const H = ctx.canvas.height;
   const isExport = !!opts.isExport;
@@ -27,7 +42,7 @@ export function drawScene(ctx, brief, mode = 'layout', opts = {}) {
   ctx.fillRect(0, 0, W, H);
 
   const layers = brief.layers || [];
-  const focusLayer = layers.find(l => l.id === brief.camera?.focusLayer);
+  const focusLayer = layers.find((l: Json) => l.id === brief.camera?.focusLayer);
   const focusDepth = focusLayer ? (focusLayer.depth ?? 50) : 20;
   const dofAmount = brief.camera?.dof ?? 0.6;
 
@@ -81,7 +96,7 @@ export function drawScene(ctx, brief, mode = 'layout', opts = {}) {
 
     // 5. Selection bounding box & handles
     if (opts.selectedLayerId) {
-      const selectedLayer = layers.find(l => l.id === opts.selectedLayerId);
+      const selectedLayer = layers.find((l: Json) => l.id === opts.selectedLayerId);
       if (selectedLayer && !selectedLayer.hidden) {
         drawSelectionHandles(ctx, selectedLayer, W, H);
       }
@@ -96,7 +111,7 @@ export function drawScene(ctx, brief, mode = 'layout', opts = {}) {
   ctx.restore();
 }
 
-function drawLayer(ctx, layer, brief, mode, W, H, isExport) {
+function drawLayer(ctx: CanvasRenderingContext2D, layer: Layer, brief: Json, mode: Json, W: number, H: number, isExport: boolean) {
   ctx.save();
   const { x, y, w, h, cx, cy } = getLayerBox(layer, W, H);
 
@@ -164,14 +179,14 @@ function drawLayer(ctx, layer, brief, mode, W, H, isExport) {
   ctx.restore();
 }
 
-function neutralGray(layer) {
+function neutralGray(layer: Layer) {
   if (layer.type === 'background') return '#26282d';
   const d = Math.max(0, Math.min(100, layer.depth ?? 50));
   const v = Math.round(215 - d * 1.25);
   return '#' + [v, v, v].map(n => n.toString(16).padStart(2, '0')).join('');
 }
 
-function drawBackground(ctx, layer, x, y, w, h, isExport) {
+function drawBackground(ctx: CanvasRenderingContext2D, layer: Layer, x: number, y: number, w: number, h: number, isExport: boolean) {
   if (layer.kind === 'gradient') {
     const grad = ctx.createLinearGradient(x, y, x, y + h);
     grad.addColorStop(0, '#1a2233');
@@ -189,7 +204,7 @@ function drawBackground(ctx, layer, x, y, w, h, isExport) {
   ctx.fillText('Background: ' + (layer.desc || layer.name), x + 16, y + 26);
 }
 
-function drawZone(ctx, layer, x, y, w, h) {
+function drawZone(ctx: CanvasRenderingContext2D, layer: Layer, x: number, y: number, w: number, h: number) {
   ctx.save();
   ctx.strokeStyle = layer.color || '#a68cff';
   ctx.lineWidth = 2;
@@ -208,7 +223,7 @@ function drawZone(ctx, layer, x, y, w, h) {
   ctx.restore();
 }
 
-function drawObject(ctx, layer, x, y, w, h, isExport) {
+function drawObject(ctx: CanvasRenderingContext2D, layer: Layer, x: number, y: number, w: number, h: number, isExport: boolean) {
   ctx.save();
   const color = layer.color || '#f08a3c';
 
@@ -255,7 +270,7 @@ function drawObject(ctx, layer, x, y, w, h, isExport) {
   ctx.restore();
 }
 
-function drawSubjectBlock(ctx, layer, x, y, w, h, isExport) {
+function drawSubjectBlock(ctx: CanvasRenderingContext2D, layer: Layer, x: number, y: number, w: number, h: number, isExport: boolean) {
   ctx.save();
   const color = layer.color || '#6aa0ff';
   ctx.fillStyle = hexToRgba(color, isExport ? 0.75 : 0.35);
@@ -284,7 +299,7 @@ function drawSubjectBlock(ctx, layer, x, y, w, h, isExport) {
   ctx.restore();
 }
 
-function drawTextBlock(ctx, layer, x, y, w, h, isExport, clean = false) {
+function drawTextBlock(ctx: CanvasRenderingContext2D, layer: Layer, x: number, y: number, w: number, h: number, isExport: boolean, clean = false) {
   ctx.save();
   let content = layer.content || 'TEXT GOES HERE';
   if (layer.uppercase) {
@@ -295,12 +310,12 @@ function drawTextBlock(ctx, layer, x, y, w, h, isExport, clean = false) {
   // layer.font is a text preset id or a font name
   const fontFamily = TEXT_PRESETS.find(p => p.id === layer.font)?.font || layer.font || 'Impact';
   ctx.font = `${fontFamily === 'Segoe UI' ? 900 : 'bold'} ${fontSize}px "${fontFamily}", "Arial Black", "Segoe UI", sans-serif`;
-  ctx.textAlign = layer.align || 'center';
+  ctx.textAlign = (layer.align || 'center') as CanvasTextAlign; // the server limits align to left, center or right
   ctx.textBaseline = 'middle';
 
   const lines = content.split('\n');
   // never wider than its box: shrink the font until the widest line fits (9:16 frames are narrow for their height)
-  const widest0 = Math.max(...lines.map(l => ctx.measureText(l).width), 1);
+  const widest0 = Math.max(...lines.map((l: Json) => ctx.measureText(l).width), 1);
   if (widest0 > w * 0.98 && w > 10) {
     fontSize = Math.max(10, Math.floor((fontSize * (w * 0.98)) / widest0));
     ctx.font = `${fontFamily === 'Segoe UI' ? 900 : 'bold'} ${fontSize}px "${fontFamily}", "Arial Black", "Segoe UI", sans-serif`;
@@ -313,7 +328,7 @@ function drawTextBlock(ctx, layer, x, y, w, h, isExport, clean = false) {
   if (layer.bg) {
     ctx.fillStyle = layer.bg;
     const pad = fontSize * 0.25;
-    const widest = Math.max(...lines.map(l => ctx.measureText(l).width));
+    const widest = Math.max(...lines.map((l: Json) => ctx.measureText(l).width));
     const bx = layer.align === 'left' ? x : layer.align === 'right' ? x + w - widest : x + w / 2 - widest / 2;
     ctx.fillRect(bx - pad, startY - lineHeight / 2 - pad * 0.4, widest + pad * 2, totalH + pad * 0.8);
   }
@@ -376,7 +391,7 @@ function drawTextBlock(ctx, layer, x, y, w, h, isExport, clean = false) {
   ctx.restore();
 }
 
-function drawSketch(ctx, layer, W, H) {
+function drawSketch(ctx: CanvasRenderingContext2D, layer: Layer, W: number, H: number) {
   ctx.save();
   const strokes = layer.strokes || [];
   for (const s of strokes) {
@@ -396,7 +411,7 @@ function drawSketch(ctx, layer, W, H) {
 }
 
 const traceImageCache = new Map();
-function drawTrace(ctx, layer, x, y, w, h) {
+function drawTrace(ctx: CanvasRenderingContext2D, layer: Layer, x: number, y: number, w: number, h: number) {
   if (!layer.file) return;
   ctx.save();
   ctx.globalAlpha = layer.opacity ?? 0.4;
@@ -419,7 +434,7 @@ function drawTrace(ctx, layer, x, y, w, h) {
   ctx.restore();
 }
 
-function drawThirdsGuides(ctx, W, H) {
+function drawThirdsGuides(ctx: CanvasRenderingContext2D, W: number, H: number) {
   ctx.save();
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
   ctx.lineWidth = 1;
@@ -440,7 +455,7 @@ function drawThirdsGuides(ctx, W, H) {
   ctx.restore();
 }
 
-function drawBadgeGuide(ctx, W, H) {
+function drawBadgeGuide(ctx: CanvasRenderingContext2D, W: number, H: number) {
   ctx.save();
   // Bottom-right duration badge area (~14% width x 12% height)
   const bw = W * 0.15;
@@ -463,7 +478,7 @@ function drawBadgeGuide(ctx, W, H) {
 }
 
 // Shorts player UI: the action buttons on the right and the title/caption block at the bottom cover the picture
-function drawShortsGuide(ctx, W, H) {
+function drawShortsGuide(ctx: CanvasRenderingContext2D, W: number, H: number) {
   ctx.save();
   ctx.fillStyle = 'rgba(232, 84, 84, 0.16)';
   ctx.strokeStyle = 'rgba(232, 84, 84, 0.55)';
@@ -480,7 +495,7 @@ function drawShortsGuide(ctx, W, H) {
   ctx.restore();
 }
 
-function drawSnapGuides(ctx, guides, W, H) {
+function drawSnapGuides(ctx: CanvasRenderingContext2D, guides: Json, W: number, H: number) {
   ctx.save();
   ctx.strokeStyle = '#f08a3c';
   ctx.lineWidth = 1;
@@ -502,7 +517,7 @@ function drawSnapGuides(ctx, guides, W, H) {
   ctx.restore();
 }
 
-function drawSelectionHandles(ctx, layer, W, H) {
+function drawSelectionHandles(ctx: CanvasRenderingContext2D, layer: Layer, W: number, H: number) {
   ctx.save();
   const { x, y, w, h, cx, cy } = getLayerBox(layer, W, H);
   const rot = layer.rot || 0;
@@ -558,13 +573,13 @@ function drawSelectionHandles(ctx, layer, W, H) {
   ctx.restore();
 }
 
-function hexToRgba(hex, alpha) {
+function hexToRgba(hex: Json, alpha: Json) {
   if (!hex || !hex.startsWith('#')) return `rgba(240, 138, 60, ${alpha})`;
   let c = hex.slice(1);
   if (c.length === 3)
     c = c
       .split('')
-      .map(x => x + x)
+      .map((x: string) => x + x)
       .join('');
   const num = parseInt(c, 16);
   const r = (num >> 16) & 255;
@@ -573,19 +588,19 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function truncate(str, max) {
+function truncate(str: Json, max: Json) {
   if (!str || str.length <= max) return str;
   return str.slice(0, max - 1) + '…';
 }
 
 // ---------- shared image loading (trace layers, final image): the editor redraws when one arrives
-let fileUrl = f => f;
-let onImageLoad = null;
-export function setImageLoadHandler(fn) {
+let fileUrl = (f: string) => f;
+let onImageLoad: (() => void) | null = null;
+export function setImageLoadHandler(fn: Json) {
   onImageLoad = fn;
 }
 const imageCache = new Map();
-export function loadImage(src) {
+export function loadImage(src: Json) {
   let img = imageCache.get(src);
   if (!img) {
     img = new Image();
@@ -598,7 +613,7 @@ export function loadImage(src) {
 
 // ---------- final: the chosen variant cover-cropped + adjustments + text and marks drawn by code
 export const FINAL_DEFAULTS = { x: 0.5, y: 0.5, zoom: 1, brightness: 1, contrast: 1, saturation: 1, vignette: 0, shade: 0 };
-export function drawFinal(ctx, brief, opts = {}) {
+export function drawFinal(ctx: CanvasRenderingContext2D, brief: Json, opts: SceneOpts = {}) {
   const W = ctx.canvas.width,
     H = ctx.canvas.height;
   const fe = { ...FINAL_DEFAULTS, ...(brief.finalEdit || {}) };
@@ -606,7 +621,7 @@ export function drawFinal(ctx, brief, opts = {}) {
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = '#0b0c10';
   ctx.fillRect(0, 0, W, H);
-  const v = (brief.variants || []).find(x => x.id === (opts.variantId || brief.chosen));
+  const v = (brief.variants || []).find((x: Json) => x.id === (opts.variantId || brief.chosen));
   const img = opts.image || (v ? loadImage(fileUrl(v.file)) : null);
   if (img) {
     // cover crop: zoom >= 1, x/y = which part of the image stays in view
@@ -632,10 +647,10 @@ export function drawFinal(ctx, brief, opts = {}) {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
   }
-  const layers = (brief.layers || []).filter(l => !l.hidden && isOverlayLayer(l));
+  const layers = (brief.layers || []).filter((l: Json) => !l.hidden && isOverlayLayer(l));
   // readability: a soft dark gradient behind each text block
   if (fe.shade > 0)
-    for (const l of layers.filter(l => l.type === 'text')) {
+    for (const l of layers.filter((l: Json) => l.type === 'text')) {
       const b = getLayerBox(l, W, H);
       const g = ctx.createRadialGradient(b.cx, b.cy, 0, b.cx, b.cy, Math.max(b.w, b.h) * 0.75);
       g.addColorStop(0, `rgba(0,0,0,${0.75 * fe.shade})`);
@@ -659,16 +674,16 @@ export function drawFinal(ctx, brief, opts = {}) {
     if (opts.showBadge !== false && brief.safe?.badge !== false && brief.format !== '9:16') drawBadgeGuide(ctx, W, H);
     if (brief.format === '9:16' && brief.safe?.shortsUi) drawShortsGuide(ctx, W, H);
     if (opts.selectedLayerId) {
-      const sel = layers.find(l => l.id === opts.selectedLayerId);
+      const sel = layers.find((l: Json) => l.id === opts.selectedLayerId);
       if (sel) drawSelectionHandles(ctx, sel, W, H);
     }
   }
   ctx.restore();
 }
 
-function drawSketchOverlays(ctx, brief, W, H) {
+function drawSketchOverlays(ctx: CanvasRenderingContext2D, brief: Json, W: number, H: number) {
   const layers = brief.layers || [];
-  const contentLayers = layers.filter(l => !l.hidden && (l.type === 'subject' || l.type === 'object' || l.type === 'effect'));
+  const contentLayers = layers.filter((l: Json) => !l.hidden && (l.type === 'subject' || l.type === 'object' || l.type === 'effect'));
 
   let idx = 1;
   const legend = [];
@@ -705,7 +720,7 @@ function drawSketchOverlays(ctx, brief, W, H) {
   }
 
   // Text layers dashed outline
-  for (const layer of layers.filter(l => !l.hidden && l.type === 'text')) {
+  for (const layer of layers.filter((l: Json) => !l.hidden && l.type === 'text')) {
     const { x, y, w, h } = getLayerBox(layer, W, H);
     ctx.save();
     ctx.strokeStyle = '#f59e0b';
@@ -761,7 +776,7 @@ function drawSketchOverlays(ctx, brief, W, H) {
 }
 
 // Generate high quality data URLs for layout.png, sketch.png, depth.png
-export async function renderExportCanvases(brief, { fileUrl: fu } = {}) {
+export async function renderExportCanvases(brief: Json, { fileUrl: fu }: { fileUrl?: (f: string) => string } = {}) {
   if (fu) fileUrl = fu;
   const is916 = brief.format === '9:16';
 
@@ -771,7 +786,8 @@ export async function renderExportCanvases(brief, { fileUrl: fu } = {}) {
   const layoutCanvas = document.createElement('canvas');
   layoutCanvas.width = lW;
   layoutCanvas.height = lH;
-  const lCtx = layoutCanvas.getContext('2d');
+  // fresh canvases always have a 2d context
+  const lCtx = layoutCanvas.getContext('2d')!;
   drawScene(lCtx, brief, 'layout', { isExport: true, showGrid: true });
 
   // 2. sketch.png (1280 wide: 1280x720 or 720x1280)
@@ -780,7 +796,7 @@ export async function renderExportCanvases(brief, { fileUrl: fu } = {}) {
   const sketchCanvas = document.createElement('canvas');
   sketchCanvas.width = sW;
   sketchCanvas.height = sH;
-  const sCtx = sketchCanvas.getContext('2d');
+  const sCtx = sketchCanvas.getContext('2d')!;
   drawScene(sCtx, brief, 'sketch', { isExport: false, showThirds: false, showBadge: false });
 
   // 3. depth.png (640 wide: 640x360 or 360x640)
@@ -789,7 +805,7 @@ export async function renderExportCanvases(brief, { fileUrl: fu } = {}) {
   const depthCanvas = document.createElement('canvas');
   depthCanvas.width = dW;
   depthCanvas.height = dH;
-  const dCtx = depthCanvas.getContext('2d');
+  const dCtx = depthCanvas.getContext('2d')!;
   drawScene(dCtx, brief, 'depth', { isExport: true });
 
   return {

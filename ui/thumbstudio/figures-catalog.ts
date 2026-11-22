@@ -1,10 +1,10 @@
-// @ts-nocheck
 // Pose & Expression Visual Inspection Catalog (#/thumbstudio/_/catalog)
 import { h } from '../app.ts';
+import type { Json } from '../app.ts';
 import { FIGURE_POSES, drawFigure } from './figures.ts';
 import { POSES, EXPRESSIONS } from './catalog.ts';
 
-export function renderCatalogPage(page) {
+export function renderCatalogPage(page: Json) {
   const container = h('div', { class: 'thumbstudio-page', style: { paddingBottom: '60px' } });
   page.append(container);
 
@@ -57,7 +57,7 @@ export function renderCatalogPage(page) {
     canvas.style.aspectRatio = '3 / 4';
     canvas.style.background = '#12141a';
     canvas.style.borderRadius = '6px';
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d')!; // a fresh canvas always has a 2d context
 
     const fakeLayer = {
       type: 'subject',
@@ -104,7 +104,7 @@ export function renderCatalogPage(page) {
     canvas.style.aspectRatio = '1 / 1';
     canvas.style.background = '#12141a';
     canvas.style.borderRadius = '6px';
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d')!; // a fresh canvas always has a 2d context
 
     const fakeLayer = {
       type: 'subject',
@@ -135,7 +135,7 @@ export function renderCatalogPage(page) {
     canvas.style.background = '#181b24';
     canvas.style.borderRadius = '4px';
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d')!; // a fresh canvas always has a 2d context
     ctx.font = `bold 36px "${font}", sans-serif`;
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#f08a3c';

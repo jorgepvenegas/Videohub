@@ -1,54 +1,52 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import vm from 'node:vm';
+import { readSource } from '../../scripts/test-source.ts';
+import type { Json } from '../types.ts';
 
 // The app helper starts the browser's router/SSE connection. Run the actual panel
 // in a small DOM sandbox so these tests can exercise pointer and resize behavior.
-const source = fs
-  .readFileSync(new URL('../../ui/thumbstudio/depth.ts', import.meta.url), 'utf8')
+const source = readSource(new URL('../../ui/thumbstudio/depth.ts', import.meta.url))
   .replace(/^import .+;\r?$/gm, '')
   .replace('export function createDepthPanel', 'function createDepthPanel');
 
-function harness(initial, { getter = true } = {}) {
+function harness(initial: Json, { getter = true } = {}) {
   const listeners = new Map(),
     captures = new Set(),
-    rects = [],
+    rects: Json[] = [],
     timers = new Map();
   const state = { brief: initial },
-    changes = [],
-    selected = [];
-  const ctx = new Proxy(
-    {},
-    {
-      get: (target, key) => target[key] || (() => {}),
-      set: (target, key, value) => {
-        target[key] = value;
-        return true;
-      }
+    changes: Json[] = [],
+    selected: Json[] = [];
+  const ctx = new Proxy({} as Record<string | symbol, Json>, {
+    get: (target, key) => target[key] || (() => {}),
+    set: (target, key, value) => {
+      target[key] = value;
+      return true;
     }
-  );
-  ctx.fillRect = (...args) => rects.push(args);
+  });
+  ctx.fillRect = (...args: Json[]) => rects.push(args);
   const canvas = {
     style: {},
     clientWidth: 456,
     getContext: () => ctx,
     getBoundingClientRect: () => ({ left: 10, width: 456 }),
-    addEventListener: (name, fn) => listeners.set(name, fn),
-    removeEventListener: (name, fn) => {
+    addEventListener: (name: Json, fn: Json) => listeners.set(name, fn),
+    removeEventListener: (name: Json, fn: Json) => {
       if (listeners.get(name) === fn) listeners.delete(name);
     },
-    setPointerCapture: id => captures.add(id),
-    hasPointerCapture: id => captures.has(id),
-    releasePointerCapture: id => captures.delete(id)
+    setPointerCapture: (id: Json) => captures.add(id),
+    hasPointerCapture: (id: Json) => captures.has(id),
+    releasePointerCapture: (id: Json) => captures.delete(id)
   };
-  let observer;
-  const sandbox = {
+  let observer: Json;
+  const sandbox: Json = {
     h: () => ({ append() {} }),
     document: { createElement: () => canvas },
     ResizeObserver: class {
-      constructor(fn) {
+      declare fn: Json;
+      declare disconnected: boolean;
+      constructor(fn: Json) {
         // oxlint-disable-next-line typescript/no-this-alias -- the test captures the instance the page code creates
         observer = this;
         this.fn = fn;
@@ -58,23 +56,23 @@ function harness(initial, { getter = true } = {}) {
         this.disconnected = true;
       }
     },
-    setTimeout: fn => {
+    setTimeout: (fn: Json) => {
       const id = timers.size + 1;
       timers.set(id, fn);
       return id;
     },
-    clearTimeout: id => timers.delete(id)
+    clearTimeout: (id: Json) => timers.delete(id)
   };
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox);
   const panel = sandbox.createDepthPanel(getter ? () => state.brief : initial, {
-    onSelectLayer: id => selected.push(id),
-    onLayerDepthChange: (id, depth) => {
+    onSelectLayer: (id: Json) => selected.push(id),
+    onLayerDepthChange: (id: Json, depth: Json) => {
       changes.push([id, depth]);
-      state.brief.layers.find(layer => layer.id === id).depth = depth;
+      state.brief.layers.find((layer: Json) => layer.id === id).depth = depth;
     }
   });
-  const pointer = (type, depth, extra = {}) =>
+  const pointer = (type: Json, depth: Json, extra = {}) =>
     listeners.get(type)?.({
       clientX: 10 + 40 + depth * 4,
       pointerId: 1,
@@ -85,7 +83,7 @@ function harness(initial, { getter = true } = {}) {
   return { state, panel, canvas, pointer, selected, changes, rects, listeners, captures, timers, observer };
 }
 
-const layer = (id, depth, extra = {}) => ({ id, type: 'object', depth, y: 0.2, h: 0.3, ...extra });
+const layer = (id: Json, depth: Json, extra = {}) => ({ id, type: 'object', depth, y: 0.2, h: 0.3, ...extra });
 
 test('depth panel follows replaced briefs for drawing, selection and dragging', () => {
   const oldBrief = { layers: [layer('old', 20)] };

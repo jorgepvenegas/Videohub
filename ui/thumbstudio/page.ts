@@ -1,10 +1,10 @@
-// @ts-nocheck
 import { trashName } from '../system.ts';
 // VideoHub · Thumbnail Studio Home / List Page (#/thumbstudio)
 import { h, api, toast, confirmBox, pill, AGO, onHubEvent } from '../app.ts';
+import type { Json } from '../app.ts';
 import { openTemplatePickerModal, openTemplateSlotsModal, renderTemplateCard } from './templates.ts';
 
-export async function thumbnailStudioPage(page, ...args) {
+export async function thumbnailStudioPage(page: Json, ...args: string[]) {
   // If editing an existing thumbnail: #/thumbstudio/<pid>/<tid>
   if (args.length >= 2) {
     const [pid, tid] = args;
@@ -20,7 +20,7 @@ export async function thumbnailStudioPage(page, ...args) {
   }
 
   // State
-  const state = {
+  const state: Record<string, string> = {
     q: '',
     project: '',
     status: '',
@@ -44,7 +44,7 @@ export async function thumbnailStudioPage(page, ...args) {
     h('span', { class: 'spacer' }),
     h(
       'button',
-      { class: 'ghost', onclick: () => openTemplatePickerModal({ onApplyTemplate: (tpl, slots) => createFromTemplate(tpl, slots) }) },
+      { class: 'ghost', onclick: () => openTemplatePickerModal({ onApplyTemplate: (tpl: Json, slots: Json) => createFromTemplate(tpl, slots) }) },
       '📐 Template gallery'
     ),
     h('button', { class: 'primary', onclick: () => openNewDialog() }, '+ New thumbnail')
@@ -52,19 +52,19 @@ export async function thumbnailStudioPage(page, ...args) {
   container.append(header);
 
   // Filters
-  const sel = (key, opts) =>
+  const sel = (key: Json, opts: Json) =>
     h(
       'select',
       {
-        onchange: e => {
+        onchange: (e: Json) => {
           state[key] = e.target.value;
           drawCards();
         }
       },
-      opts.map(([v, t]) => h('option', { value: v, selected: state[key] === v }, t))
+      opts.map(([v, t]: [string, string]) => h('option', { value: v, selected: state[key] === v }, t))
     );
 
-  const projectOpts = [['', 'All projects'], ['_', 'General (no project)'], ...projects.map(p => [p.id, p.title || p.name])];
+  const projectOpts = [['', 'All projects'], ['_', 'General (no project)'], ...projects.map((p: Json) => [p.id, p.title || p.name])];
 
   const statusOpts = [
     ['', 'All statuses'],
@@ -87,7 +87,7 @@ export async function thumbnailStudioPage(page, ...args) {
       type: 'search',
       placeholder: 'Search thumbnails…',
       value: state.q,
-      oninput: e => {
+      oninput: (e: Json) => {
         state.q = e.target.value;
         drawCards();
       }
@@ -116,7 +116,7 @@ export async function thumbnailStudioPage(page, ...args) {
         'button',
         {
           class: 'primary small',
-          onclick: () => openTemplatePickerModal({ collection: 'reference-picks', onApplyTemplate: (tpl, slots) => createFromTemplate(tpl, slots) })
+          onclick: () => openTemplatePickerModal({ collection: 'reference-picks', onApplyTemplate: (tpl: Json, slots: Json) => createFromTemplate(tpl, slots) })
         },
         'New · 15 reference templates'
       ),
@@ -126,7 +126,7 @@ export async function thumbnailStudioPage(page, ...args) {
           class: 'ghost small',
           onclick: () =>
             openTemplatePickerModal({
-              onApplyTemplate: (tpl, slots) => createFromTemplate(tpl, slots)
+              onApplyTemplate: (tpl: Json, slots: Json) => createFromTemplate(tpl, slots)
             })
         },
         'View all'
@@ -163,7 +163,7 @@ export async function thumbnailStudioPage(page, ...args) {
     }
   }
 
-  function renderCard(t) {
+  function renderCard(t: Json) {
     const is916 = t.format === '9:16';
     const preview = h('div', { class: 'preview-box' + (is916 ? ' ratio-916' : '') });
 
@@ -215,13 +215,13 @@ export async function thumbnailStudioPage(page, ...args) {
               class: 'ghost',
               title: 'Copy / Duplicate',
               style: { padding: '2px 6px', fontSize: '12px' },
-              onclick: async e => {
+              onclick: async (e: Json) => {
                 e.stopPropagation();
                 try {
                   const res = await api(`/api/thumbstudio/${t.pid}/${t.id}/duplicate`, { method: 'POST' });
                   toast('Copy created');
                   refreshList();
-                } catch (err) {
+                } catch (err: Json) {
                   toast(err.message, true);
                 }
               }
@@ -234,7 +234,7 @@ export async function thumbnailStudioPage(page, ...args) {
               class: 'ghost',
               title: `Move to ${trashName()}`,
               style: { padding: '2px 6px', fontSize: '12px', color: 'var(--red)' },
-              onclick: async e => {
+              onclick: async (e: Json) => {
                 e.stopPropagation();
                 const ok = await confirmBox(`Delete "${t.title}"?`, h('p', {}, `The thumbnail folder will be moved to the ${trashName()}.`));
                 if (!ok) return;
@@ -242,7 +242,7 @@ export async function thumbnailStudioPage(page, ...args) {
                   await api(`/api/thumbstudio/${t.pid}/${t.id}/delete`, { method: 'POST' });
                   toast(`Moved to ${trashName()}`);
                   refreshList();
-                } catch (err) {
+                } catch (err: Json) {
                   toast(err.message, true);
                 }
               }
@@ -262,23 +262,23 @@ export async function thumbnailStudioPage(page, ...args) {
     } catch {}
   }
 
-  let allTemplates = [];
+  let allTemplates: Json[] = [];
   async function loadTemplates() {
     try {
       allTemplates = await api('/api/thumbstudio/templates');
       if (!container.isConnected) return;
-      const valid = allTemplates.filter(t => !t.error);
-      const builtinCount = valid.filter(t => t.builtin).length;
+      const valid = allTemplates.filter((t: Json) => !t.error);
+      const builtinCount = valid.filter((t: Json) => t.builtin).length;
       const userCount = valid.length - builtinCount;
       tplSummary.textContent = `${builtinCount} built-in${userCount ? ` + ${userCount} user templates` : ' templates'} · start by changing the title and topic`;
-      allTemplates.sort((a, b) => Number(!!b.tags?.includes('reference-picks')) - Number(!!a.tags?.includes('reference-picks')));
+      allTemplates.sort((a: Json, b: Json) => Number(!!b.tags?.includes('reference-picks')) - Number(!!a.tags?.includes('reference-picks')));
       tplGrid.innerHTML = '';
       for (const tpl of allTemplates) {
         tplGrid.append(
           renderTemplateCard(tpl, {
-            onApply: selected => {
+            onApply: (selected: Json) => {
               openTemplateSlotsModal(selected, {
-                onConfirm: slots => createFromTemplate(selected, slots)
+                onConfirm: (slots: Json) => createFromTemplate(selected, slots)
               });
             }
           })
@@ -287,7 +287,7 @@ export async function thumbnailStudioPage(page, ...args) {
     } catch {}
   }
 
-  async function createFromTemplate(tpl, slots) {
+  async function createFromTemplate(tpl: Json, slots: Json) {
     const title = slots.TITLE || tpl.name || 'New Thumbnail';
     try {
       const res = await api('/api/thumbstudio/new', {
@@ -303,7 +303,7 @@ export async function thumbnailStudioPage(page, ...args) {
       });
       toast(`Thumbnail created from the "${tpl.name}" template.`);
       location.hash = `#/thumbstudio/${res.pid}/${res.tid}`;
-    } catch (err) {
+    } catch (err: Json) {
       toast('Could not create: ' + err.message, true);
     }
   }
@@ -313,7 +313,7 @@ export async function thumbnailStudioPage(page, ...args) {
 
   // Listen to SSE updates
   const unsubs = [
-    onHubEvent('thumbstudio', ev => {
+    onHubEvent('thumbstudio', (ev: Json) => {
       if (ev?.type === 'templates-changed') loadTemplates();
       else if (!['gen-progress', 'gen-queued', 'gen-start', 'note'].includes(ev?.type)) refreshList();
     })
@@ -343,13 +343,13 @@ export async function thumbnailStudioPage(page, ...args) {
           'select',
           {
             style: { width: '100%' },
-            onchange: e => {
+            onchange: (e: Json) => {
               chosenTemplate = e.target.value;
               const t = allTemplates.find(x => x.id === chosenTemplate);
               if (t && t.format) {
                 chosenFormat = t.format;
                 const r = modalBody.querySelector(`input[name="thumb_format"][value="${t.format}"]`);
-                if (r) r.checked = true;
+                if (r) (r as HTMLInputElement).checked = true;
               }
             }
           },
@@ -401,12 +401,12 @@ export async function thumbnailStudioPage(page, ...args) {
           'select',
           {
             style: { width: '100%' },
-            onchange: e => {
+            onchange: (e: Json) => {
               chosenPid = e.target.value;
             }
           },
           h('option', { value: '_' }, 'General (no project / global)'),
-          projects.map(p => h('option', { value: p.id }, p.title || p.name))
+          projects.map((p: Json) => h('option', { value: p.id }, p.title || p.name))
         )
       )
     );
@@ -415,7 +415,7 @@ export async function thumbnailStudioPage(page, ...args) {
       if (!ok) return;
       const title = titleInput.value.trim() || 'New Thumbnail';
       try {
-        const payload = {
+        const payload: Record<string, Json> = {
           title,
           format: chosenFormat,
           project: chosenPid === '_' ? null : chosenPid
@@ -430,7 +430,7 @@ export async function thumbnailStudioPage(page, ...args) {
         });
         toast('Thumbnail created');
         location.hash = `#/thumbstudio/${res.pid}/${res.tid}`;
-      } catch (err) {
+      } catch (err: Json) {
         toast('Could not create: ' + err.message, true);
       }
     });

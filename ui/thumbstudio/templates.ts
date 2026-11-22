@@ -1,15 +1,15 @@
-// @ts-nocheck
 // VideoHub · Thumbnail Studio Template Gallery, Slot Form and Save Template
 import { h, api, toast, confirmBox, pill, onHubEvent } from '../app.ts';
+import type { Json } from '../app.ts';
 import { drawScene } from './scene.ts';
 
 // Client-side slot substitution
-export function applyClientTemplateSlots(template, slotValues = {}) {
+export function applyClientTemplateSlots(template: Json, slotValues: Record<string, unknown> = {}) {
   const cloned = JSON.parse(JSON.stringify(template));
-  const slotsMap = {};
+  const slotsMap: Record<string, Json> = {};
 
   if (cloned.slots && typeof cloned.slots === 'object') {
-    for (const [k, def] of Object.entries(cloned.slots)) {
+    for (const [k, def] of Object.entries(cloned.slots as Record<string, Json>)) {
       if (def && typeof def === 'object' && def.default !== undefined) {
         slotsMap[k] = def.default;
       }
@@ -22,7 +22,7 @@ export function applyClientTemplateSlots(template, slotValues = {}) {
     }
   }
 
-  function replaceSlots(val) {
+  function replaceSlots(val: Json): Json {
     if (typeof val === 'string') {
       return val.replace(/\{\{([A-Z0-9_\-]+)\}\}/g, (match, key) => {
         if (key in slotsMap && slotsMap[key] !== undefined && slotsMap[key] !== null) {
@@ -33,7 +33,7 @@ export function applyClientTemplateSlots(template, slotValues = {}) {
     }
     if (Array.isArray(val)) return val.map(replaceSlots);
     if (val && typeof val === 'object') {
-      const res = {};
+      const res: Record<string, Json> = {};
       for (const [k, v] of Object.entries(val)) res[k] = replaceSlots(v);
       return res;
     }
@@ -48,11 +48,11 @@ export function applyClientTemplateSlots(template, slotValues = {}) {
 
   let seq = 1;
   const layerIds = new Map();
-  const layers = rawLayers.map(l => ({
+  const layers = rawLayers.map((l: Json) => ({
     ...l,
     id: `l_${Date.now()}_${seq++}`
   }));
-  rawLayers.forEach((layer, i) => {
+  rawLayers.forEach((layer: Json, i: Json) => {
     if (layer.id) layerIds.set(layer.id, layers[i].id);
   });
   if (camera.focusLayer) camera.focusLayer = layerIds.get(camera.focusLayer) || null;
@@ -68,7 +68,7 @@ export function applyClientTemplateSlots(template, slotValues = {}) {
 }
 
 // Render a single template card
-export function renderTemplateCard(tpl, { onApply }) {
+export function renderTemplateCard(tpl: Json, { onApply }: { onApply?: (tpl: Json) => void }) {
   if (tpl.error) {
     // Red error card for corrupted or invalid template JSON
     return h(
@@ -101,7 +101,7 @@ export function renderTemplateCard(tpl, { onApply }) {
   });
 
   // Render preview immediately
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d')!; // a fresh canvas always has a 2d context
   try {
     drawScene(ctx, { ...tpl, ...applyClientTemplateSlots(tpl) }, 'layout', {
       isExport: false,
@@ -111,7 +111,7 @@ export function renderTemplateCard(tpl, { onApply }) {
       showHandles: false,
       showBadge: false
     });
-  } catch (err) {
+  } catch (err: Json) {
     console.error('Template drawScene error:', err);
   }
 
@@ -140,7 +140,7 @@ export function renderTemplateCard(tpl, { onApply }) {
         ? h(
             'div',
             { class: 'template-tags' },
-            tags.map(t => h('span', { class: 'template-tag' }, '#' + t))
+            tags.map((t: Json) => h('span', { class: 'template-tag' }, '#' + t))
           )
         : '',
       h(
@@ -151,7 +151,7 @@ export function renderTemplateCard(tpl, { onApply }) {
           {
             class: 'primary small',
             style: { width: '100%' },
-            onclick: e => {
+            onclick: (e: Json) => {
               e.stopPropagation();
               if (onApply) onApply(tpl);
             }
@@ -166,7 +166,7 @@ export function renderTemplateCard(tpl, { onApply }) {
 }
 
 // Open slots form modal
-export function openTemplateSlotsModal(template, { onConfirm }) {
+export function openTemplateSlotsModal(template: Json, { onConfirm }: { onConfirm: (slotValues: Json) => void }) {
   const slots = template.slots || {};
   const slotKeys = Object.keys(slots);
 
@@ -176,7 +176,7 @@ export function openTemplateSlotsModal(template, { onConfirm }) {
     return;
   }
 
-  const slotValues = {};
+  const slotValues: Record<string, Json> = {};
   for (const k of slotKeys) {
     slotValues[k] = slots[k]?.default || '';
   }
@@ -197,7 +197,7 @@ export function openTemplateSlotsModal(template, { onConfirm }) {
 
   function updatePreview() {
     const applied = applyClientTemplateSlots(template, slotValues);
-    const ctx = previewCanvas.getContext('2d');
+    const ctx = previewCanvas.getContext('2d')!;
     drawScene(ctx, applied, 'layout', { isExport: false, showGrid: false, showThirds: false, showLight: false, showHandles: false, showBadge: false });
   }
 
@@ -210,7 +210,7 @@ export function openTemplateSlotsModal(template, { onConfirm }) {
       value: slotValues[key],
       placeholder: def.default || '',
       style: { width: '100%' },
-      oninput: e => {
+      oninput: (e: Json) => {
         slotValues[key] = e.target.value;
         updatePreview();
       }
@@ -243,8 +243,16 @@ export function openTemplateSlotsModal(template, { onConfirm }) {
 }
 
 // Open full Template Picker Modal
-export function openTemplatePickerModal({ currentBrief, onApplyTemplate, collection = '' }) {
-  let allTemplates = [];
+export function openTemplatePickerModal({
+  currentBrief,
+  onApplyTemplate,
+  collection = ''
+}: {
+  currentBrief?: Json;
+  onApplyTemplate: (tpl: Json, slots: Json) => void | Promise<void>;
+  collection?: string;
+}) {
+  let allTemplates: Json[] = [];
   let filterText = '';
   let filterFormat = '';
   let filterCollection = collection;
@@ -266,7 +274,7 @@ export function openTemplatePickerModal({ currentBrief, onApplyTemplate, collect
     type: 'search',
     placeholder: 'Search templates (title, description, tag)…',
     style: { flex: 1 },
-    oninput: e => {
+    oninput: (e: Json) => {
       filterText = e.target.value.trim().toLocaleLowerCase('en-US');
       renderGrid();
     }
@@ -275,7 +283,7 @@ export function openTemplatePickerModal({ currentBrief, onApplyTemplate, collect
   const formatSelect = h(
     'select',
     {
-      onchange: e => {
+      onchange: (e: Json) => {
         filterFormat = e.target.value;
         renderGrid();
       }
@@ -289,7 +297,7 @@ export function openTemplatePickerModal({ currentBrief, onApplyTemplate, collect
     'select',
     {
       'aria-label': 'Template collection',
-      onchange: e => {
+      onchange: (e: Json) => {
         filterCollection = e.target.value;
         renderGrid();
       }
@@ -323,7 +331,7 @@ export function openTemplatePickerModal({ currentBrief, onApplyTemplate, collect
 
     for (const tpl of filtered) {
       const card = renderTemplateCard(tpl, {
-        onApply: selected => {
+        onApply: (selected: Json) => {
           handleSelectTemplate(selected);
         }
       });
@@ -331,11 +339,11 @@ export function openTemplatePickerModal({ currentBrief, onApplyTemplate, collect
     }
   }
 
-  async function handleSelectTemplate(tpl) {
+  async function handleSelectTemplate(tpl: Json) {
     if (tpl.error) return;
 
     openTemplateSlotsModal(tpl, {
-      onConfirm: async slotValues => {
+      onConfirm: async (slotValues: Json) => {
         if (currentBrief && currentBrief.layers && currentBrief.layers.length > 0) {
           const proceed = await confirmBox(
             'Replace Current Layers?',
@@ -358,13 +366,13 @@ export function openTemplatePickerModal({ currentBrief, onApplyTemplate, collect
       allTemplates = await api('/api/thumbstudio/templates');
       if (!modalBg.isConnected) return;
       renderGrid();
-    } catch (err) {
+    } catch (err: Json) {
       toast('Could not load templates: ' + err.message, true);
     }
   }
 
   // Subscribe to changes
-  const unsub = onHubEvent('thumbstudio', ev => {
+  const unsub = onHubEvent('thumbstudio', (ev: Json) => {
     if (ev && ev.type === 'templates-changed') {
       loadTemplates();
     }
@@ -379,7 +387,7 @@ export function openTemplatePickerModal({ currentBrief, onApplyTemplate, collect
 }
 
 // Open "Save as Template" dialog
-export function openSaveTemplateModal(currentBrief) {
+export function openSaveTemplateModal(currentBrief: Json) {
   let nameInput;
   let overwriteCheck;
 
@@ -422,7 +430,7 @@ export function openSaveTemplateModal(currentBrief) {
         })
       });
       toast(`"${name}" saved as a template.`);
-    } catch (err) {
+    } catch (err: Json) {
       toast(err.message, true);
     }
   });

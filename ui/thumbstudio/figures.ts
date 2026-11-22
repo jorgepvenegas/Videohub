@@ -295,7 +295,15 @@ export const CROP_CONFIG: Record<string, { startY: number; endY: number; scale: 
   full: { startY: 0.0, endY: 1.0, scale: 1.0 }
 };
 
-export function drawFigure(ctx: CanvasRenderingContext2D, layer: Layer, x: number, y: number, w: number, h: number, opts: { isExport?: boolean } = {}) {
+export function drawFigure(
+  ctx: CanvasRenderingContext2D,
+  layer: Partial<Layer>,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  opts: { isExport?: boolean } = {}
+) {
   ctx.save();
 
   // Clipping to layer bounding box

@@ -1,8 +1,11 @@
-// @ts-nocheck
 // Side-view Depth Panel and Depth Mode Rendering
 import { h } from '../app.ts';
+import type { Json } from '../app.ts';
 
-export function createDepthPanel(brief, { onLayerDepthChange, onSelectLayer }) {
+export function createDepthPanel(
+  brief: Json,
+  { onLayerDepthChange, onSelectLayer }: { onLayerDepthChange?: (id: string, depth: number) => void; onSelectLayer?: (id: string) => void }
+) {
   // Undo/redo replaces the brief object; always resolve the current editor state.
   const getBrief = typeof brief === 'function' ? brief : () => brief;
   const panel = h('div', { class: 'depth-panel' });
@@ -26,15 +29,16 @@ export function createDepthPanel(brief, { onLayerDepthChange, onSelectLayer }) {
   panel.append(canvas);
 
   let isDragging = false;
-  let draggedLayerId = null;
-  let pointerId = null;
+  let draggedLayerId: string | null = null;
+  let pointerId: number | null = null;
   let destroyed = false;
 
   function render() {
     if (destroyed) return;
     const brief = getBrief();
     canvas.width = Math.max(1, Math.round(canvas.clientWidth));
-    const ctx = canvas.getContext('2d');
+    // a fresh canvas always has a 2d context
+    const ctx = canvas.getContext('2d')!;
     const W = canvas.width;
     const H = canvas.height;
 
@@ -60,7 +64,7 @@ export function createDepthPanel(brief, { onLayerDepthChange, onSelectLayer }) {
     ctx.fillText('📷◁', leftPad / 2, H / 2);
 
     // Shaded DoF cone if focusLayer is set
-    const focusLayer = (brief.layers || []).find(l => l.id === brief.camera?.focusLayer);
+    const focusLayer = (brief.layers || []).find((l: Json) => l.id === brief.camera?.focusLayer);
     if (focusLayer) {
       const focusX = leftPad + ((focusLayer.depth ?? 50) / 100) * trackW;
       const dofRadius = Math.max(10, (1 - (brief.camera?.dof ?? 0.5)) * 60);
@@ -106,7 +110,7 @@ export function createDepthPanel(brief, { onLayerDepthChange, onSelectLayer }) {
     }
   }
 
-  function getDepthFromEvent(e) {
+  function getDepthFromEvent(e: PointerEvent) {
     const rect = canvas.getBoundingClientRect();
     const leftPad = 40;
     const trackW = Math.max(1, rect.width - leftPad - 16);
@@ -115,7 +119,7 @@ export function createDepthPanel(brief, { onLayerDepthChange, onSelectLayer }) {
     return Math.round(norm * 100);
   }
 
-  function getLayerUnderPointer(e) {
+  function getLayerUnderPointer(e: PointerEvent) {
     const rect = canvas.getBoundingClientRect();
     const leftPad = 40;
     const trackW = Math.max(1, rect.width - leftPad - 16);
@@ -131,7 +135,7 @@ export function createDepthPanel(brief, { onLayerDepthChange, onSelectLayer }) {
     return null;
   }
 
-  const startDrag = e => {
+  const startDrag = (e: PointerEvent) => {
     if (destroyed || (e.button != null && e.button !== 0) || isDragging) return;
     const hit = getLayerUnderPointer(e);
     if (hit) {
@@ -144,10 +148,10 @@ export function createDepthPanel(brief, { onLayerDepthChange, onSelectLayer }) {
     }
   };
 
-  const moveDrag = e => {
+  const moveDrag = (e: PointerEvent) => {
     if (destroyed || !isDragging || !draggedLayerId || e.pointerId !== pointerId) return;
     const newDepth = getDepthFromEvent(e);
-    const layer = (getBrief().layers || []).find(l => l.id === draggedLayerId);
+    const layer = (getBrief().layers || []).find((l: Json) => l.id === draggedLayerId);
     if (!layer || layer.hidden || layer.locked || layer.type === 'background') {
       endDrag();
       return;
@@ -158,7 +162,7 @@ export function createDepthPanel(brief, { onLayerDepthChange, onSelectLayer }) {
     }
   };
 
-  const endDrag = e => {
+  const endDrag = (e?: PointerEvent) => {
     if (e && pointerId != null && e.pointerId !== pointerId) return;
     const captured = pointerId;
     isDragging = false;

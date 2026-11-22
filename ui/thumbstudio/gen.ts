@@ -1,12 +1,13 @@
-// @ts-nocheck
 import { trashName } from '../system.ts';
 import { agentName } from '../agent.ts';
 // Variants UI: the variants strip under the canvas and the big variant viewer (compare two, lay the layout over it,
 // pin notes, `Send fixes to ${agentName()}`, choose, delete). Images are made by Claude (hub_thumb_variant), never by VideoHub.
 import { h, api, toast, confirmBox, AGO } from '../app.ts';
+import type { Json } from '../app.ts';
 
-const fileUrl = (pid, tid, f, v) => `/api/thumbstudio/${pid}/${tid}/file?f=${encodeURIComponent(f)}${v ? '&v=' + encodeURIComponent(v) : ''}`;
-const NOTE_TR = {
+const fileUrl = (pid: Json, tid: Json, f: Json, v: Json) =>
+  `/api/thumbstudio/${pid}/${tid}/file?f=${encodeURIComponent(f)}${v ? '&v=' + encodeURIComponent(v) : ''}`;
+const NOTE_TR: Record<string, string> = {
   open: 'open',
   get claude() {
     return `with ${agentName()}`;
@@ -15,7 +16,7 @@ const NOTE_TR = {
 };
 
 // ---------- variants strip (under the canvas)
-export function createVariantStrip({ pid, tid, getBrief, onOpen }) {
+export function createVariantStrip({ pid, tid, getBrief, onOpen }: { pid: string; tid: string; getBrief: () => Json; onOpen: (vid: string) => void }) {
   const el = h('div', { class: 'ts-variants' });
   function draw() {
     const brief = getBrief();
@@ -38,7 +39,7 @@ export function createVariantStrip({ pid, tid, getBrief, onOpen }) {
         row.append(h('div', { class: 'ts-round' }, 'Round ' + v.round));
         lastRound = v.round;
       }
-      const open = (v.notes || []).filter(n => n.status === 'open').length;
+      const open = (v.notes || []).filter((n: Json) => n.status === 'open').length;
       row.append(
         h(
           'div',
@@ -61,20 +62,38 @@ export function createVariantStrip({ pid, tid, getBrief, onOpen }) {
 }
 
 // ---------- big variant viewer
-export function openVariantViewer({ pid, tid, getBrief, vid, onChanged, onFix, onChoose, onFinal }) {
+export function openVariantViewer({
+  pid,
+  tid,
+  getBrief,
+  vid,
+  onChanged,
+  onFix,
+  onChoose,
+  onFinal
+}: {
+  pid: string;
+  tid: string;
+  getBrief: () => Json;
+  vid: string;
+  onChanged: () => Promise<void> | void;
+  onFix: (variant: Json, notes: Json) => Promise<boolean | void>;
+  onChoose: (vid: string) => Promise<void> | void;
+  onFinal: () => void;
+}) {
   const bg = h('div', { class: 'modal-bg ts-viewer-bg' });
   const box = h('div', { class: 'ts-viewer' });
   bg.append(box);
   document.body.append(bg);
   let cur = vid,
-    compare = null,
+    compare: string | null = null,
     overlay = 0,
-    draft = null;
+    draft: { x: number; y: number } | null = null;
   const close = () => {
     bg.remove();
     window.removeEventListener('keydown', onKey, true);
   };
-  const onKey = e => {
+  const onKey = (e: Json) => {
     if (e.key === 'Escape') {
       if (draft) {
         draft = null;
@@ -85,7 +104,7 @@ export function openVariantViewer({ pid, tid, getBrief, vid, onChanged, onFix, o
     }
     if (document.activeElement?.matches('input, textarea')) return;
     const vs = getBrief().variants || [];
-    const i = vs.findIndex(v => v.id === cur);
+    const i = vs.findIndex((v: Json) => v.id === cur);
     if (e.key === 'ArrowRight' && i < vs.length - 1) {
       cur = vs[i + 1].id;
       draw();
@@ -104,14 +123,14 @@ export function openVariantViewer({ pid, tid, getBrief, vid, onChanged, onFix, o
     if (e.target === bg) close();
   });
 
-  function pane(v, withNotes) {
+  function pane(v: Json, withNotes: Json) {
     const brief = getBrief();
     const wrap = h('div', { class: 'ts-vpane', style: { aspectRatio: brief.format === '9:16' ? '9 / 16' : '16 / 9' } });
     const img = h('img', { src: fileUrl(pid, tid, v.file, v.hash || v.at), draggable: false });
     wrap.append(img);
     if (overlay > 0) wrap.append(h('img', { class: 'ts-voverlay', src: fileUrl(pid, tid, 'layout.png', brief.exported || ''), style: { opacity: overlay } }));
     if (withNotes) {
-      (v.notes || []).forEach((n, i) =>
+      (v.notes || []).forEach((n: Json, i: Json) =>
         wrap.append(
           h(
             'div',
@@ -129,13 +148,13 @@ export function openVariantViewer({ pid, tid, getBrief, vid, onChanged, onFix, o
             e.preventDefault();
             const text = ta.value.trim();
             if (!text) return;
-            const at = draft;
+            const at = draft!; // the note popup only exists while a draft is set
             draft = null;
             try {
               await api(`/api/thumbstudio/${pid}/${tid}/variant/${v.id}/note`, { method: 'POST', body: { x: at.x, y: at.y, text } });
               await onChanged();
               draw();
-            } catch (err) {
+            } catch (err: Json) {
               toast('Could not save note: ' + err.message, true);
             }
           }
@@ -143,7 +162,7 @@ export function openVariantViewer({ pid, tid, getBrief, vid, onChanged, onFix, o
         setTimeout(() => ta.focus(), 0);
       }
       wrap.addEventListener('click', e => {
-        if (e.target.closest('.ts-notepop')) return;
+        if ((e.target as Element).closest('.ts-notepop')) return;
         const r = wrap.getBoundingClientRect();
         draft = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
         draw();
@@ -155,14 +174,14 @@ export function openVariantViewer({ pid, tid, getBrief, vid, onChanged, onFix, o
   function draw() {
     const brief = getBrief();
     const vs = brief.variants || [];
-    const v = vs.find(x => x.id === cur);
+    const v = vs.find((x: Json) => x.id === cur);
     if (!v) {
       close();
       return;
     }
-    const other = compare && vs.find(x => x.id === compare);
+    const other = compare && vs.find((x: Json) => x.id === compare);
     const notes = v.notes || [];
-    const openNotes = notes.filter(n => n.status !== 'fixed');
+    const openNotes = notes.filter((n: Json) => n.status !== 'fixed');
     box.innerHTML = '';
     box.append(
       h(
@@ -182,9 +201,9 @@ export function openVariantViewer({ pid, tid, getBrief, vid, onChanged, onFix, o
             min: 0,
             max: 80,
             value: Math.round(overlay * 100),
-            oninput: e => {
+            oninput: (e: Json) => {
               overlay = e.target.value / 100;
-              box.querySelectorAll('.ts-voverlay').forEach(o => (o.style.opacity = overlay));
+              box.querySelectorAll<HTMLElement>('.ts-voverlay').forEach(o => (o.style.opacity = overlay as Json));
               if (overlay && !box.querySelector('.ts-voverlay')) draw();
             }
           })
@@ -193,14 +212,14 @@ export function openVariantViewer({ pid, tid, getBrief, vid, onChanged, onFix, o
           'select',
           {
             title: 'Compare side by side',
-            onchange: e => {
+            onchange: (e: Json) => {
               compare = e.target.value || null;
               draw();
               e.target.blur();
             }
           },
           h('option', { value: '' }, 'Compare…'),
-          vs.filter(x => x.id !== v.id).map(x => h('option', { value: x.id, selected: x.id === compare }, x.id))
+          vs.filter((x: Json) => x.id !== v.id).map((x: Json) => h('option', { value: x.id, selected: x.id === compare }, x.id))
         ),
         h('button', { class: 'ghost', onclick: close }, '✕')
       ),
@@ -212,7 +231,7 @@ export function openVariantViewer({ pid, tid, getBrief, vid, onChanged, onFix, o
           'div',
           { class: 'ts-notes' },
           notes.length
-            ? notes.map((n, i) =>
+            ? notes.map((n: Json, i: Json) =>
                 h(
                   'div',
                   { class: 'ts-note' + (n.status === 'fixed' ? ' done' : '') },
@@ -275,7 +294,7 @@ export function openVariantViewer({ pid, tid, getBrief, vid, onChanged, onFix, o
                     cur = rest[rest.length - 1].id;
                     draw();
                   }
-                } catch (e) {
+                } catch (e: Json) {
                   toast('Could not delete: ' + e.message, true);
                 }
               }
@@ -337,8 +356,8 @@ export function openVariantViewer({ pid, tid, getBrief, vid, onChanged, onFix, o
 }
 
 // the variant image with red numbered circles at the notes (2nd reference of an edit)
-export async function markedImage(src, notes) {
-  const img = await new Promise((res, rej) => {
+export async function markedImage(src: Json, notes: Json) {
+  const img = await new Promise<HTMLImageElement>((res, rej) => {
     const i = new Image();
     i.onload = () => res(i);
     i.onerror = rej;
@@ -347,10 +366,10 @@ export async function markedImage(src, notes) {
   const c = document.createElement('canvas');
   c.width = img.naturalWidth;
   c.height = img.naturalHeight;
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d')!; // a fresh canvas always has a 2d context
   ctx.drawImage(img, 0, 0);
   const r = Math.max(18, c.width * 0.025);
-  notes.forEach((n, i) => {
+  notes.forEach((n: Json, i: Json) => {
     const x = n.x * c.width,
       y = n.y * c.height;
     ctx.lineWidth = r * 0.22;
