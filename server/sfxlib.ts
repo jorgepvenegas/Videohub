@@ -5,7 +5,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const [synthFile, outDir] = process.argv.slice(2);
-// the external engine's synth module: nothing is known about it until it is loaded, so it is `unknown` and read through this shape
+// the external engine's synth module is not part of this repo, so its drawing functions are described here
 type Draw = (...args: number[]) => void;
 interface Synth {
   whoosh: Draw;
@@ -28,8 +28,7 @@ interface Synth {
   glock: Draw;
   mixdown: (file: string, options: Record<string, number>) => void;
 }
-const synthModule: unknown = await import(pathToFileURL(synthFile).href);
-const { createSynth } = synthModule as { createSynth: (options: { duration: number }) => Synth };
+const { createSynth } = (await import(pathToFileURL(synthFile).href)) as { createSynth: (options: { duration: number }) => Synth };
 fs.mkdirSync(outDir, { recursive: true });
 
 // name (shown in the list, also the file name) → [seconds, (S) => draw it]
