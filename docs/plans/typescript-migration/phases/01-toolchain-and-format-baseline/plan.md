@@ -2,8 +2,8 @@
 
 - Plan ID: `typescript-migration`
 - Phase: P1
-- Plan version: 1
-- Validated against master version: 11
+- Plan version: 2
+- Validated against master version: 12
 - Status: in_progress
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-21
@@ -37,7 +37,7 @@ Set up the toolchain every later phase relies on, without converting any product
 
 | Ledger | Discovery | Effect on this phase |
 |---|---|---|
-| None | `discoveries docs/plans/typescript-migration P1` returns no rows; this is the first phase | — |
+| L1 | oxfmt reflow breaks the line-based source extraction in `server/hub-paths.test.js` tests 1–2 | S6 amended: those two extractions become marker-based slices (as test 3 already does) before the format commit; assertions unchanged |
 
 ## 3. Scope
 
@@ -134,9 +134,10 @@ If a step reveals work outside this phase, report it and continue the approved s
 - Files:
   - `.gitignore` (create) — `node_modules/`, `.test-tmp/`, `/data/`, `__pycache__/`
   - `scripts/install.mjs` (modify) — line 143: version check becomes ≥ 22.18 using major and minor
+  - `server/hub-paths.test.js` (modify) — tests 1–2 source extraction only (plan v2, ledger L1)
   - `CLAUDE.md` (modify) — the "No native modules…" rule becomes runtime-only, per C11; the "Before committing" rule lists `pnpm format:check`, `pnpm lint`, `pnpm typecheck` and `pnpm test`, keeping `node --check` for files still in JS
   - all tracked `*.js` / `*.mjs` in the formatted directories (modify) — formatting only
-- Change: First commit the toolchain and config changes (S1–S5 plus this step's `.gitignore`, `install.mjs` and `CLAUDE.md` edits) as `P1: toolchain, configs and Node 22.18 floor`. Then run `pnpm format` and commit only that result as `P1: oxfmt baseline (format only)`. Before that second commit, confirm the formatted tree contains no non-format change: `pnpm test`, `pnpm lint` and `pnpm typecheck` stay green, and `templates/new-film/render.js` is still byte-identical to `examples/hello-film/render.js` (a test asserts this). If formatting breaks a source-reading test, for example a regex over source text, stop and report. Do not edit the test in this phase.
+- Change: First commit the toolchain and config changes (S1–S5 plus this step's `.gitignore`, `install.mjs` and `CLAUDE.md` edits) as `P1: toolchain, configs and Node 22.18 floor`. Then run `pnpm format` and commit only that result as `P1: oxfmt baseline (format only)`. Before that second commit, confirm the formatted tree contains no non-format change: `pnpm test`, `pnpm lint` and `pnpm typecheck` stay green, and `templates/new-film/render.js` is still byte-identical to `examples/hello-film/render.js` (a test asserts this). Plan v2 (ledger L1): in `server/hub-paths.test.js`, tests 1–2 currently pick single source lines. Change only those two extraction expressions so each takes the whole statement from `server/hub.js` by slicing between stable markers (the pattern test 3 already uses), so the tests pass both before and after formatting. Keep every assertion, vm context and test name unchanged. Commit this as `P1: make hub-paths source extraction format-proof` before the format-only commit, and confirm the test passes on both the unformatted and the formatted tree. Any other source-reading test that formatting breaks: stop and report; do not edit it.
 - Acceptance:
   - [ ] Two commits on the branch, the second containing only formatter output
   - [ ] `pnpm format:check` exits 0 after the second commit

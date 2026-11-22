@@ -1,7 +1,7 @@
 # Master Plan — TypeScript migration
 
 - Plan ID: `typescript-migration`
-- Master version: 11
+- Master version: 12
 - Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
@@ -124,6 +124,7 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 
 | ID | Date | Phase | Affects | Discovery | Type | Action taken | Status |
 |---|---|---|---|---|---|---|---|
+| L1 | 2026-11-21 | P1 | P1 | oxfmt wraps declarations and one-line route() calls in server/hub.js; server/hub-paths.test.js tests 1-2 extract source by single line (startsWith / line regex) and break with SyntaxError after formatting. The third test in the same file already slices between markers and survives. | phase-amend | P1 S6 amended (plan v2): only the source-extraction expressions in server/hub-paths.test.js tests 1-2 may change to marker-based slicing like test 3; assertions, contexts and test names unchanged; change lands in the toolchain-side commit before the format-only commit | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.
