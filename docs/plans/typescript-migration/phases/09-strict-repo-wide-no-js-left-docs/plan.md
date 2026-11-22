@@ -9,8 +9,8 @@
 - Approved at: 2026-11-22
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: p9-worker
+- Implemented at: 2026-11-22
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -95,10 +95,10 @@ Out of scope:
 
 ## 4. Entry conditions
 
-- [ ] P6, P7 and P10 `done`; standards green — verify: `progressive_plan.py status docs/plans/typescript-migration`, then `pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test`
-- [ ] Working tree clean and pushed — verify: `git status -sb`
-- [ ] Phase plan revalidated against current master version (66)
-- [ ] Approval recorded per C15 — verify: `Approved by` is set and status is `ready`
+- [x] P6, P7 and P10 `done`; standards green — verify: `progressive_plan.py status docs/plans/typescript-migration`, then `pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test`
+- [x] Working tree clean and pushed — verify: `git status -sb`
+- [x] Phase plan revalidated against current master version (66)
+- [x] Approval recorded per C15 — verify: `Approved by` is set and status is `ready`
 
 ## 5. Steps
 
@@ -168,22 +168,22 @@ Commit after each step with subject `P9:` followed by the step title, and push. 
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — No JS source is tracked, and `scripts/no-js.test.ts` fails if one appears — verify: `git ls-files '*.js' '*.mjs' '*.cjs' '*.jsx'` (empty); S1 revert check
-- [ ] A2 — Both configs are strict with no `allowJs`/`checkJs`, and both pass — verify: the S1 grep and `pnpm typecheck`
-- [ ] A3 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
-- [ ] A4 — `pnpm test` has 0 failures and ≥ 323 passing on Node 24, and the full suite passes on Node 22.18 — verify: S4 evidence
-- [ ] A5 — `pnpm build` exits 0, and the scratch hub's library, review, thumbnail studio list and editor pages load with zero console errors and failed requests — verify: S4 evidence
-- [ ] A6 — A fresh setup builds and serves the UI and registers `server/mcp.ts`, and an update from a 70cf504 install meets P4's expectations — verify: S4 evidence
-- [ ] A7 — Template and example `render.ts` are identical, the `.ts`/legacy tests pass on the final commit, and P10's preview, review and render evidence is cited — verify: S4 evidence
-- [ ] A8 — The D9 grep prints nothing, and the remaining JS mentions in docs are intentional — verify: S3 evidence
+- [x] A1 — No JS source is tracked, and `scripts/no-js.test.ts` fails if one appears — verify: `git ls-files '*.js' '*.mjs' '*.cjs' '*.jsx'` (empty); S1 revert check
+- [x] A2 — Both configs are strict with no `allowJs`/`checkJs`, and both pass — verify: the S1 grep and `pnpm typecheck`
+- [x] A3 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
+- [x] A4 — `pnpm test` has 0 failures and ≥ 323 passing on Node 24, and the full suite passes on Node 22.18 — verify: S4 evidence
+- [x] A5 — `pnpm build` exits 0, and the scratch hub's library, review, thumbnail studio list and editor pages load with zero console errors and failed requests — verify: S4 evidence
+- [x] A6 — A fresh setup builds and serves the UI and registers `server/mcp.ts`, and an update from a 70cf504 install meets P4's expectations — verify: S4 evidence
+- [x] A7 — Template and example `render.ts` are identical, the `.ts`/legacy tests pass on the final commit, and P10's preview, review and render evidence is cited — verify: S4 evidence
+- [x] A8 — The D9 grep prints nothing, and the remaining JS mentions in docs are intentional — verify: S3 evidence
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no runtime change outside the new test
-- [ ] The no-JS test reuses Node's file APIs and the repo's test runner; no new dependency
-- [ ] Docs keep their existing voice and structure; only wrong statements change
-- [ ] Every new test fails if the behavior it covers breaks (S1 revert check)
-- [ ] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`, plus `pnpm build`
+- [x] The diff is the smallest change that meets the acceptance criteria; no runtime change outside the new test
+- [x] The no-JS test reuses Node's file APIs and the repo's test runner; no new dependency
+- [x] Docs keep their existing voice and structure; only wrong statements change
+- [x] Every new test fails if the behavior it covers breaks (S1 revert check)
+- [x] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`, plus `pnpm build`
 
 ## 8. Risks and unknowns
 
@@ -208,42 +208,55 @@ Append during implementation. One line per deviation: date, step, what changed, 
 - 2026-11-22, S2, intentional `.js`/`.mjs` mentions left in code (grep over `git ls-files '*.ts'`): users' films and scripts (`render.js`, `render.mjs`, `film.js`, `make.mjs`, `scene.js`, `data.js`, `words.js`) and their tests/fixtures (`server/film-ts.test.ts`, `server/jobs.test.ts`, `server/platform.*.test.ts`, `ui/review/renderbtn.test.ts`, `server/jobs.ts` default `render.js` fallback, `server/live.ts`, `server/scan.ts`, `server/transcript.ts`); the 3D studio and external engines (`engine/*.js`, `runtime.js`, `synth.js`, `vhsound.mjs` copy, `qa.mjs`, `film2d.js`, `transitions2d.js`, `tweaks.js`, `spotlight render.js cues`, and `engine-hooks/vh2d.ts:3` which names the installed `vh2d.js`); the Vite output `dist/ui/_vh/app-1.js` in `server/hub-ui.test.ts`; JS-era install recognition and its tests (`server/hub.js`, `mcp.js`, `cli.js`, `install.mjs`, `hub.js` in `scripts/agents.ts`, `scripts/agents.test.ts`, `scripts/install.ts`, `scripts/install.test.ts`, `server/config.ts:66`); and false positives (`.message` in `scripts/install.ts:379`).
 - 2026-11-22, S3 (p9-worker): docs changed: `CLAUDE.md`, `README.md`, `docs/ARCHITECTURE.md`, `docs/PLATFORMS.md`, `docs/PROJECT-CONTRACT.md`, `docs/RENDER-SPEED.md`, `skill/videohub/SKILL.md`. `AGENTS.md` and `claude/global-rule.md` name no old paths (unchanged). Changes: `.ts` entry points and module names; Node 22.18+ with native type stripping and no server build; Vite builds `dist/ui` and `dist/engine-hooks`, run by setup and update; standards commands include `pnpm build`, `node --check` rule removed, "compact ES module style" became "oxfmt-formatted"; starter files `render.ts`, `make-audio.ts`, `film.ts` with `render.js` films still supported, `film.ts` served with types stripped, loopback page server for every render (L48); engine hooks point to the `.ts` sources and the built `dist/engine-hooks/*.js` (L44, L45); ARCHITECTURE contributor bullet on the `dist/ui` watcher (L30) and the Node 24 ExperimentalWarning (L49). The D9 grep prints nothing.
 - 2026-11-22, S3, remaining `.js`/`.mjs` mentions in docs (grep reviewed, all intentional): users' films and legacy support (`render.js`/`render.mjs` in README, CLAUDE.md and PROJECT-CONTRACT §1, §4); 3D studio and external engines (`make.mjs`, `scene.js`, `engine/audio/synth.js`, `data.js`, `words.js`); built output names (`dist/engine-hooks/*.js`). `docs/MIGRATING.md` and `templates/new-film/README.md` were out of scope and name no stale VideoHub paths.
+- 2026-11-22, S4 (p9-worker), verified on the S3 commit 9a91124 (only plan text changes after it):
+  1. D1: `git ls-files '*.js' '*.mjs' '*.cjs' '*.jsx' | wc -l` prints 0.
+  2. D2-D4 on Node 24.16.0: `pnpm install --frozen-lockfile` up to date; `pnpm format:check` exit 0; `pnpm lint` exit 0 (0 errors, 148 warnings: the L3 rules at `warn`, count unchanged from P10); `pnpm typecheck` exit 0 (both configs); `pnpm build` exit 0; `pnpm test` 325 tests, 324 pass, 1 skipped, 0 fail. Node 22.18.0 (`.test-tmp/node-22.18/bin/node scripts/test.ts` first on PATH): exit 0, 325 tests, 324 pass, 1 skipped, 0 fail; the only stderr noise is the stripTypeScriptTypes ExperimentalWarning (L49).
+  3. D5: scratch hub `.test-tmp/p9-hub` (start script `.test-tmp/p9-hub/start-hub.sh`: `env -i`, scratch HOME/XDG/TMPDIR, `PATH=.test-tmp/p4-bin:/usr/bin:/bin`, real node binary, port 7799, guard and jobs off, no window, `VIDEOHUB_IDLE_SEC=600`) over a copy of `examples/hello-film` (id `d3621f3fc969`), a scratch cover `data/thumbs/live-d3621f3fc969.jpg` made with ffmpeg (L34) and one thumbnail created with `POST /api/thumbstudio/new` (`20261122-retw`). `.test-tmp/p9-browser/check.mjs` (puppeteer-core, installed Chrome, headless, no clicks, no `?play=1`): `#/` ok, `#/review/d3621f3fc969/~live` ok (4 canvases, 1 iframe), `#/thumbstudio` ok (27 canvases), `#/thumbstudio/d3621f3fc969/20261122-retw` ok (editor shell, 2 canvases); `plays: []` on all; `total problems 0` (console errors and warnings, page errors, failed requests, HTTP >= 400). Hub stopped by killing its pid; the 7799 listener list was empty.
+  4. D6 fresh: `git archive HEAD` into `.test-tmp/p9-e2e/new`; env `.test-tmp/p9env.sh fresh` (fake HOME/XDG/TMPDIR/data/base under `.test-tmp/p9-e2e/env-fresh`, port 7799, guard and jobs off, no window, `PATH=.test-tmp/p4-bin:/usr/bin:/bin`; `command -v claude opencode` printed nothing); `bash setup.sh --yes --agents opencode --shortcut yes --startup no --example yes --global-rule yes --watch-found no --gpu-encoder no --workspace .test-tmp/p9-e2e/env-fresh/base` rc 0: `new/dist/ui` (with `_vh`) and `new/dist/engine-hooks/{vh2d,vhtweaks}.js` exist; the fake OpenCode config names `server/mcp.ts`; the Desktop launcher names `install.ts`; the example film was copied; `/api/ping` answered on 7799 from `new/server/hub.ts` and `/` returned 200. Stopped with `node scripts/install.ts stop --target` (first attempt used a wrong target path and refused, harmless).
+  5. D6 update: `git archive 70cf504` into `.test-tmp/p9-e2e/old`, set up in env `upd` with the same answers (no example): old hub ran `old/server/hub.js` on 7799, OpenCode config named `server/mcp.js`, Desktop launcher named `scripts/install.mjs`. L23: scratch config port set to 7799; markers `env-upd/data/e2e-marker.txt` (hello) and `env-upd/base/films/e2e-film.txt` (hi). Source `.test-tmp/p9-e2e/src` (a sibling `git archive HEAD`, no node_modules): `update.sh --target old --dry-run` listed 155 obsolete JavaScript files to move; the real update rc 0: stopped the old hub, moved the JS files to `old/data/update-backup/2026-11-22T20-38-02-892Z` (it holds `server/hub.js` and `scripts/install.mjs`), `pnpm install --frozen-lockfile`, `pnpm build` (`old/dist/ui` and `old/dist/engine-hooks`), refreshed the launcher and registered OpenCode. After: no listener; `old/server/hub.ts` exists and `old/scripts` holds only `.ts`; both markers intact; OpenCode config names `server/mcp.ts`; the launcher names `old/scripts/install.ts`; `bash open.sh --server` printed `VideoHub is available at http://127.0.0.1:7799` and `/api/ping` answered from `old/server/hub.ts`; `uninstall.sh --dry-run` listed only the fake-home OpenCode entries, launcher and install record. Stopped with `install.ts stop`; no LaunchAgent entry named videohub exists.
+  6. D7 and D8: `cmp templates/new-film/render.ts examples/hello-film/render.ts` identical; `node --test server/film-ts.test.ts server/jobs.test.ts server/live.test.ts` run (33 pass, 0 fail; `live.test.ts` does not exist, node ran the two existing files) and the legacy `render.js` and `.ts` cases sit in the full suite above. P10 evidence cited: P10 S5 (library and the three live pages with 0 problems, `plays: []`, `READY` true, reload check after editing `film.ts`), S6 (user answered "Looks good, render it"; one queued render of the scratch example copy, job `jmwsagp7s-4d17eff9`, state done, `ffprobe`: 10.0 s, h264 1920x1080, aac). No new render in P9.
+  7. D9: the S3 grep prints nothing. Final: `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty; nothing listens on 7788 either.
+- 2026-11-22, S4, note: the `cat >> /tmp/x` slip in this session created an empty file `/tmp/x` outside `.test-tmp`; it was not deleted (rule 2) and is reported to the coordinator.
 
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
 
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-22
+- Session: p9-worker (subagent, branch `plan/typescript-migration`)
+- Verdict: addressed
+- Steps complete: S1, S2, S3, S4
+- Verification run: Node 24.16.0: `pnpm install --frozen-lockfile` (up to date), `pnpm format:check` exit 0, `pnpm lint` exit 0 (0 errors, 148 warnings), `pnpm typecheck` exit 0, `pnpm build` exit 0, `pnpm test` 325 tests, 324 pass, 1 skipped, 0 fail; Node 22.18.0 `scripts/test.ts` 325 tests, 324 pass, 1 skipped, 0 fail; `git ls-files '*.js' '*.mjs' '*.cjs' '*.jsx'` empty; D9 grep empty; scratch hub browser check 0 problems; fresh setup and the 70cf504 update in fake homes (section 9, S4). Commits: S1 1a81cce, S2 a14f969, S3 9a91124.
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | pending | |
-| A2 | pending | |
-| A3 | pending | |
-| A4 | pending | |
-| A5 | pending | |
-| A6 | pending | |
-| A7 | pending | |
-| A8 | pending | |
-| D1 (master) | pending | |
-| D2 (master) | pending | |
-| D3 (master) | pending | |
-| D4 (master) | pending | |
-| D5 (master) | pending | |
-| D6 (master) | pending | |
-| D7 (master) | pending | |
-| D8 (master) | pending | |
-| D9 (master) | pending | |
+| A1 | met | `git ls-files '*.js' '*.mjs' '*.cjs' '*.jsx'` prints nothing; `scripts/no-js.test.ts` passes, and failed with a scratch `ui/zz-scratch.js` naming that file (S1 revert check) |
+| A2 | met | `grep -nE "allowJs|checkJs" tsconfig.json ui/tsconfig.json` prints nothing; `tsc --noEmit -p tsconfig.json` and `-p ui/tsconfig.json` both exit 0, also via `pnpm typecheck` |
+| A3 | met | `pnpm lint` exit 0 with 0 errors (148 warnings, L3 kept at `warn`); `pnpm format:check` exit 0 |
+| A4 | met | Node 24: 325 tests, 324 pass (>= 323), 0 fail, 1 skipped; Node 22.18.0 full suite: same counts, exit 0 |
+| A5 | met | `pnpm build` exit 0; scratch hub on 7799: library, review `~live`, `#/thumbstudio` and the thumbnail editor loaded with 0 console errors, page errors and failed requests, no clicks, no play events |
+| A6 | met | Fresh setup in a fake home built `dist/ui` and `dist/engine-hooks`, registered `server/mcp.ts` and answered `/api/ping` on 7799; update from the 70cf504 install stopped the old hub, moved 155 JS files to the backup, rebuilt, re-pointed OpenCode to `mcp.ts` and the launcher to `install.ts`, kept data and films, and `open.sh --server` served from `hub.ts` |
+| A7 | met | `cmp` of the two `render.ts` files identical; film-ts and jobs tests pass on the final code (`.ts` and legacy `render.js` cases); P10's preview, user review and render evidence cited in section 9 (S4, item 6) |
+| A8 | met | The D9 grep prints nothing; the remaining `.js`/`.mjs` mentions in docs are listed in section 9 (S3) |
+| D1 (master) | met | `git ls-files '*.js' '*.mjs' '*.cjs' '*.jsx'` empty on the S3 commit; `scripts/no-js.test.ts` keeps it so |
+| D2 (master) | met | `tsconfig.json` has `"strict": true` and no `allowJs`; `pnpm typecheck` exit 0 (both configs) |
+| D3 (master) | met | `pnpm lint` 0 errors; `pnpm format:check` exit 0 |
+| D4 (master) | met | `pnpm test` 324 pass, 0 fail on Node 24 and on Node 22.18.0 (baseline was 298) |
+| D5 (master) | met | `pnpm build` exit 0; scratch hub served library, review, thumbnail studio and editor with no console errors (section 9, S4 item 3) |
+| D6 (master) | met | Fresh setup and 70cf504 update end to end in fake homes (section 9, S4 items 4 and 5); `scripts/install.test.ts` and `scripts/agents.test.ts` pass in the suite. Real launchd re-apply is not exercised |
+| D7 (master) | met | P10's evidence (scratch preview, user's "Looks good, render it", one queued render, ffprobe 10.0 s h264 1920x1080 aac) plus final-commit checks: `cmp` of the two `render.ts` identical, the encoder test that keeps them equal passes, scratch hub loaded the example's live page with 0 problems; no new render |
+| D8 (master) | met | The legacy `render.js` and `film.js` tests in `server/jobs.test.ts` and `server/film-ts.test.ts` pass on Node 24 and 22.18; P10's legacy film preview check cited |
+| D9 (master) | met | `grep -rnE "server/(hub|mcp|cli)\.js|scripts/[a-z-]+\.mjs|node --check" CLAUDE.md AGENTS.md README.md docs skill --exclude-dir=plans` prints nothing |
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| P9-1 | `templates/new-film/README.md` and `docs/MIGRATING.md` were not in S3's file list; the grep found no stale VideoHub paths in either | note | P9 | None |
+| P9-2 | `lsof` is not on the scratch `PATH` (`.test-tmp/p4-bin:/usr/bin:/bin`); listener checks use `/usr/sbin/lsof` | note | none | None |
+| P9-3 | `scripts/test.ts` output under Node 22.18 is TAP (`# pass N`), not the `ℹ` summary Node 24 prints; both exit 0 | note | none | None |
+| P9-4 | An update source (`update.sh`) that is a plain `git archive` export has no `node_modules`; the update ran `pnpm install --frozen-lockfile` in the target itself, as in P4 | note | none | None |
 
-**Master updates written:** none yet
-**Next-phase updates written:** none yet
-**Remaining work and handoff:** none yet
+**Master updates written:** none (the coordinator owns master.md)
+**Next-phase updates written:** none (last phase)
+**Remaining work and handoff:** Real hardware: Linux and Intel macOS desktop, install and render acceptance (including `desktopEntry`, L21); a real macOS launchd re-apply on an update with login startup (L24). Candidate follow-ups, not done here: L10 (`busyElsewhere` always says another session), L39 (`actions.append(null)` writes the text "null" when no outputs copy exists), L17 (MCP arguments typed as a record of `Json`), L29 (`Json` alias in the UI), L3 and L41 (148 oxlint warnings kept at `warn`, unused `drawSubjectBlock`), L5 (`.git-blame-ignore-revs` not added), L44 (built hooks lose their header comments; docs point to the `.ts` sources), L32 (`pnpm typecheck` chains the two configs). Only held back item: `/tmp/x`, an empty file this session created by mistake outside `.test-tmp`; deletion is for the coordinator.
