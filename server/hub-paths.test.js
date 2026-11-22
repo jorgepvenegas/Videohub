@@ -9,7 +9,8 @@ const DATA_DIR = path.resolve('.test-tmp', 'hub-paths', 'isolated-data');
 const HUB_DIR = path.resolve('.test-tmp', 'hub-paths', 'program');
 
 test('group metadata, live thumbnails and temporary guard state respect the data directory override', () => {
-  const code = ['function projectMetaPath', 'const LIVE_THUMBS =', 'const TEMP_FILE ='].map(prefix => source.split(/\r?\n/).find(line => line.startsWith(prefix))).join('\n');
+  const between = (from, to) => source.slice(source.indexOf(from), source.indexOf(to, source.indexOf(from)));
+  const code = [between('function projectMetaPath', '// ---------- routes'), between('const LIVE_THUMBS =', '\n// the last automatic scan'), between('const TEMP_FILE =', 'async function checkGuardTemp')].join('\n');
   const ctx = vm.createContext({ path, DATA_DIR, HUB_DIR });
   vm.runInContext(code + '\nglobalThis.paths = {projectMetaPath,LIVE_THUMBS,TEMP_FILE};', ctx);
   assert.equal(ctx.paths.projectMetaPath({ group: 'film', id: 'group-id' }), path.join(DATA_DIR, 'meta', 'group-id.json'));
@@ -20,7 +21,7 @@ test('group metadata, live thumbnails and temporary guard state respect the data
 
 test('guard settings routes read and clear temporary overrides only in the configured data directory', async () => {
   const handlers = new Map(), reads = [], removed = [];
-  const code = source.split(/\r?\n/).filter(line => /^route\('(GET|POST)', '\/api\/guard\/settings'/.test(line)).join('\n');
+  const code = source.slice(source.indexOf("route('GET', '/api/guard/settings'"), source.indexOf("route('GET', '/api/disk'"));
   vm.runInNewContext(code, { path, DATA_DIR, HUB_DIR, route: (method, route, fn) => handlers.set(method + route, fn),
     readJson: f => { reads.push(f); return { until: 'later' }; }, fs: { unlinkSync: f => removed.push(f) },
     os: { totalmem: () => 2 ** 30, cpus: () => [] }, guardSettings: async () => ({}), readBody: async b => b, saveGuardSettings: async b => b });
