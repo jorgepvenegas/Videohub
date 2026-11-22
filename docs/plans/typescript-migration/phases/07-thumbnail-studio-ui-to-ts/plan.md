@@ -9,8 +9,8 @@
 - Approved at: 2026-11-22
 - Commit: pending
 - Implementation mode: subagent
-- Implemented by: pending
-- Implemented at: pending
+- Implemented by: p7-worker
+- Implemented at: 2026-11-22
 - Exception approved by: none
 - Exception reason: none
 - Parallel safe: no
@@ -78,10 +78,10 @@ Out of scope:
 
 ## 4. Entry conditions
 
-- [ ] P6 `done`; standards green — verify: `progressive_plan.py status docs/plans/typescript-migration`, then `pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test`
-- [ ] Working tree clean and pushed — verify: `git status -sb`
-- [ ] Phase plan revalidated against current master version (49)
-- [ ] User approved this phase plan — verify: `Approved by` is set and status is `ready`
+- [x] P6 `done`; standards green — verify: `progressive_plan.py status docs/plans/typescript-migration`, then `pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test`
+- [x] Working tree clean and pushed — verify: `git status -sb`
+- [x] Phase plan revalidated against current master version (49)
+- [x] User approved this phase plan — verify: `Approved by` is set and status is `ready`
 
 ## 5. Steps
 
@@ -102,7 +102,7 @@ Commit after each step with subject `P7:` followed by the step title, and push. 
 - Files: the 25 renames in §3 (temporary first-line `// @ts-nocheck`); `ui/app.ts`; `server/thumbstudio/schema.ts`, `prompt.ts` (specifiers and comment paths)
 - Change: Pure rename plus `./`/`../` specifier updates (L14), including the dynamic `import()` calls in `page`, then rebuild. Before renaming, grep the whole repo for importers and path mentions of the renamed files (L26). Pure specifier or comment-path mentions outside this list may be changed and recorded in §9; anything else is reported.
 - Acceptance:
-  - [ ] `git log --follow` tracks all 25; `pnpm build`, `pnpm typecheck` and `pnpm test` pass with the same counts as before; the build still emits separate chunks for the dynamically imported `editor` and `figures-catalog`
+  - [x] `git log --follow` tracks all 25; `pnpm build`, `pnpm typecheck` and `pnpm test` pass with the same counts as before; the build still emits separate chunks for the dynamically imported `editor` and `figures-catalog`
 - Verification: `git show -M --summary HEAD | grep -c '^ rename'` (25); `git ls-files ui server | grep -E '\.js$'` (empty); `pnpm build && ls dist/ui/_vh && pnpm typecheck && pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -112,7 +112,7 @@ Commit after each step with subject `P7:` followed by the step title, and push. 
 - Files: `ui/thumbstudio/catalog.ts`, `prompt.ts`, `figures.ts`, `history.ts`, `layers.ts`, `light.ts`, `camera.ts`, `shapes.ts`; `server/thumbstudio/camera-and-depth.test.ts`, `editor-core.test.ts`, `figures-and-refs.test.ts`, `templates.test.ts`; `server/thumbstudio/schema.ts`, `store.ts` (type-only, L18)
 - Change: Remove `@ts-nocheck` and add strict types. These modules must not use DOM or Node APIs or import `ui/app.ts`, because both configs check them. Export their data shapes (catalog entries, layers, history) so the page modules and `server/thumbstudio/schema.ts` can `import type` them. Type-only edits in `schema.ts`/`store.ts` where inferred types change.
 - Acceptance:
-  - [ ] No `@ts-nocheck` in these files; both configs pass when run separately; the AST comparison shows no runtime difference; `schema.ts`/`store.ts` changes are type-only (their stripped ASTs are unchanged too)
+  - [x] No `@ts-nocheck` in these files; both configs pass when run separately; the AST comparison shows no runtime difference; `schema.ts`/`store.ts` changes are type-only (their stripped ASTs are unchanged too)
 - Verification: `grep -l "@ts-nocheck"` over the step's files (no output); `tsc --noEmit -p tsconfig.json && tsc --noEmit -p ui/tsconfig.json`; `pnpm build && pnpm test 2>&1 | tail -8`; AST result in §9
 - Rollback: `git revert HEAD`
 
@@ -122,7 +122,7 @@ Commit after each step with subject `P7:` followed by the step title, and push. 
 - Files: `ui/thumbstudio/depth.ts`, `refs.ts`, `compose.ts`, `gen.ts`, `templates.ts`, `figures-catalog.ts`, `page.ts`, `scene.ts`; `server/thumbstudio/depth-panel.test.ts`, `template-ui.test.ts`
 - Change: As in S2, with DOM types and `Json` for hub replies (L29). `depth-panel` and `template-ui` tests read source with `readSource` and marker slices (L4, L28).
 - Acceptance:
-  - [ ] No `@ts-nocheck` in these files; the AST comparison shows no runtime difference
+  - [x] No `@ts-nocheck` in these files; the AST comparison shows no runtime difference
 - Verification: same as S2
 - Rollback: `git revert HEAD`
 
@@ -132,7 +132,7 @@ Commit after each step with subject `P7:` followed by the step title, and push. 
 - Files: `ui/thumbstudio/inspector.ts`, `editor.ts`; `server/thumbstudio/editor-interactions.test.ts`
 - Change: As in S3. `editor-interactions` reads `editor.ts` with `readSource` and marker slices.
 - Acceptance:
-  - [ ] No `@ts-nocheck` anywhere under `ui/` or `server/`; the AST comparison shows no runtime difference for all 18 modules; `any` appears only through `Json` (L8, L29)
+  - [x] No `@ts-nocheck` anywhere under `ui/` or `server/`; the AST comparison shows no runtime difference for all 18 modules; `any` appears only through `Json` (L8, L29)
 - Verification: `grep -rl "@ts-nocheck" ui server` (no output); the L8 grep; `pnpm typecheck && pnpm build && pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -146,25 +146,25 @@ Commit after each step with subject `P7:` followed by the step title, and push. 
   3. A throwaway script under `.test-tmp/p7-browser/` (not committed) drives the repo's `puppeteer-core` with the installed Chrome, headless. It opens `#/thumbstudio`, `#/thumbstudio/_/catalog` and the editor `#/thumbstudio/PROJECT_ID/THUMB_ID` for the scratch thumbnail, collecting console errors and failed requests. It does not click generate, export or any editor control.
   4. Stop the hub and record the evidence and the L3 warning counts.
 - Acceptance:
-  - [ ] Zero console errors and zero failed requests on the three pages; nothing was generated (no new variant in the scratch thumbnail folder)
+  - [x] Zero console errors and zero failed requests on the three pages; nothing was generated (no new variant in the scratch thumbnail folder)
 - Verification: the recorded script output; `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty at the end
 - Rollback: n/a (scratch only)
 
 ## 6. Phase acceptance criteria
 
-- [ ] A1 — No tracked JS under `ui/` or `server/`; renames keep history — verify: `git ls-files ui server | grep -E '\.js$'` (empty); `git log --follow --oneline ui/thumbstudio/editor.ts | wc -l` > 1
-- [ ] A2 — Both type-check configs are strict-clean; no `@ts-nocheck` under `ui/` or `server/`; `any` only via `Json`; S2–S4 are runtime-identical, including `schema.ts`/`store.ts` — verify: `pnpm typecheck`, the greps and the §9 AST comparison
-- [ ] A3 — `pnpm test` has 0 failures and ≥ 312 passing, with the converted source-reading tests passing — verify: `pnpm test` and §9
-- [ ] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
-- [ ] A5 — `pnpm build` exits 0, and the scratch hub's thumbnail studio list, catalog and editor pages load from `dist/ui` with zero console errors and failed requests, without generating anything — verify: S5 evidence
+- [x] A1 — No tracked JS under `ui/` or `server/`; renames keep history — verify: `git ls-files ui server | grep -E '\.js$'` (empty); `git log --follow --oneline ui/thumbstudio/editor.ts | wc -l` > 1
+- [x] A2 — Both type-check configs are strict-clean; no `@ts-nocheck` under `ui/` or `server/`; `any` only via `Json`; S2–S4 are runtime-identical, including `schema.ts`/`store.ts` — verify: `pnpm typecheck`, the greps and the §9 AST comparison
+- [x] A3 — `pnpm test` has 0 failures and ≥ 312 passing, with the converted source-reading tests passing — verify: `pnpm test` and §9
+- [x] A4 — `pnpm lint` has 0 errors and `pnpm format:check` exits 0 — verify: both commands
+- [x] A5 — `pnpm build` exits 0, and the scratch hub's thumbnail studio list, catalog and editor pages load from `dist/ui` with zero console errors and failed requests, without generating anything — verify: S5 evidence
 
 ## 7. Code standards check
 
-- [ ] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
-- [ ] Existing helpers and types are reused (`readSource`, `Json`, the shapes exported by the shared modules); no duplicated type declarations between UI and `server/thumbstudio`
-- [ ] Names and structure state intent; comments explain only non-obvious reasons
-- [ ] Every changed test still fails if the behavior it covers breaks (one mutation per converted source-reading test, recorded in §9)
-- [ ] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`, plus `pnpm build`
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency
+- [x] Existing helpers and types are reused (`readSource`, `Json`, the shapes exported by the shared modules); no duplicated type declarations between UI and `server/thumbstudio`
+- [x] Names and structure state intent; comments explain only non-obvious reasons
+- [x] Every changed test still fails if the behavior it covers breaks (one mutation per converted source-reading test, recorded in §9)
+- [x] Master standards commands pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test`, plus `pnpm build`
 
 ## 8. Risks and unknowns
 
@@ -189,35 +189,42 @@ Append during implementation. One line per deviation: date, step, what changed, 
 - 2026-11-22, S3 AST comparison against the S1 commit: 8 modules, 0 different (`gen.ts` first differed because of `String(overlay)`; replaced by a `Json` cast and re-compared); `figures.ts` re-compared, 0 different. The two tests differ only by the `readSource` conversion and type annotations. Bundle names unchanged. Mutations: `depth.ts` drag-change guard replaced by `if (false)` made `depth-panel.test.ts` fail (2 fail); `templates.ts` focus-layer remap replaced by `null` made `template-ui.test.ts` fail (3 fail); both reverted (7 pass).
 - 2026-11-22, S4: `inspector.ts` and `editor.ts` take `Json` for hub data and typed DOM elements where cheap (`InspectorHandlers` in `inspector.ts`); `gen.ts` `fileUrl` took an optional fourth parameter (type-only edit, outside the S4 list but required by `editor.ts` calling it with three arguments). `editor-interactions.test.ts` reads `editor.ts` with `readSource` (the existing multi-line import regex survives; no marker slice needed); its fake `Element` has an index signature and `declare` fields. Casts and `!` carry comments.
 - 2026-11-22, S4 AST comparison against the S1 commit: `inspector.ts`, `editor.ts`, `gen.ts` 0 different; `editor-interactions.test.ts` differs from the S1 file only in its import lines and the `source` constant (`readSource`), checked by a variant of the comparison that skips those two statements (0 other differences); same check for `depth-panel` and `template-ui` tests. Mutation: replacing the pen-stroke `activeStroke.pts.push(...)` in `editor.ts` with `void 0` made `editor-interactions.test.ts` fail (1 fail); reverted (8 pass). No `@ts-nocheck` remains under `ui` or `server`; the L8 grep finds no `any` in type positions (only `Json`).
+- 2026-11-22, S5: scratch hub (real node binary, `.test-tmp/p7-hub`, port 7799, guard and jobs off, no window, fake HOME/XDG/TMPDIR, PATH without agents) over a copy of `examples/hello-film` with a scratch cover and one thumbnail created through `POST /api/thumbstudio/new`. `.test-tmp/p7-browser/check.mjs` (puppeteer-core, headless Chrome, no clicks) opened `#/thumbstudio` (27 canvases), `#/thumbstudio/_/catalog` (32 canvases, 16 poses) and the editor page (editor shell and 2 canvases): 0 console errors or warnings, 0 page errors, 0 failed or 4xx requests. The thumbnail's `variants` folder stayed empty. Hub stopped; `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty. L3 lint warning counts: 146 warning lines repo-wide, 56 in thumbstudio files, 0 errors.
+
 
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
 
-- Date:
-- Session:
-- Verdict: pending
-- Steps complete:
-- Verification run:
+- Date: 2026-11-22
+- Session: p7-worker (subagent)
+- Verdict: addressed
+- Steps complete: S1 (eba0b83), S2 (88171eb), S3 (70e6fda), S4 (d95a439), S5 (browser check, no code change); this closeout is the final commit
+- Verification run: `pnpm format:check` exit 0; `pnpm lint` exit 0 (146 warning lines, 56 mention thumbstudio files; no errors); `pnpm typecheck` exit 0 (both configs); `pnpm install --frozen-lockfile` exit 0; `pnpm build` exit 0 (chunks `editor`, `figures-catalog` kept, bundle names unchanged); `pnpm test` 313 tests, 312 pass, 0 fail, 1 skipped; `git ls-files ui server | grep -E '\.js$'` empty; `git log --follow --oneline ui/thumbstudio/editor.ts | wc -l` is 6; `grep -rl "@ts-nocheck" ui server` empty; L8 grep finds no `any` in type positions; AST comparisons and mutations in section 9; scratch hub browser check below
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
-| A1 | pending | |
-| A2 | pending | |
-| A3 | pending | |
-| A4 | pending | |
-| A5 | pending | |
-| D1 (master) | pending | |
-| D2 (master) | pending | |
-| D3 (master) | pending | |
-| D4 (master) | pending | |
-| D5 (master) | pending | |
+| A1 | met | `git ls-files ui server \| grep -E '\.js$'` is empty; the 25 renames kept history (`git log --follow` on `editor.ts` shows 6 commits) |
+| A2 | met | `pnpm typecheck` (root and UI configs, run separately and together) exit 0; no `@ts-nocheck` under `ui` or `server`; no `any` outside `Json`; AST comparison against the S1 commit shows 0 runtime differences for all 18 modules, `schema.ts` and `store.ts` (those two needed no edit); the 7 converted tests differ only by the `readSource` conversion |
+| A3 | met | `pnpm test` 313 tests, 312 pass, 0 fail, 1 skipped; `depth-panel`, `template-ui` and `editor-interactions` read source through `readSource`; one mutation each failed the test and was reverted (section 9) |
+| A4 | met | `pnpm lint` exit 0, no errors; `pnpm format:check` exit 0 |
+| A5 | met | `pnpm build` exit 0; scratch hub on 7799 served `#/thumbstudio`, `#/thumbstudio/_/catalog` and the editor for one scratch thumbnail with 0 console errors, 0 page errors and 0 failed requests; the scratch thumbnail's `variants` folder stayed empty; hub stopped, `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty |
+| D1 (master) | met | This phase's share: the 18 `ui/thumbstudio` modules and 7 tests are `.ts` with history kept, and no JavaScript remains under `ui/` or `server/`. D stays open until P9 (engine hooks, film starter and example are P8; scripts and others) |
+| D2 (master) | met | This phase's share: the studio code type-checks under `ui/tsconfig.json`, and the shared modules and server tests under the root config, with `strict`. D stays open until P9 (`allowJs` removal) |
+| D3 (master) | met | This phase's share: lint 0 errors and format clean after the conversion. D stays open until P9 (repo-wide lint decision on the warn rules) |
+| D4 (master) | met | This phase's share: 312 pass, 0 fail (P6 count). D stays open until P9 |
+| D5 (master) | met | This phase's share: `pnpm build` exits 0 and a scratch hub serves the thumbnail studio list, catalog and editor with no console errors. D stays open until P9 (full D1-D9 verification) |
 
 **Discoveries no earlier plan predicted:**
 
 | ID | Discovery | Type | Applies to | Action written |
 |---|---|---|---|---|
+| P7-1 | `ui/thumbstudio/compose.ts` appends `cond ? button : null` to a row; `append(null)` adds the text "null" when no outputs copy exists (pre-existing; typed with a commented cast, not fixed) | note | P9 | Report as a candidate follow-up bug |
+| P7-2 | `Brief` shared type defaults to partial layers and refs because `prompt.test.ts` and other tests pass partial briefs; pages use `FullBrief`. `prompt.test.ts` needed no edit | note | P9 | None |
+| P7-3 | Renaming a test to `.ts` enables TypeScript-only lint rules (`typescript/no-this-alias` in `depth-panel.test.ts`); handled with a lint-disable comment | note | P8, P9 | Later renames may meet the same class of rules |
+| P7-4 | `drawSubjectBlock` in `scene.ts` is still an unused function (L3 warning) and was left in place so the AST comparison stays exact; removing it is a runtime-visible edit | note | P9 | P9 may remove it with the lint decision |
+| P7-5 | S1 specifier grep found the `catalog.ts` comment naming `schema.js`; changed under the S1 exception. `gen.ts` `fileUrl` gained an optional fourth parameter (type-only) for `editor.ts` | note | P9 | None |
 
-**Master updates written:** none yet
-**Next-phase updates written:** none yet
-**Remaining work and handoff:** none yet
+**Master updates written:** none (coordinator owns master.md)
+**Next-phase updates written:** none
+**Remaining work and handoff:** none for P7. Coordinator: review section 9 AST comparisons from the S1 commit eba0b83, then record-commit and close. The scratch hub, browser script and strip folder live under `.test-tmp/p7-*` and were left in place.
