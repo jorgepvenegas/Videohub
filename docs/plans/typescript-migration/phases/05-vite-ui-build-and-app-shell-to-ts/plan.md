@@ -105,8 +105,8 @@ Commit after each step with subject `P5:` followed by the step title, and push. 
 - Files: `package.json`, `pnpm-lock.yaml`, `vite.config.ts` (create), `ui/tsconfig.json` (create), `tsconfig.json`, `.gitignore` (modify)
 - Change: Pin Vite and add the `build` script and config described in §3. Split type checking so that browser sources get DOM types without Node types. `pnpm typecheck` runs both configs, for example `tsc --noEmit -p tsconfig.json && tsc --noEmit -p ui/tsconfig.json`. Build the still-JavaScript UI. If pnpm asks to approve build scripts (Rolldown), stop and report.
 - Acceptance:
-  - [ ] `pnpm build` exits 0, writing `dist/ui/index.html` plus bundled JS and CSS under `dist/ui/_vh/`
-  - [ ] `git check-ignore dist` passes; `pnpm typecheck` exits 0
+  - [x] `pnpm build` exits 0, writing `dist/ui/index.html` plus bundled JS and CSS under `dist/ui/_vh/`
+  - [x] `git check-ignore dist` passes; `pnpm typecheck` exits 0
 - Verification: `pnpm install --frozen-lockfile && pnpm build && ls dist/ui dist/ui/_vh && pnpm typecheck`
 - Rollback: `git revert HEAD`; `rm -rf dist` (created in this step)
 
@@ -199,6 +199,8 @@ Commit after each step with subject `P5:` followed by the step title, and push. 
 ## 9. Deviations and working notes
 
 Append during implementation. One line per deviation: date, step, what changed, why, approval if needed. A deviation records an approved adjustment; it must not be used to add out-of-scope work.
+
+- 2026-11-22 S1: `pnpm install --frozen-lockfile && pnpm build && ls dist/ui dist/ui/_vh && pnpm typecheck` all exit 0; pnpm raised no build-script approval prompt; build emits index.html plus `_vh/index-*.js/.css`, `editor-*.js`, `figures-catalog-*.js`; `git check-ignore dist` prints `dist`; suite 307 pass. Root tsconfig `include` now lists `ui/values.*` and `ui/**/*.test.*` instead of all of `ui` (UI sources are checked by `ui/tsconfig.json`).
 
 ## 10. Closeout
 
