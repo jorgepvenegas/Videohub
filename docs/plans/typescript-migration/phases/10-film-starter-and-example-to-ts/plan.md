@@ -195,11 +195,11 @@ Commit after each step with subject `P10:` followed by the step title, and push.
 
 ## 7. Code standards check
 
-- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency (two small follow-up fixes found by the checks: the snap mode and the live hook detection, both recorded in section 9)
+- [x] The diff is the smallest change that meets the acceptance criteria; no speculative abstraction, unused code, or new dependency (follow-up fixes found by the checks: the snap mode, the live hook detection and S4b, all recorded in section 9)
 - [x] One stripping helper in `server/util.ts` (`readScript`) is reused by scan, live (its `read`, hence pageOf, sizeOf, hasHook, and `serve`) and jobs; the render script's page server reuses the existing `frameServer`
 - [x] Names and structure state intent; comments explain only non-obvious reasons (why the page is served over http, why requires are typed, why `headless: 'new'` is cast, why one `any`)
-- [x] Every new test fails if the behavior it covers breaks (revert checks in section 9; the S2 page-server check is a scratch script, not a committed test, see the discovery in section 10)
-- [x] Master standards commands pass: `pnpm format:check`, `pnpm lint` (0 errors, 148 warnings, unchanged), `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test` (321 tests, 320 pass, 0 fail, 1 skipped), plus `pnpm build`
+- [x] Every new test fails if the behavior it covers breaks (revert checks in section 9, including each S4b pattern and the watcher filter via the S5 reload revert; the S2 page-server check is a scratch script, not a committed test, see the discovery in section 10)
+- [x] Master standards commands pass: `pnpm format:check`, `pnpm lint` (0 errors, 148 warnings, unchanged), `pnpm typecheck`, `pnpm install --frozen-lockfile && pnpm test` (323 tests, 322 pass, 0 fail, 1 skipped), plus `pnpm build`
 
 ## 8. Risks and unknowns
 
@@ -266,6 +266,11 @@ S4b (2026-11-22):
 - Result: format, lint (0 errors, 148 warnings), typecheck, build clean; `pnpm test` 323 tests, 322 pass, 0 fail.
 - Not changed, outside S4b's list: `server/config.ts` `hasRenderCode` (line 31) still matches only `render.(m?js|py)`; it decides which discovered folders count as film folders or containers (`server/config.ts:67,75`), so a folder holding only `.ts` films is not auto-detected as a root (see the discovery in section 10).
 
+S5 re-run after S4b (2026-11-22, same scratch base `.test-tmp/p10-hub`, same start script, `VIDEOHUB_JOBS=off`, same ids):
+- `pnpm build` and the standards commands first (see S4b). Browser check `.test-tmp/p10-browser/check.mjs` again on the library and the three live pages: all `ok`, every film frame `READY: true` with a drawn 1920x1080 canvas, no play events, `total problems ... 0`. API: `hello-film render.ts live=True`, `new-film render.ts live=True`, `hello-legacy render.js live=True`; `/api/jobs` `[]`; no `render` folder in any scratch film.
+- Reload check (item 4), `.test-tmp/p10-browser/reload.mjs`: with the new starter film's live page open, the script changed one drawn value in the scratch `film.ts` (the opening scene background, one digit of its colour), waited 5 s, read `/api/project/96cfaa70e095/live`, then wrote the original text back and waited again. Result: the source revision changed (`6a212f6c7a8427b0` to `ffd499db363d6dcb`), the open page reloaded (the iframe `src` query changed), and it reloaded again after the restore (revision `7f3626061f4f2d89`); the file is byte-identical to `templates/new-film/film.ts` afterwards; no console error, page error or failed request. The revision does not return to its first value because it includes file times (existing behavior). Revert check: with `.ts` removed from the watcher filter in `server/live.ts` (hub restarted), the same edit changes the revision but the page does NOT reload; the filter was then restored.
+- Hub stopped; `lsof -nP -iTCP:7799 -sTCP:LISTEN` empty. L3: 0 errors, 148 warnings.
+
 ## 10. Closeout
 
 Fill at the end of every implementation session. Do not mark the phase done until this section is complete and the master is updated. Set `Implemented by` to the worker name or ID and `Implemented at` to the implementation date; `close` requires both.
@@ -273,16 +278,16 @@ Fill at the end of every implementation session. Do not mark the phase done unti
 - Date: 2026-11-22
 - Session: p10-worker (steps S1 to S5; S6 belongs to the coordinator and the user)
 - Verdict: partial (S6 pending)
-- Steps complete: S1, S2, S3, S4, S5 (commits e762929, 4152faf, 713ddba, b9b398a snap fix, f493078, d6e13d2 hook fix)
-- Verification run: `pnpm install --frozen-lockfile` (up to date), `pnpm format:check` (clean), `pnpm lint` (0 errors, 148 warnings), `pnpm typecheck`, `pnpm build`, `pnpm test` (321 tests, 320 pass, 0 fail, 1 skipped); `cmp` of the two `render.ts`; AST comparison of the six scripts (0 differences); scratch `make-audio.ts` runs; S2 page-server unit check; S5 browser check with the scratch hub (0 problems on four pages); `lsof` on 7799 empty.
+- Steps complete: S1, S2, S3, S4, S4b, S5 re-run after S4b (commits e762929, 4152faf, 713ddba, b9b398a snap fix, f493078, d6e13d2 hook fix, d8f976b S4b)
+- Verification run: `pnpm install --frozen-lockfile` (up to date), `pnpm format:check` (clean), `pnpm lint` (0 errors, 148 warnings), `pnpm typecheck`, `pnpm build`, `pnpm test` (323 tests, 322 pass, 0 fail, 1 skipped); `cmp` of the two `render.ts`; AST comparison of the six scripts (0 differences); scratch `make-audio.ts` runs; S2 page-server unit check; S5 browser check with the scratch hub (0 problems on four pages); `lsof` on 7799 empty.
 
 | Criterion | Verdict | Evidence |
 |---|---|---|
 | A1 | met | `git ls-files templates examples` has no `.js`; `cmp templates/new-film/render.ts examples/hello-film/render.ts` identical; `git show -M --summary 713ddba` shows 6 renames; `git log --follow --oneline templates/new-film/render.ts` 10 commits |
 | A2 | met | `pnpm typecheck` clean with no `moduleDetection` change; `grep -l "@ts-nocheck"` over both folders prints nothing; AST comparison of all six scripts against b9b398a gives `different: 0`, with a negative control that does produce a DIFF (section 9, S4) |
-| A3 | met | `pnpm test` 321 tests, 320 pass, 0 fail (baseline 312 pass); new tests in `server/film-ts.test.ts` and `server/jobs.test.ts` each fail with their change reverted (section 9, S1 and the hook follow-up); the queued-command test is a pin that passes before and after because `recipe` already used the detected script |
+| A3 | met | `pnpm test` 323 tests, 322 pass, 0 fail (baseline 312 pass); new tests in `server/film-ts.test.ts` and `server/jobs.test.ts` each fail with their change reverted (section 9, S1, the hook follow-up and S4b: source revision, film markers, container check); the queued-command test is a pin that passes before and after because `recipe` already used the detected script |
 | A4 | met | `pnpm lint` 0 errors (148 warnings, unchanged); `pnpm format:check` exits 0 |
-| A5 | met | S5: library and live review pages of `hello-film`, `new-film` and `hello-legacy` load with zero console errors, page errors, failed requests and play events; each film frame reports `READY`, a 1920x1080 canvas and a drawn frame; scripts detected as `render.ts`, `render.ts`, `render.js`; no job, no render folder |
+| A5 | met | S5: library and live review pages of `hello-film`, `new-film` and `hello-legacy` load with zero console errors, page errors, failed requests and play events; each film frame reports `READY`, a 1920x1080 canvas and a drawn frame; scripts detected as `render.ts`, `render.ts`, `render.js`; no job, no render folder; re-run after S4b with the reload check: editing `film.ts` in the scratch starter film changes the revision and reloads the open page, and does not reload with the watcher change reverted |
 | A6 | pending | S6, user gate |
 | D1 (master) | met | This phase's share: no `.js` is tracked under `templates/` or `examples/`, and `git ls-files '*.js' '*.mjs' '*.cjs' '*.jsx'` prints nothing now. D stays open until P9 |
 | D2 (master) | met | This phase's share: both film folders type-check strictly under the root config (no `@ts-nocheck`). D stays open until P9 |
@@ -297,7 +302,8 @@ Fill at the end of every implementation session. Do not mark the phase done unti
 |---|---|---|---|---|
 | P10-1 | The S2 change broke `node render.ts snap ...` (the page URL needs the server, snap passed none). Found while typing; fixed in b9b398a; snap itself was not run (it launches a browser) | note | P10 | Fixed; AST baseline moved to b9b398a (section 9) |
 | P10-2 | `hasHook` in `server/live.ts` followed only `.js`/`.mjs`, so `.ts` films were not live-capable. Found by the S5 check; fixed in d6e13d2 with a test | note | P10 | Fixed (section 9) |
-| P10-3 | More `.js`-only patterns remain that matter for `.ts` films: `server/source-revision.ts:15` (the code-file pattern behind the live revision, so editing `film.ts` may not change the revision or trigger the reload), `server/live.ts:334` (the watcher's extension filter), `server/scan.ts:320,331,387` (`render\.(m?js|py)` as film markers for discovery; a film with `render.ts` but no `index.html` is not recognized). `source-revision.ts` is outside this plan's file list, so none of these was changed | phase-amend | P10 (or a new phase) | Coordinator decision: amend P10 with these files and tests, then re-run S5 and check reload after editing `film.ts` in the scratch hub |
+| P10-3 | More `.js`-only patterns mattered for `.ts` films (source revision, live watcher filter, scan film markers, render toast). Fixed in S4b (d8f976b) with tests; the S5 re-run confirms the reload | phase-amend | P10 | Done (L47) |
+| P10-8 | `server/config.ts` `hasRenderCode` (lines 31, 67, 75) still matches only `render.(m?js|py)`, so root auto-discovery does not recognize a folder of films that have only `render.ts` (an `index.html` still counts). Not in S4b's file list | phase-amend | P10 or P9 | Coordinator decision; not changed |
 | P10-4 | The starter's page server (`serveFolder`) has no committed test; the plan allowed a scratch script (`.test-tmp/p10-server/check.mjs`). A committed test would extract it from `render.ts` by markers like `encoders.test.ts` does | phase-amend | P10 | Coordinator decision: add a test file entry to S2 |
 | P10-5 | `stripTypeScriptTypes` prints an ExperimentalWarning to stderr on Node 24.16, once per process (hub, render script). On 22.18 L24 saw none | note | P9 or later | None written; harmless to the browser console, but visible in render job logs |
 | P10-6 | `ui/review/renderbtn.ts:63` toast text says "no render script (render.js)"; with `render.ts` as the default it should name both | note | P9 or later | None written (user-visible text, outside P10 files) |
