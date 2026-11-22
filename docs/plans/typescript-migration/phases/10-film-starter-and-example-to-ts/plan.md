@@ -124,7 +124,7 @@ Commit after each step with subject `P10:` followed by the step title, and push.
 - Files: `templates/new-film/render.js`, `examples/hello-film/render.js` (kept byte-identical)
 - Change: Extend `frameServer`'s request handler to serve the film folder (GET only, inside the folder only, MIME for html, js, ts, css, json, images, fonts, audio and wasm, `.ts` stripped), and open `http://127.0.0.1:PORT/` plus `PAGE`. WebSocket frame transport, chunking and encoding stay unchanged. Comments explain why (Chrome does not run `.ts` from `file://`; the same folder boundary as live preview).
 - Acceptance:
-  - [ ] The two files are identical; the identity test passes; a unit-level check (no browser) shows the handler serves an `index.html` and a stripped `.ts` from a scratch folder, refuses `../` and returns 404 for missing files
+  - [x] The two files are identical; the identity test passes; a unit-level check (no browser) shows the handler serves an `index.html` and a stripped `.ts` from a scratch folder, refuses `../` and returns 404 for missing files
 - Verification: `cmp templates/new-film/render.js examples/hello-film/render.js`; the check script under `.test-tmp/p10-server/` (it imports nothing from the film's render flow that launches a browser; if the handler cannot be exercised without starting a render, test it by extracting the handler source with `readSource` and marker slices instead, and record which in §9); `pnpm test 2>&1 | tail -8`
 - Rollback: `git revert HEAD`
 
@@ -214,6 +214,14 @@ S1 (2026-11-22):
 - Comment paths (`server/encoders.ts:3`, `server/live.ts:3,58`) are changed in S3, when the files actually are named `render.ts`.
 - New tests: `server/film-ts.test.ts` (5 tests) and 2 in `server/jobs.test.ts`. Revert checks (each run alone): detection list without `render.ts` fails 2 tests (detection, annotated read); `readScript` without stripping fails 4 (annotated read, pageOf, both serve tests); serve without the `.ts` branch fails 2 serve tests; `renderOptions0` with the raw read fails the render-options test. Tests ran in the scratch env `.test-tmp/p10-env`.
 - Result: `pnpm format:check`, `lint` (0 errors), `typecheck`, `build` clean; `pnpm test` 320 tests, 319 pass, 0 fail, 1 skipped.
+
+S2 (2026-11-22):
+- `serveFolder` added to the starter's `render.js` and wired as the `frameServer` request handler (GET only; the working directory is the root; the real path must stay inside it, which also refuses a symlink pointing out; directories and missing files 404; `.ts` stripped through `require('module').stripTypeScriptTypes`, a file that cannot be stripped answers 500 and logs). The page opens at `http://127.0.0.1:PORT/` plus PAGE relative to the folder.
+- The server now always starts (it used to start only for the raw transport and fall back to PNG screenshots when it could not listen). `VIDEOHUB_TRANSPORT=png` still uses PNG screenshots: `openPage` keeps its env check; only the page is served. Because of that, `sockets` is renamed `server`. Failing to listen on 127.0.0.1 is now fatal for a render (the page cannot be served), where before it only fell back to PNG.
+- No top-level `process.cwd()`: `server/encoders.test.ts` evaluates fragments of this file in a vm with a fake `process`, and the root is read inside the handler instead.
+- Unit-level check, no browser and no render: `.test-tmp/p10-server/check.mjs` extracts `MIME` and `serveFolder` from `templates/new-film/render.js` by markers, runs them on a real loopback server over a scratch folder with the real node binary (scratch HOME and TMPDIR). It asserts: `index.html` served as HTML; `.ts` served as JavaScript without types; `/../`, `%2e%2e` and nested `..` refused; a symlink to a file outside refused (403); missing file, directory, `/` and `%00` return 404; POST returns 405; an enum `.ts` returns 500. Revert check: removing the inside-the-folder test fails the symlink assertion. Output: `serveFolder ok`.
+- `cmp templates/new-film/render.js examples/hello-film/render.js` identical; `pnpm format:check`, `lint` (0 errors), `typecheck`, `build` clean; `pnpm test` 319 pass, 0 fail.
+- Observation: on Node 24.16 `stripTypeScriptTypes` prints an ExperimentalWarning to stderr once per process (here in the render script and in the hub). L24 saw none on 22.18.
 
 ## 10. Closeout
 

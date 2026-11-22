@@ -23,7 +23,6 @@ const fs = require('fs'),
   path = require('path'),
   os = require('os');
 const { spawn, spawnSync, execFileSync } = require('child_process');
-const { pathToFileURL } = require('url');
 
 // a package from this folder's node_modules, else the one VideoHub ships with (VIDEOHUB_DIR is set by the queue)
 function load(name, near) {
@@ -302,11 +301,12 @@ const u=new Uint32Array(m.buf);for(let i=0;i<u.length;i++)if((u[i]>>>24)!==255){
 }
 
 // ---------- one browser per worker: the page, and how it hands over frames
-async function openPage(br, sockets, id) {
+async function openPage(br, server, id) {
   const p = await br.newPage();
   p.on('pageerror', e => console.error('PAGE ERROR', e.message));
   await p.setViewport({ width: VW, height: VH, deviceScaleFactor: 1 });
-  await p.goto(pathToFileURL(path.resolve(PAGE)).href);
+  // over http, not file://: Chrome does not run a .ts script loaded from a file URL
+  await p.goto(`http://127.0.0.1:${server.port}/` + path.relative('.', PAGE).split(path.sep).map(encodeURIComponent).join('/'));
   await p.waitForFunction('window.READY === true', { timeout: 120000 });
   const cdp = await p.target().createCDPSession();
   const shot = async (t, format = 'png') => {
@@ -328,11 +328,11 @@ async function openPage(br, sockets, id) {
     return Buffer.from(data, 'base64');
   };
   let raw = null;
-  if (sockets && process.env.VIDEOHUB_TRANSPORT !== 'png') {
-    const why = await p.evaluate(pageRaw, VW, VH, `ws://127.0.0.1:${sockets.port}/?w=${id}`).catch(e => 'page check failed: ' + e.message);
+  if (process.env.VIDEOHUB_TRANSPORT !== 'png') {
+    const why = await p.evaluate(pageRaw, VW, VH, `ws://127.0.0.1:${server.port}/?w=${id}`).catch(e => 'page check failed: ' + e.message);
     if (why) console.log(`[w${id}] frames: PNG screenshots (${why})`);
     else {
-      const conn = sockets.wait(id);
+      const conn = server.wait(id);
       await p.evaluate(() => window.__vhRaw.open());
       raw = await conn;
       console.log(`[w${id}] frames: raw canvas pixels`);
@@ -341,7 +341,65 @@ async function openPage(br, sockets, id) {
   return { page: p, shot, raw };
 }
 
-// the frame server: one WebSocket per worker page (a minimal built-in server: no package needed, and it streams each
+// GET /<file>: the film's own files for the page, like VideoHub's live preview. .ts files go out with their types stripped.
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.ts': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.wav': 'audio/wav',
+  '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
+  '.ogg': 'audio/ogg',
+  '.wasm': 'application/wasm'
+};
+// Only the film folder (the working directory) is served, never anything outside it.
+function serveFolder(q, r) {
+  const deny = code => {
+    r.writeHead(code);
+    r.end();
+  };
+  if (q.method !== 'GET') return deny(405);
+  let file;
+  try {
+    const real = fs.realpathSync(path.resolve('.' + decodeURIComponent(new URL(q.url, 'http://x').pathname)));
+    const inside = path.relative(fs.realpathSync('.'), real);
+    if (inside.startsWith('..') || path.isAbsolute(inside)) return deny(403);
+    if (!fs.statSync(real).isFile()) return deny(404); // no directory listing
+    file = real;
+  } catch (e) {
+    return deny(404);
+  }
+  let body;
+  if (file.endsWith('.ts')) {
+    try {
+      body = require('module').stripTypeScriptTypes(fs.readFileSync(file, 'utf8'), { mode: 'strip' });
+    } catch (e) {
+      console.error('PAGE SERVER', path.basename(file), e.message);
+      return deny(500);
+    }
+  }
+  r.writeHead(200, { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+  if (body === undefined)
+    fs.createReadStream(file)
+      .on('error', () => r.destroy())
+      .pipe(r);
+  else r.end(body);
+}
+
+// the frame server: also serves the page; one WebSocket per worker page (a minimal built-in server: no package needed, and it streams each
 // frame to ffmpeg as it arrives, unmasked in place, instead of collecting 8 MB messages first; the "ws" package spent
 // ~15 ms of this script's single thread per 1080p frame doing that and capped renders at ~30 fps)
 function frameServer() {
@@ -349,10 +407,7 @@ function frameServer() {
     crypto = require('crypto');
   return new Promise((resolve, reject) => {
     const waiting = new Map(); // worker id → the page that is about to connect (a restarted page connects again)
-    const srv = http.createServer((q, r) => {
-      r.writeHead(404);
-      r.end();
-    });
+    const srv = http.createServer(serveFolder);
     srv.on('upgrade', (req, sock) => {
       const id = new URL(req.url, 'http://x').searchParams.get('w'),
         w = waiting.get(id),
@@ -597,13 +652,7 @@ async function shotChunk(w, a, b, tmp, hold) {
   }
   ENC = pickEncoder();
   console.log(`encoder: ${ENC.name} (${ENC.args[1]})`);
-  const sockets =
-    process.env.VIDEOHUB_TRANSPORT === 'png'
-      ? null
-      : await frameServer().catch(e => {
-          console.log('frames: PNG screenshots (' + e.message + ')');
-          return null;
-        });
+  const server = await frameServer(); // always: it also serves the page (see serveFolder), PNG transport or not
   const T0 = Date.now();
   let done = 0,
     frames = 0;
@@ -612,7 +661,7 @@ async function shotChunk(w, a, b, tmp, hold) {
   await Promise.all(
     Array.from({ length: Math.min(W, queue.length) }, async (_, id) => {
       let br = await launch(),
-        w = await openPage(br, sockets, id);
+        w = await openPage(br, server, id);
       const restart = async () => {
         try {
           await Promise.race([br.close(), new Promise(r => setTimeout(r, 5000))]);
@@ -621,7 +670,7 @@ async function shotChunk(w, a, b, tmp, hold) {
           br.process() && br.process().kill();
         } catch (e) {}
         br = await launch();
-        w = await openPage(br, sockets, id);
+        w = await openPage(br, server, id);
       };
       while (queue.length) {
         const c = queue.shift(),
@@ -664,7 +713,7 @@ async function shotChunk(w, a, b, tmp, hold) {
       await br.close();
     })
   );
-  if (sockets) sockets.close();
+  server.close();
   const sec = (Date.now() - T0) / 1000;
   console.log(`rendered ${frames} frames in ${sec.toFixed(1)}s (${(frames / sec).toFixed(1)} fps, encoder ${ENC.name})`);
 
