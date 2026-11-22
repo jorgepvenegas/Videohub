@@ -1,7 +1,7 @@
 # Master Plan — TypeScript migration
 
 - Plan ID: `typescript-migration`
-- Master version: 65
+- Master version: 66
 - Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
@@ -178,6 +178,7 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L47 | 2026-11-22 | P10 | P10 | More hub code only recognizes .js film code: server/source-revision.ts:15 (live revision code pattern), server/live.ts watcher extension filter (~:334), server/scan.ts film markers (:320,:331,:387), and the ui/review/renderbtn.ts toast that names only render.js; editing film.ts may not reload the preview | phase-amend | P10 plan v2 adds S4b: recognize .ts film code in those places, with tests; S5 re-runs and adds a reload check after editing film.ts in a scratch film | open |
 | L48 | 2026-11-22 | P10 | P9 | The starter's render script now needs its loopback page server for every render; before, a frame-server failure fell back to PNG screenshots over file:// | note | P9 docs (RENDER-SPEED, PROJECT-CONTRACT) state that render.ts serves the film folder over 127.0.0.1; list in the final report | open |
 | L49 | 2026-11-22 | P10 | P9 | stripTypeScriptTypes prints an ExperimentalWarning on stderr under Node 24.16 (hub log, film render logs) | note | P9 decides whether to note it in docs; harmless on stdout-based MCP | open |
+| L50 | 2026-11-22 | P10 | P10 | server/config.ts hasRenderCode (lines 31, 67, 75) matches only render.(m?js or py), so root auto-discovery misses folders whose films have only render.ts | phase-amend | Plan v3 adds server/config.ts and a test to S4b | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.

@@ -2,8 +2,8 @@
 
 - Plan ID: `typescript-migration`
 - Phase: P10
-- Plan version: 2
-- Validated against master version: 65
+- Plan version: 3
+- Validated against master version: 66
 - Status: in_progress
 - Approved by: Jorge Venegas (standing instruction 2026-11-22, C15)
 - Approved at: 2026-11-22
@@ -59,6 +59,7 @@ New films start from TypeScript: `templates/new-film` and `examples/hello-film` 
 | L38 | Stray files from a comparison loop | Scratch output only under `.test-tmp/p10-*`; explicit staging; `git status --short` before each commit |
 | L40 | Renaming to `.ts` enables TypeScript-only lint rules | Fix with types; a commented disable only where a fix would change runtime code |
 | L47 | More hub code recognizes only `.js` film code (source revision, live watcher, scan markers, render toast) | Plan v2 adds S4b; S5 re-runs with a reload check |
+| L50 | `server/config.ts` `hasRenderCode` misses `render.ts` in root auto-discovery | Plan v3 adds `server/config.ts` and a test to S4b |
 
 Decisions applied: C3 (`film.ts` served stripped by hub live preview and by the render script's own page server; `render.js` films keep working; the default prefers `render.ts`) shapes S1 and S2. C12 is binding for every step. C15 removes the per-phase approval stop, but S6 still stops for the user.
 
@@ -152,7 +153,7 @@ Commit after each step with subject `P10:` followed by the step title, and push.
 ### S4b — Recognize `.ts` film code everywhere the hub looks
 
 - Depends on: S4
-- Files: `server/source-revision.ts`, `server/live.ts` (watcher filter), `server/scan.ts` (film markers), `ui/review/renderbtn.ts` (toast text only); tests in `server/film-ts.test.ts`, `server/source-revision.test.ts` or `server/scan-cache.test.ts`
+- Files: `server/source-revision.ts`, `server/live.ts` (watcher filter), `server/scan.ts` (film markers), `server/config.ts` (`hasRenderCode`, added at plan v3), `ui/review/renderbtn.ts` (toast text only); tests in `server/config.test.ts`, `server/film-ts.test.ts`, `server/source-revision.test.ts` or `server/scan-cache.test.ts`
 - Change: Added at plan v2 (phase-amend from the S5 review). Count `.ts` files as film code in the source revision and the live watcher, and `render.ts` as a film marker in `scan.ts`, next to the existing `.js`/`.mjs` patterns. The toast names "render.ts or render.js". Legacy `.js` films behave exactly as before. Tests fail without the change: a `.ts` change bumps the source revision; `render.ts` alone marks a folder as a code film, including the container check.
 - Acceptance:
   - [x] New tests pass and each fails against the reverted change (recorded in §9); existing tests unchanged
