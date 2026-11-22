@@ -93,7 +93,7 @@ flowchart LR
 | P6 | Review UI to TS | `ui/review/` and `ui/review.js` are `.ts` and build with Vite; review pages work in a scratch hub | P5 | done | [plan](phases/06-review-ui-to-ts/plan.md) |
 | P7 | Thumbnail studio UI to TS | `ui/thumbstudio/` (and the server tests importing it) are `.ts`; the thumbnail studio works in a scratch hub | P5 | done | [plan](phases/07-thumbnail-studio-ui-to-ts/plan.md) |
 | P8 | Engine hooks to TS | `engine-hooks/vh2d` and `vhtweaks` are strict `.ts` (with a local `three` declaration, C13); Vite builds them into stable, readable `dist/engine-hooks/vh2d.js` and `vhtweaks.js` that engines copy; `three` stays external | P4,P5 | done | [plan](phases/08-engine-hooks-to-ts/plan.md) |
-| P10 | Film starter and example to TS | templates/new-film and examples/hello-film use render.ts, make-audio.ts and film.ts; hub live preview and render.ts serve film.ts stripped; render.js and film.js films still preview and render; one scratch render after the user reviews the preview | P8 | ready | [plan](phases/10-film-starter-and-example-to-ts/plan.md) |
+| P10 | Film starter and example to TS | templates/new-film and examples/hello-film use render.ts, make-audio.ts and film.ts; hub live preview and render.ts serve film.ts stripped; render.js and film.js films still preview and render; one scratch render after the user reviews the preview | P8 | in_progress | [plan](phases/10-film-starter-and-example-to-ts/plan.md) |
 | P9 | Strict repo-wide, no JS left, docs | `allowJs` removed, strict repo-wide, a test fails on any tracked JS file, CLAUDE.md/docs/skill/README updated; full D1–D9 verification | P6,P7,P10 | planned | pending |
 
 Status: `planned`, `ready`, `in_progress`, `done`, `blocked`, `needs_replan`, `superseded`.
@@ -208,9 +208,9 @@ Every row must have an `Affects` value: `all`, one phase ID, or a comma-separate
 
 ## 12. Resume brief
 
-- Current phase: P10 (plan not yet written)
+- Current phase: P10 (in progress, worker running S1-S5; S6 waits for the user)
 - Last verdict: P8 addressed
-- Next action: write the P10 plan (film starter and example; includes the user preview review and one explicitly requested scratch render), then ask for approval
+- Next action: review the P10 worker's S1-S5, then run S6 with the user (scratch preview, render only on explicit request)
 - Open decisions: none
 - PR: https://github.com/jorgepvenegas/Videohub/pull/3
 - Last updated: 2026-11-22
