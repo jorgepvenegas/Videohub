@@ -1,7 +1,7 @@
 # Master Plan — TypeScript migration
 
 - Plan ID: `typescript-migration`
-- Master version: 43
+- Master version: 49
 - Status: active
 - Created: 2026-11-19
 - Source: user request (2026-11-19, `/progressive-plan`): "make this project a TypeScript codebase … migrate all the JavaScript to TS. Do not include any other language … Choose modern tooling like oxfmt, oxlint and vite."
@@ -156,6 +156,12 @@ Append-only. One row per discovery that changed or could change a plan. Use `not
 | L29 | 2026-11-22 | P5 | P6,P7,P9 | ui/app.ts exports 'type Json = any' (commented) for untyped hub JSON replies | next-phase-amend | P6/P7 reuse it via import type; P9 decides whether to replace it with response types | open |
 | L30 | 2026-11-22 | P5 | P9 | If the hub starts before the first build it does not watch dist/ui; reload broadcast resumes after restart | note | Harmless since setup/update build first; mention in P9 contributor docs | open |
 | L31 | 2026-11-22 | P5 | P6 | A1 pathspec git ls-files 'ui/*.js' matches subfolders, and ui/review.js (P6) is top-level, so A1 as worded conflicts with scope | plan-defect | P6 owns removing ui/review.js; P5 A1 evidence uses a top-level grep excluding review.js | open |
+| L32 | 2026-11-22 | P6 | P7,P9 | pnpm typecheck chains the two tsc configs with &&, so UI-config errors stay hidden while the root config fails; the root config also sees Node's setTimeout type, so UI timers are typed as ReturnType of setTimeout or 0 | note | P7 runs both configs separately while iterating; P9 may run both unconditionally | open |
+| L33 | 2026-11-22 | P6 | P7 | Unannotated destructured parameters with defaults infer never[] or null under strict and break callers without a local error; they need an explicit type (Json) | note | P7 annotates destructured option parameters | open |
+| L34 | 2026-11-22 | P6 | P7,P8,P9 | A film card with no cached cover 404s on /api/thumb by design, so zero-failed-request browser checks need a scratch cover generated in the scratch data dir | note | Browser checks seed a scratch cover or allowlist that one 404 explicitly | open |
+| L35 | 2026-11-22 | P6 | P7,P8 | Stripped-source identity is proven by parsing both sides with rolldown parseSync and comparing ASTs without positions (.test-tmp/p6-strip/cmp.mjs); coordinator re-ran it from the S1 commit: 24 modules, 0 different | note | P7 and P8 use the AST comparison instead of a whitespace diff | open |
+| L36 | 2026-11-22 | P6 | P9 | Prose comments inside converted files still name old .js files (e.g. mixer.js), and docs/ARCHITECTURE.md:38 and docs/PROJECT-CONTRACT.md:4 name old review paths | note | P9 sweeps .js path mentions in comments and docs | open |
+| L37 | 2026-11-22 | P6 | P6 | S1 also touched ui/review.css (comment paths) and a specifier literal in soundenv.test.ts; S3 changed drafts.test.ts to read notes.ts via readSource; all specifier/comment/test-read only | phase-amend | Accepted at coordinator review; recorded in P6 section 9 | open |
 
 Types: `note`, `phase-amend`, `next-phase-amend`, `master-amend`, `new-phase`, `scope-change`, `plan-defect`.
 Statuses: `open`, `applied`, `superseded`, `wontfix`. Only `superseded` rows are skipped by discovery propagation.

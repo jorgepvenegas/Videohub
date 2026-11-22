@@ -2,8 +2,8 @@
 
 - Plan ID: `typescript-migration`
 - Phase: P6
-- Plan version: 1
-- Validated against master version: 43
+- Plan version: 2
+- Validated against master version: 49
 - Status: in_progress
 - Approved by: Jorge Venegas
 - Approved at: 2026-11-22
@@ -55,6 +55,7 @@ Convert the review UI to strict TypeScript: `ui/review.js` and all of `ui/review
 | L28 | Stripped annotations become whitespace, so marker slices must stop before `=` | Markers in the converted source-reading tests end before any annotation |
 | L29 | `ui/app.ts` exports `type Json = any` for untyped hub JSON replies | Review modules use `import type { Json } from '../app.ts'` (or `'./app.ts'`) for hub replies instead of new `any`s |
 | L31 | `ui/review.js` is a top-level file that P5's A1 could not remove | P6 removes it; A1 here uses `git ls-files 'ui/*.js' 'ui/review/*.js'` with the `review/` scope, and a top-level check that only `ui/thumbstudio/` JS remains under `ui/` |
+| L37 | S1 also touched `ui/review.css` comment paths and a `soundenv.test.ts` specifier; S3 changed `drafts.test.ts` to read `notes.ts` via `readSource` | Accepted by the coordinator at closeout; specifier, comment and test-read changes only (§9) |
 
 ## 3. Scope
 
