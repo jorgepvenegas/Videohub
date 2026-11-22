@@ -1,19 +1,18 @@
-// @ts-nocheck
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import vm from 'node:vm';
 import { readSource } from '../../scripts/test-source.ts';
+import type { Json } from '../app.ts';
 
 // Exercise the real draft/click/save functions without starting the router, SSE,
 // a film, a render or a real note request. Playback and DOM effects are observed.
-const source = fs.readFileSync(new URL('../review.ts', import.meta.url), 'utf8');
+const source = readSource(new URL('../review.ts', import.meta.url));
 const draftFunctions = source.slice(source.indexOf('  // ---------- tools + drafts'), source.indexOf('  // The user felt'));
 const clickFunction = source.slice(source.indexOf('  function quickPoint('), source.indexOf('  // a mark was just drawn'));
 const quickEmpty = source.match(/^  const quickEmpty = .*$/m)?.[0];
-const plain = value => JSON.parse(JSON.stringify(value));
+const plain = (value: Json) => JSON.parse(JSON.stringify(value));
 
-function draft(frame, overrides = {}) {
+function draft(frame: Json, overrides = {}) {
   return {
     t: (frame + 0.5) / 30,
     frame,
@@ -26,12 +25,12 @@ function draft(frame, overrides = {}) {
   };
 }
 
-function harness({ active = null, frame = 420, time = 14, paused = false, range = { a: null, b: null }, live = false, displayedTime = time } = {}) {
-  const seeks = [],
-    notices = [],
-    calls = [],
-    requests = [];
-  const S = {
+function harness({ active = null, frame = 420, time = 14, paused = false, range = { a: null, b: null }, live = false, displayedTime = time }: Json = {}) {
+  const seeks: Json = [],
+    notices: Json = [],
+    calls: Json = [],
+    requests: Json = [];
+  const S: Json = {
     draft: active,
     frame,
     range: { ...range },
@@ -44,20 +43,20 @@ function harness({ active = null, frame = 420, time = 14, paused = false, range 
     selected: null,
     loopOn: false
   };
-  const node = (tag = 'div', attrs = {}, ...children) => ({
+  const node = (tag = 'div', attrs = {}, ...children: Json[]) => ({
     tag,
     ...attrs,
     children,
     style: {},
     hidden: false,
-    append(...items) {
+    append(...items: Json[]) {
       this.children.push(...items);
     },
-    replaceChildren(...items) {
+    replaceChildren(...items: Json[]) {
       this.children = items;
     },
-    set textContent(value) {
-      this.text = value;
+    set textContent(value: Json) {
+      (this as Json).text = value;
     },
     addEventListener() {},
     remove() {},
@@ -77,7 +76,7 @@ function harness({ active = null, frame = 420, time = 14, paused = false, range 
       this.paused = true;
       calls.push(['pause', this.currentTime]);
     },
-    pauseAt(at) {
+    pauseAt(at: Json) {
       this.currentTime = this.displayedTime = at;
       this.paused = true;
       calls.push(['pauseAt', at]);
@@ -93,11 +92,11 @@ function harness({ active = null, frame = 420, time = 14, paused = false, range 
     {
       get:
         (_, method) =>
-        (...args) =>
+        (...args: Json[]) =>
           calls.push([method, ...args])
     }
   );
-  const ctx = {
+  const ctx: Json = {
     S,
     videoA,
     videoB: { pause() {} },
@@ -115,14 +114,14 @@ function harness({ active = null, frame = 420, time = 14, paused = false, range 
     textInput: node(),
     fps: () => 30,
     rangeOk: () => S.range.a != null && S.range.b != null,
-    setRange: (a, b) => {
+    setRange: (a: Json, b: Json) => {
       S.range = { a, b };
     },
     updRange() {},
     clearRange: () => {
       S.range = { a: null, b: null };
     },
-    seekFrame: frame => {
+    seekFrame: (frame: Json) => {
       seeks.push(frame);
       videoA.currentTime = (frame + 0.5) / 30;
       S.frame = frame;
@@ -134,19 +133,19 @@ function harness({ active = null, frame = 420, time = 14, paused = false, range 
     showNotes() {}, // P1: the side panel's Notes tab comes forward (no side panel in this harness)
     pushTag() {}, // P3b: drawing steps tell the undo router (no router in this harness)
     noteAt: () => null,
-    selectNote: id => calls.push(['selectNote', id]),
-    toast: (...args) => notices.push(args),
+    selectNote: (id: Json) => calls.push(['selectNote', id]),
+    toast: (...args: Json[]) => notices.push(args),
     TC: String,
     h: node,
     paint() {},
-    numbered: shapes => shapes,
+    numbered: (shapes: Json) => shapes,
     bbox: () => [0.2, 0.3, 0.2, 0.3],
-    nextId: () => ctx.notes.reduce((id, note) => Math.max(id, note.id), 0) + 1,
+    nextId: () => ctx.notes.reduce((id: Json, note: Json) => Math.max(id, note.id), 0) + 1,
     timeline: { draw() {} },
     performance: { now: () => 0 },
     probeSave: () => ({ shown() {}, post() {} }),
     encodeJpeg: async () => 'data:image/jpeg;base64,TEST',
-    api: (url, opts) => new Promise((resolve, reject) => requests.push({ url, opts, resolve, reject }))
+    api: (url: Json, opts: Json) => new Promise((resolve, reject) => requests.push({ url, opts, resolve, reject }))
   };
   vm.createContext(ctx);
   vm.runInContext(`${quickEmpty}\n${draftFunctions}\n${clickFunction}`, ctx);
@@ -168,8 +167,8 @@ test('a new click keeps its captured frame and parks an older written draft with
   assert.deepEqual(plain(h.S.parkedDrafts[0].undo), ['undo-snapshot']);
   assert.deepEqual(plain(h.S.parkedDrafts[0].redo), ['redo-snapshot']);
   assert.ok(!h.seeks.includes(300), 'A click elsewhere must not seek to the older draft');
-  const closed = h.calls.findIndex(([name]) => name === 'closeComposer');
-  const opened = h.calls.findIndex(([name]) => name === 'openComposer');
+  const closed = h.calls.findIndex(([name]: Json) => name === 'closeComposer');
+  const opened = h.calls.findIndex(([name]: Json) => name === 'openComposer');
   assert.ok(closed >= 0 && opened > closed, 'Recreate composer callbacks for the new draft');
 });
 
@@ -182,7 +181,7 @@ test('live annotation freezes the captured picture time even when playback has a
   assert.equal(h.videoA.paused, true);
   assert.equal(h.ctx.pendingSeek, null);
   assert.equal(h.ctx.target, null);
-  assert.ok(h.calls.some(([name, time]) => name === 'pauseAt' && time === 14));
+  assert.ok(h.calls.some(([name, time]: Json) => name === 'pauseAt' && time === 14));
   assert.equal(h.S.parkedDrafts[0].draft, old);
   assert.deepEqual(h.seeks, [], 'Live annotation must not run an old queued seek');
 });
@@ -290,28 +289,28 @@ test('a delayed failed save parks its old draft and never overwrites a newer act
 test('the real notes composer writes to the switched draft and its shelf exposes explicit restoration', () => {
   const notes = readSource(new URL('./notes.ts', import.meta.url));
   const panelSource = notes.slice(notes.indexOf('const put')).replace('export function createNotesPanel', 'function createNotesPanel');
-  function node(tag, attrs = {}, ...children) {
+  function node(tag: Json, attrs = {}, ...children: Json[]) {
     return {
       tag,
       ...attrs,
       children: children.flat(Infinity).filter(child => child != null && child !== false),
-      append(...items) {
+      append(...items: Json[]) {
         this.children.push(...items.flat(Infinity));
       },
-      replaceChildren(...items) {
+      replaceChildren(...items: Json[]) {
         this.children = items;
       },
-      set innerHTML(_) {
+      set innerHTML(_: Json) {
         this.children = [];
       },
-      set textContent(value) {
+      set textContent(value: Json) {
         this.children = [String(value)];
       },
       addEventListener() {},
       focus() {}
     };
   }
-  const find = (root, predicate) => {
+  const find = (root: Json, predicate: Json): Json => {
     if (!root || typeof root !== 'object') return null;
     if (predicate(root)) return root;
     for (const child of root.children || []) {
@@ -325,7 +324,7 @@ test('the real notes composer writes to the switched draft and its shelf exposes
   let active = old,
     restored = null;
   const entry = { draft: old, undo: [], redo: [], range: { a: null, b: null } };
-  const context = {
+  const context: Json = {
     agentName: () => 'OpenCode',
     h: node,
     TC: String,
@@ -344,24 +343,24 @@ test('the real notes composer writes to the switched draft and its shelf exposes
     range: () => ({ a: null, b: null }),
     rangeOk: () => false,
     parkedDrafts: () => [entry],
-    restoreDraft: chosen => {
+    restoreDraft: (chosen: Json) => {
       restored = chosen;
     }
   });
   panel.openComposer(false);
-  assert.equal(find(panel.el, el => el.tag === 'textarea').value, old.text);
+  assert.equal(find(panel.el, (el: Json) => el.tag === 'textarea').value, old.text);
   panel.closeComposer();
   active = newer;
   panel.openComposer(false);
-  const input = find(panel.el, el => el.tag === 'textarea');
+  const input = find(panel.el, (el: Json) => el.tag === 'textarea');
   assert.equal(input.value, newer.text);
   input.value = 'Edited newer note';
   input.oninput();
   assert.equal(newer.text, 'Edited newer note');
   assert.equal(old.text, 'Keep this note', 'New composer input must not mutate the parked draft');
   panel.renderDrafts();
-  const shelf = find(panel.el, el => el.class === 'rv2-drafts');
+  const shelf = find(panel.el, (el: Json) => el.class === 'rv2-drafts');
   assert.equal(shelf.hidden, false);
-  find(shelf, el => el.tag === 'button').onclick();
+  find(shelf, (el: Json) => el.tag === 'button').onclick();
   assert.equal(restored, entry);
 });

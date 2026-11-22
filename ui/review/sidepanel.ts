@@ -10,7 +10,7 @@ const mk = (tag: Json, cls: Json, attrs = {}) => {
   return e;
 };
 
-export function createSidePanel({ tabs = [], foot = null, key = 'vh-side-tab' }) {
+export function createSidePanel({ tabs = [], foot = null, key = 'vh-side-tab' }: Json) {
   const nav = mk('nav', 'rv2-tabs', { role: 'tablist' }),
     body = mk('div', 'rv2-tabbody'),
     footer = mk('footer', 'rv2-sidefoot');

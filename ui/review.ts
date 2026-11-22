@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { agentName } from './agent.ts';
 // Review studio v2: always-visible tools, a real transport bar, timeline with strip + waveform,
 // zoom/pan, compare (side / wipe / difference), review copy for instant frame stepping.
@@ -21,8 +20,9 @@ import { createTransport, createShuttle } from './review/transport.ts';
 import { createApplyQueue } from './review/applyqueue.ts';
 import { createLibrary } from './review/library.ts';
 import { installTips } from './review/tips.ts';
+import type { Json } from './app.ts';
 
-const ICON = {
+const ICON: Record<string, string> = {
   cursor: '<path d="M5 3l13 7.5-5.5 1.5-2.5 5.5z"/>',
   pen: '<path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/>',
   arrow: '<path d="M5 19L19 5"/><path d="M10 5h9v9"/>',
@@ -37,7 +37,7 @@ const ICON = {
   zout: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20M7.5 10.5h6"/>',
   fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'
 };
-const svg = (name, size = 20) => {
+const svg = (name: Json, size: Json = 20) => {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   s.setAttribute('viewBox', '0 0 24 24');
   s.setAttribute('width', size);
@@ -60,7 +60,7 @@ const TOOLS = [
   ['pin', 'Add a numbered marker (M)', 'Marker'],
   ['eraser', 'Eraser: erase drawings in the draft (X)', 'Eraser']
 ];
-const TOOL_KEYS = { v: 'cursor', p: 'pen', a: 'arrow', r: 'rect', e: 'ellipse', t: 'text', m: 'pin', x: 'eraser' };
+const TOOL_KEYS: Record<string, string> = { v: 'cursor', p: 'pen', a: 'arrow', r: 'rect', e: 'ellipse', t: 'text', m: 'pin', x: 'eraser' };
 const SPEEDS = [0.1, 0.25, 0.5, 1, 1.5, 2];
 const HELP = [
   ['Click the video', 'pauses and adds a numbered point there; type a note, Enter → saves it and resumes playback'],
@@ -98,13 +98,13 @@ const HELP = [
   ['? or H', 'this list']
 ];
 
-export async function reviewPage(page, id, relArg = '') {
+export async function reviewPage(page: Json, id: Json, relArg = '') {
   const [rel0, qs] = String(relArg).split('?');
   const params = new URLSearchParams(qs || '');
   const focusNote = +(params.get('n') || 0),
     autoPlay = params.get('play') === '1';
   const p = await api('/api/project/' + id + '?lite=1');
-  const vids = p.outputs.filter(o => o.ok !== false);
+  const vids = p.outputs.filter((o: Json) => o.ok !== false);
   const liveMode = rel0 === '~live';
   let liveInfo = null;
   if (liveMode) {
@@ -116,7 +116,7 @@ export async function reviewPage(page, id, relArg = '') {
   }
   let cur = liveMode
     ? { rel: '~live', name: (p.title || p.name) + ' (live)', path: null, fps: liveInfo.fps, dur: liveInfo.dur, w: liveInfo.w, h: liveInfo.h }
-    : vids.find(o => o.rel === rel0) || vids.find(o => o.rel === p.latest) || (rel0 ? vids[0] : null);
+    : vids.find((o: Json) => o.rel === rel0) || vids.find((o: Json) => o.rel === p.latest) || (rel0 ? vids[0] : null);
   if (!cur) {
     // no film yet (nothing, or only test clips / parts): play it from its code if it can
     const li = await api(`/api/project/${id}/live?probe=1`).catch(() => null);
@@ -140,25 +140,25 @@ export async function reviewPage(page, id, relArg = '') {
   appEl?.classList.add('app-editor');
   mainEl?.classList.add('main-editor');
   const rv2 = h('div', { class: 'rv2' }); // the editor grid; also the host of popovers, the timeline tip and (in fullscreen) toasts
-  let side = null; // the right-hand tab panel (built once the notes panel exists)
+  let side: Json = null; // the right-hand tab panel (built once the notes panel exists)
   const offTips = installTips(rv2, () => document.fullscreenElement || document.body); // quick tooltips for every titled control
   // ---------- undo router: one Ctrl+Z for every editor, newest change first. Tags: draw · clips · sound · scene · 2d
   // (each domain keeps its own stack; a tag whose domain has nothing left is skipped). Scene / 2D have no redo.
-  let undoOrder = [],
-    redoOrder = [];
-  let mixer = null; // the live mixer (ui/review/mixer.ts): channel levels, M/S, master; built with the sound rows
-  const pushTag = tag => {
+  let undoOrder: Json = [],
+    redoOrder: Json = [];
+  let mixer: Json = null; // the live mixer (ui/review/mixer.ts): channel levels, M/S, master; built with the sound rows
+  const pushTag = (tag: Json) => {
     undoOrder.push(tag);
     if (undoOrder.length > 400) undoOrder.shift();
     redoOrder = [];
   };
-  const dropLastTag = tag => {
+  const dropLastTag = (tag: Json) => {
     const i = undoOrder.lastIndexOf(tag);
     if (i >= 0) undoOrder.splice(i, 1);
   }; // an editor's own ↶ button undid its newest step
-  const dropTags = tag => {
-    undoOrder = undoOrder.filter(t => t !== tag);
-    redoOrder = redoOrder.filter(t => t !== tag);
+  const dropTags = (tag: Json) => {
+    undoOrder = undoOrder.filter((t: Json) => t !== tag);
+    redoOrder = redoOrder.filter((t: Json) => t !== tag);
   };
   const undoDomains = () => ({
     draw: { undo: () => undo(), redo: () => redo() },
@@ -168,7 +168,7 @@ export async function reviewPage(page, id, relArg = '') {
     '2d': edit2d && { undo: () => edit2d.undo() }
   });
   function routeUndo() {
-    const D = undoDomains();
+    const D: Json = undoDomains();
     while (undoOrder.length) {
       const tag = undoOrder.pop();
       if (D[tag]?.undo()) {
@@ -179,7 +179,7 @@ export async function reviewPage(page, id, relArg = '') {
     undo(); // a parked draft brought back keeps its drawing steps without tags
   }
   function routeRedo() {
-    const D = undoDomains();
+    const D: Json = undoDomains();
     while (redoOrder.length) {
       const tag = redoOrder.pop();
       if (D[tag]?.redo?.()) {
@@ -191,17 +191,17 @@ export async function reviewPage(page, id, relArg = '') {
   }
   // ---------- keyboard area: the region of the last press decides who gets Delete / Alt+arrows / Esc
   let area = 'stage';
-  const onAreaDown = e => {
+  const onAreaDown = (e: Json) => {
     const t = e.target;
     area = t.closest?.('.rv2-dock') ? 'timeline' : t.closest?.('.rv2-side') ? 'side' : t.closest?.('.rv2-view') ? 'stage' : area;
   };
   document.addEventListener('pointerdown', onAreaDown, true);
   // ---------- one sound build queue (levels, clips, ducks): stems/all build by themselves, the 3D studio on 💾
-  let soundMode = null;
+  let soundMode: Json = null;
   const applyQueue = createApplyQueue({
     apply: () => api(`/api/project/${id}/sound-apply`, { method: 'POST', body: {} }),
     mode: () => soundMode,
-    onBuilt: r => {
+    onBuilt: (r: Json) => {
       soundBuilt();
       toast(
         `Sound updated (${((r?.ms || 0) / 1000).toFixed(1)} s).` + (liveMode ? '' : ' This video is an older render; the new sound will be in the next render.')
@@ -211,7 +211,7 @@ export async function reviewPage(page, id, relArg = '') {
       refreshApply();
       mixer?.refresh();
     }, // the mixer's engine runs while a change is not built yet
-    onError: e => toast('Could not build sound: ' + e.message, true)
+    onError: (e: Json) => toast('Could not build sound: ' + e.message, true)
   });
   // 3D studio: changes saved but never built (e.g. before a reload) keep 💾
   api(`/api/project/${id}/sound-info`)
@@ -241,7 +241,7 @@ export async function reviewPage(page, id, relArg = '') {
       [stCorner, true],
       [stSounds, null],
       [stClip, false]
-    ]) {
+    ] as Json[][]) {
       host.replaceChildren(
         ...(busy
           ? [h('span', { class: 'accent' }, 'Building sound…')]
@@ -274,8 +274,8 @@ export async function reviewPage(page, id, relArg = '') {
   let notes = p.notes || [];
   const fps = () => cur.fps || p.render?.fps || 30;
   const chunkSec = () => p.render?.chunkSec || null;
-  const versionInfo = () => (p.versionsLog || []).find(v => v.file === cur.rel) || null;
-  const S = {
+  const versionInfo = () => (p.versionsLog || []).find((v: Json) => v.file === cur.rel) || null;
+  const S: Json = {
     tool: 'cursor',
     color: COLORS[0],
     width: 1,
@@ -295,7 +295,7 @@ export async function reviewPage(page, id, relArg = '') {
   };
   // quick point: a click drops a numbered point and opens a small note box next to it
   let quickOpen = false;
-  const quickEmpty = d => !!d && d.quick && !d.useRange && !(d.text || '').trim() && d.shapes.every(s => s.type === 'pin'); // a point with a range survives moving to its edges
+  const quickEmpty = (d: Json) => !!d && d.quick && !d.useRange && !(d.text || '').trim() && d.shapes.every((s: Json) => s.type === 'pin'); // a point with a range survives moving to its edges
 
   // ---------- layout
   const backA = h('a', { href: '#/', class: 'muted', title: 'Projects' }, '← ' + p.title);
@@ -313,12 +313,12 @@ export async function reviewPage(page, id, relArg = '') {
   const fileSel = h(
     'select',
     {
-      onchange: e => {
+      onchange: (e: Json) => {
         location.hash = `#/review/${id}/${encodeURIComponent(e.target.value)}`;
       }
     },
     liveMode ? h('option', { value: '~live', selected: true }, '● Live preview (from code, no render)') : null,
-    vids.map(o => h('option', { value: o.rel, selected: o === cur }, `${o.rel} · ${DUR(o.dur)} · ${AGO(o.mtime)}`))
+    vids.map((o: Json) => h('option', { value: o.rel, selected: o === cur }, `${o.rel} · ${DUR(o.dur)} · ${AGO(o.mtime)}`))
   );
   // the live preview is always one pick away in the file menu (watching a render, the newer code was hard to find)
   if (!liveMode)
@@ -331,7 +331,7 @@ export async function reviewPage(page, id, relArg = '') {
     'select',
     { onchange: () => setCompare(cmpSel.value) },
     h('option', { value: '' }, 'No comparison'),
-    vids.filter(o => o !== cur).map(o => h('option', { value: o.rel }, 'Compare with: ' + o.rel))
+    vids.filter((o: Json) => o !== cur).map((o: Json) => h('option', { value: o.rel }, 'Compare with: ' + o.rel))
   );
   const modeBtns = [
     ['side', 'Side by side'],
@@ -367,7 +367,7 @@ export async function reviewPage(page, id, relArg = '') {
               const fresh = await api('/api/project/' + id + '/live');
               if (fresh.ok) liveSrc.reload(fresh);
               else toast(fresh.reason, true);
-            } catch (e) {
+            } catch (e: Json) {
               toast(e.message, true);
             }
           }
@@ -391,18 +391,18 @@ export async function reviewPage(page, id, relArg = '') {
     '🖼 Thumbnail'
   );
   // ☰ shows the hub sidebar over the page (in the editor it is an icon strip)
-  const peek = on => {
+  const peek = (on?: Json) => {
     appEl?.classList.toggle('side-peek', on ?? !appEl.classList.contains('side-peek'));
   };
   const menuBtn = h('button', { class: 'ghost rv2-menu', title: 'Menu', onclick: () => peek() }, '☰');
-  const onPeekOutside = e => {
+  const onPeekOutside = (e: Json) => {
     if (appEl?.classList.contains('side-peek') && !e.target.closest?.('.side') && !menuBtn.contains(e.target)) peek(false);
   };
   document.addEventListener('pointerdown', onPeekOutside, true);
   const moreBtn = h('button', { class: 'ghost rv2-more', title: 'More buttons', hidden: true }, '⋯');
   backA.classList.add('rv2-back');
   // one row: when it does not fit, the lowest data-pri goes into ⋯ first (9 = always stays)
-  const pri = (n, el) => {
+  const pri = (n: Json, el: Json) => {
     if (el) el.dataset.pri = n;
     return el;
   };
@@ -444,7 +444,7 @@ export async function reviewPage(page, id, relArg = '') {
   );
 
   // tools
-  const toolBtns = {};
+  const toolBtns: Record<string, Json> = {};
   // colour + width live in a popover behind one 🎨 button (the rail must fit a ~360 px stage)
   const stylePop = h(
     'div',
@@ -489,7 +489,7 @@ export async function reviewPage(page, id, relArg = '') {
   );
   const styleDot = h('span', { class: 'sdot' }),
     styleBar = h('i', { class: 'sbar' });
-  let styleMenu = null;
+  let styleMenu: Json = null;
   const styleBtn = h(
     'button',
     {
@@ -545,8 +545,8 @@ export async function reviewPage(page, id, relArg = '') {
   function refreshTools() {
     for (const [k, b] of Object.entries(toolBtns)) b.classList.toggle('on', S.tool === k);
     for (const box of [tools, stylePop]) {
-      box.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.c === S.color));
-      box.querySelectorAll('.wb').forEach(b => b.classList.toggle('on', +b.dataset.w === S.width));
+      box.querySelectorAll('.sw').forEach((b: Json) => b.classList.toggle('on', b.dataset.c === S.color));
+      box.querySelectorAll('.wb').forEach((b: Json) => b.classList.toggle('on', +b.dataset.w === S.width));
     }
     styleDot.style.background = S.color;
     styleBar.style.height = 2 + Math.max(0, WIDTHS.indexOf(S.width)) * 2 + 'px';
@@ -556,8 +556,10 @@ export async function reviewPage(page, id, relArg = '') {
   }
 
   // stage
-  const liveSrc = liveMode ? createLiveSource(liveInfo, { onStatus: st => liveStatus(st) }) : null;
-  const liveCover = liveSrc ? createLiveCover({ source: liveSrc, save: data => api(`/api/project/${id}/live-thumb`, { method: 'POST', body: data }) }) : null;
+  const liveSrc = liveMode ? createLiveSource(liveInfo, { onStatus: (st: Json) => liveStatus(st) }) : null;
+  const liveCover = liveSrc
+    ? createLiveCover({ source: liveSrc, save: (data: Json) => api(`/api/project/${id}/live-thumb`, { method: 'POST', body: data }) })
+    : null;
   const videoA = liveSrc || h('video', { src: '/media?p=' + encodeURIComponent(cur.path), preload: 'auto', playsinline: true });
   const videoB = h('video', { preload: 'auto', muted: true, playsinline: true, class: 'vb', hidden: true });
   const diffCv = h('canvas', { class: 'diff', hidden: true });
@@ -571,7 +573,7 @@ export async function reviewPage(page, id, relArg = '') {
   const frameA = h('div', { class: 'frame' }, liveSrc ? liveSrc.el : videoA, videoB, diffCv, beforeImg, ov, wipeHandle, tagA, tagB, beforeTag);
   // move the camera / objects right in the live picture (pages with window.VH_EDIT), saved to tweaks.json
   // each editor's panel goes into its own side-panel tab (added on open, removed on close), unscaled by the picture zoom
-  const edHost = (tid, label) => {
+  const edHost = (tid: Json, label: Json) => {
     const el = h('div', { class: 'rv2-edit' });
     return {
       panelHost: el,
@@ -592,7 +594,7 @@ export async function reviewPage(page, id, relArg = '') {
         history: { push: () => pushTag('scene'), undone: () => dropLastTag('scene') },
         keysActive,
         applyNow: () => applyQueue.applyNow(),
-        onSoundSaved: r => {
+        onSoundSaved: (r: Json) => {
           mixer?.setStored(r.sound);
           applyQueue.request('levels');
         }
@@ -637,7 +639,7 @@ export async function reviewPage(page, id, relArg = '') {
     quickText = h('textarea', { rows: 2, placeholder: 'What is wrong here?' });
   const quick = h('div', { class: 'quick', hidden: true }, quickHead, quickText, h('div', { class: 'qf' }, 'Enter save · Shift+Enter new line · Esc close'));
   view.append(quick);
-  const tipChip = (k, t) => h('span', { class: 'tchip' }, h('kbd', {}, k), t);
+  const tipChip = (k: Json, t: Json) => h('span', { class: 'tchip' }, h('kbd', {}, k), t);
   const tipBar = h(
     'div',
     { class: 'rv2-tip', hidden: true },
@@ -666,8 +668,8 @@ export async function reviewPage(page, id, relArg = '') {
   } catch {}
 
   // timeline (built before the transport: the transport's zoom controls drive the timeline's view)
-  let layerLabels = [],
-    soundEd = null; // sound layer names (set once loaded), added sounds
+  let layerLabels: Json = [],
+    soundEd: Json = null; // sound layer names (set once loaded), added sounds
   const timeline = createTimeline({
     overlayHost: () => rv2,
     live: !!liveSrc,
@@ -678,8 +680,8 @@ export async function reviewPage(page, id, relArg = '') {
         videoB.pause();
       }
     },
-    needPeaks: src => loadWave(src, p.path + '/' + src, false),
-    layerOn: lid => (mixer ? mixer.audible(lid) : true),
+    needPeaks: (src: Json) => loadWave(src, p.path + '/' + src, false),
+    layerOn: (lid: Json) => (mixer ? mixer.audible(lid) : true),
     dur: () => dur(),
     time: () => liveSrc?.displayedTime ?? videoA.currentTime,
     fps,
@@ -688,15 +690,15 @@ export async function reviewPage(page, id, relArg = '') {
     selected: () => S.selected,
     range: () => S.range,
     loopOn: () => S.loopOn,
-    setRange: (a, b) => setRange(a, b),
+    setRange: (a: Json, b: Json) => setRange(a, b),
     changed: () => versionInfo()?.changedRanges,
-    seek: t => seek(t),
-    selectNote: nid => selectNote(nid),
-    onDrop: d => soundEd?.dropAdd(d)
+    seek: (t: Json) => seek(t),
+    selectNote: (nid: Json) => selectNote(nid),
+    onDrop: (d: Json) => soundEd?.dropAdd(d)
   });
 
   // transport: one row (ui/review/transport.ts); nothing in this ctx is called while it is built
-  let trData = null,
+  let trData: Json = null,
     ccOn = false;
   try {
     ccOn = localStorage.getItem('vh-cc') === '1';
@@ -708,8 +710,8 @@ export async function reviewPage(page, id, relArg = '') {
     frame: () => S.frame,
     chunkSec,
     paused: () => videoA.paused,
-    seek: t => seek(t),
-    step: n => {
+    seek: (t: Json) => seek(t),
+    step: (n: Json) => {
       shuttle.stop();
       step(n);
     },
@@ -717,22 +719,22 @@ export async function reviewPage(page, id, relArg = '') {
       shuttle.stop({ pause: false });
       togglePlay();
     },
-    setRate: r => setRate(r),
+    setRate: (r: Json) => setRate(r),
     speeds: SPEEDS,
     range: () => S.range,
     rangeOk: () => rangeOk(),
-    setIn: f => setIn(f),
-    setOut: f => setOut(f),
+    setIn: (f: Json) => setIn(f),
+    setOut: (f: Json) => setOut(f),
     clearRange: () => clearRange(),
-    applyRange: (a, b) => applyRangeEdit(a, b),
+    applyRange: (a: Json, b: Json) => applyRangeEdit(a, b),
     noteForRange: () => noteForRange(),
     loopOn: () => S.loopOn,
     toggleLoop: () => toggleLoop(),
     // while the mixer's channels play, the player stays muted: 🔊 / volume / U drive the mixer's master instead
     muted: () => master().muted,
-    setMuted: m => setMaster({ muted: m }),
+    setMuted: (m: Json) => setMaster({ muted: m }),
     volume: () => master().volume,
-    setVolume: v => setMaster({ volume: v, muted: false }),
+    setVolume: (v: Json) => setMaster({ volume: v, muted: false }),
     captionsAvailable: () => !!trData,
     captionsOn: () => ccOn,
     toggleCaptions: () => toggleCaptions(),
@@ -749,7 +751,7 @@ export async function reviewPage(page, id, relArg = '') {
   // J/K/L: forward via the raw playbackRate (the speed select keeps its value), reverse by seeks
   const shuttle = createShuttle({
     now: () => nowT(),
-    seek: t => seek(t),
+    seek: (t: Json) => seek(t),
     play: () => {
       videoA.play().catch(() => {});
     },
@@ -757,22 +759,22 @@ export async function reviewPage(page, id, relArg = '') {
       videoA.pause();
       videoB.pause();
     },
-    setPlaybackRate: r => {
+    setPlaybackRate: (r: Json) => {
       videoA.playbackRate = r;
       videoB.playbackRate = r;
     },
     baseRate: () => transport.rate(),
     seeking: () => !!videoA.seeking,
     fps,
-    onChange: s => transport.setShuttle(s)
+    onChange: (s: Json) => transport.setShuttle(s)
   });
   const notesPanel = createNotesPanel({
     layers: () => layerLabels,
     projectId: id,
     notes: () => notes,
     file: () => cur.rel,
-    seek: t => seek(t),
-    selectNote: nid => selectNote(nid),
+    seek: (t: Json) => seek(t),
+    selectNote: (nid: Json) => selectNote(nid),
     selected: () => S.selected,
     fps,
     chunkSec,
@@ -781,25 +783,25 @@ export async function reviewPage(page, id, relArg = '') {
     draft: () => S.draft,
     atDraft: () => S.draft && S.frame === S.draft.frame,
     parkedDrafts: () => S.parkedDrafts,
-    restoreDraft: entry => restoreDraft(entry),
+    restoreDraft: (entry: Json) => restoreDraft(entry),
     gotoDraft: () => S.draft && seekFrame(S.draft.frame),
     cancelDraft: () => cancelDraft(),
     saveDraft: () => saveDraft(),
     startTour: () => startTour(),
-    liveCapture: liveSrc ? (a, b) => ({ start: liveSrc.capture((a + 0.5) / fps()), end: liveSrc.capture((b + 0.5) / fps()) }) : null,
+    liveCapture: liveSrc ? (a: Json, b: Json) => ({ start: liveSrc.capture((a + 0.5) / fps()), end: liveSrc.capture((b + 0.5) / fps()) }) : null,
     range: () => S.range,
     rangeOk: () => rangeOk(),
-    setRange: (a, b) => setRange(a, b),
+    setRange: (a: Json, b: Json) => setRange(a, b),
     frame: () => S.frame,
-    parseFrame: v => parseFrame(v),
-    playRange: n => playRange(n),
+    parseFrame: (v: Json) => parseFrame(v),
+    playRange: (n: Json) => playRange(n),
     changed: () => {
       notesPanel.render();
       timeline.draw();
       redraw();
     },
-    removeNote: nid => {
-      notes = notes.filter(n => n.id !== nid);
+    removeNote: (nid: Json) => {
+      notes = notes.filter((n: Json) => n.id !== nid);
       notesPanel.render();
       timeline.draw();
       redraw();
@@ -811,7 +813,7 @@ export async function reviewPage(page, id, relArg = '') {
       redraw();
       notesPanel.refreshOld();
     },
-    onCount: n => side?.setBadge('notes', n || '')
+    onCount: (n: Json) => side?.setBadge('notes', n || '')
   });
   // side panel: Notes / Sounds / Clip; `Send to ${agentName()}` sits under the panes, visible on every tab
   const soundsHost = h('div', { class: 'rv2-sounds' }),
@@ -831,7 +833,7 @@ export async function reviewPage(page, id, relArg = '') {
     { class: 'rv2-help', hidden: true, onclick: () => toggleHelp(false) },
     h(
       'div',
-      { class: 'panel', onclick: e => e.stopPropagation() },
+      { class: 'panel', onclick: (e: Json) => e.stopPropagation() },
       h('h2', { style: { marginTop: 0 } }, 'Keyboard shortcuts'),
       h(
         'div',
@@ -921,7 +923,7 @@ export async function reviewPage(page, id, relArg = '') {
     zoomBox.style.transform = `translate(${S.z.x}px, ${S.z.y}px) scale(${S.z.k})`;
     refreshTools();
   }
-  function zoomAt(k, px, py) {
+  function zoomAt(k: Json, px?: Json, py?: Json) {
     k = Math.max(1, Math.min(8, k));
     if (px == null) {
       px = view.clientWidth / 2;
@@ -940,7 +942,7 @@ export async function reviewPage(page, id, relArg = '') {
     }
     layout();
   }
-  const zoomBy = f => zoomAt(S.z.k * f);
+  const zoomBy = (f: Json) => zoomAt(S.z.k * f);
   const zoomFit = () => zoomAt(1);
   const zoom100 = () => zoomAt((videoA.videoWidth || 1920) / fit.w);
   view.addEventListener(
@@ -977,9 +979,9 @@ export async function reviewPage(page, id, relArg = '') {
 
   // ---------- playback
   const dur = () => videoA.duration || cur.dur || 1;
-  let pendingSeek = null,
-    target = null; // target: where the latest seek is heading, so fast key presses add up
-  function seek(t) {
+  let pendingSeek: Json = null,
+    target: Json = null; // target: where the latest seek is heading, so fast key presses add up
+  function seek(t: Json) {
     t = Math.max(0, Math.min(dur() - 0.0005, t));
     target = t;
     if (videoA.seeking) {
@@ -989,7 +991,7 @@ export async function reviewPage(page, id, relArg = '') {
     videoA.currentTime = t;
     if (S.cmp) videoB.currentTime = t;
   }
-  const seekFrame = f => seek((f + 0.5) / fps());
+  const seekFrame = (f: Json) => seek((f + 0.5) / fps());
   const nowT = () => target ?? videoA.currentTime; // relative jumps start from where the latest seek is heading
   videoA.addEventListener('seeked', () => {
     if (pendingSeek != null) {
@@ -999,7 +1001,7 @@ export async function reviewPage(page, id, relArg = '') {
     } else target = null;
     tick();
   });
-  function step(n) {
+  function step(n: Json) {
     videoA.pause();
     videoB.pause();
     const base = target != null ? Math.floor(target * fps() + 1e-4) : S.frame;
@@ -1019,7 +1021,7 @@ export async function reviewPage(page, id, relArg = '') {
       if (S.cmp) videoB.currentTime = videoA.currentTime;
     }
   }
-  function setRate(r) {
+  function setRate(r: Json) {
     shuttle.stop({ pause: false });
     videoA.playbackRate = r;
     videoB.playbackRate = r;
@@ -1042,7 +1044,7 @@ export async function reviewPage(page, id, relArg = '') {
   });
   const updMute = () => transport.update(shownT());
   const master = () => (mixer ? mixer.master() : { volume: videoA.volume, muted: videoA.muted });
-  function setMaster(m) {
+  function setMaster(m: Json) {
     if (mixer) mixer.setMaster(m);
     else {
       if (m.volume != null) videoA.volume = m.volume;
@@ -1052,7 +1054,7 @@ export async function reviewPage(page, id, relArg = '') {
   }
   const shownT = () => liveSrc?.displayedTime ?? videoA.currentTime;
   let followAt = 0;
-  function tick(meta) {
+  function tick(meta?: Json) {
     // while playing the frame callback's time is exact; once paused currentTime is the truth (a late callback can be stale)
     const t = liveSrc?.displayedTime ?? (meta && !videoA.paused ? meta.mediaTime : videoA.currentTime);
     S.frame = Math.floor(t * fps() + 1e-4);
@@ -1080,7 +1082,7 @@ export async function reviewPage(page, id, relArg = '') {
   function startFrameLoop() {
     if (!videoA.requestVideoFrameCallback) return;
     const my = ++rvfcToken;
-    const loop = (now, meta) => {
+    const loop = (now: Json, meta: Json) => {
       if (my !== rvfcToken) return;
       tick(meta);
       videoA.requestVideoFrameCallback(loop);
@@ -1103,7 +1105,7 @@ export async function reviewPage(page, id, relArg = '') {
       S.resumeAt = null;
       return;
     }
-    const n = notes.find(x => x.id === focusNote);
+    const n = notes.find((x: Json) => x.id === focusNote);
     if (params.get('tour') === '1' && !tour) {
       startTour();
       return;
@@ -1119,8 +1121,8 @@ export async function reviewPage(page, id, relArg = '') {
   const lastFrame = () => Math.max(0, Math.floor(dur() * fps()) - 1);
   const rangeOk = () => S.range.a != null && S.range.b != null;
   const rangeSec = () => [S.range.a / fps(), (S.range.b + 1) / fps()];
-  function setRange(a, b) {
-    const c = f => (f == null || isNaN(f) ? null : Math.max(0, Math.min(lastFrame(), Math.round(f))));
+  function setRange(a: Json, b: Json) {
+    const c = (f: Json) => (f == null || isNaN(f) ? null : Math.max(0, Math.min(lastFrame(), Math.round(f))));
     a = c(a);
     b = c(b);
     if (a != null && b != null && b < a) [a, b] = [b, a];
@@ -1129,10 +1131,10 @@ export async function reviewPage(page, id, relArg = '') {
     if (S.draft && rangeOk() && S.draft.useRange == null) S.draft.useRange = true;
     updRange();
   }
-  function setIn(f) {
+  function setIn(f: Json) {
     setRange(f, S.range.b != null && S.range.b < f ? null : S.range.b);
   }
-  function setOut(f) {
+  function setOut(f: Json) {
     setRange(S.range.a != null && S.range.a > f ? null : S.range.a, f);
   }
   function clearRange() {
@@ -1162,7 +1164,7 @@ export async function reviewPage(page, id, relArg = '') {
     mixer?.refresh(); // the Channels scope select names the range
   }
   // a frame number (186), k186, a time (1:02.5) or seconds with a dot (62.5)
-  function parseFrame(v) {
+  function parseFrame(v: Json) {
     v = String(v || '')
       .trim()
       .replace(',', '.');
@@ -1173,7 +1175,7 @@ export async function reviewPage(page, id, relArg = '') {
     return null;
   }
   // the transport's range fields (Enter / OK): frames or times; false keeps the fields open
-  function applyRangeEdit(aText, bText) {
+  function applyRangeEdit(aText: Json, bText: Json) {
     const a = parseFrame(aText),
       b = parseFrame(bText);
     if (a == null || b == null) {
@@ -1203,7 +1205,7 @@ export async function reviewPage(page, id, relArg = '') {
     notesPanel.focusText();
   }
   // a saved range note: select its range and play it in a loop
-  function playRange(n) {
+  function playRange(n: Json) {
     const nf = n.fps || fps(),
       a = Math.floor(n.t * nf + 1e-6),
       b = Math.floor((n.t2 ?? n.t) * nf + 1e-6);
@@ -1215,7 +1217,7 @@ export async function reviewPage(page, id, relArg = '') {
   }
 
   // ---------- tools + drafts
-  function setTool(k) {
+  function setTool(k: Json) {
     S.tool = k;
     if (k !== 'cursor' && !videoA.paused) togglePlay();
     refreshTools();
@@ -1248,7 +1250,7 @@ export async function reviewPage(page, id, relArg = '') {
     notesPanel.closeComposer();
     notesPanel.renderDrafts();
   }
-  function restoreDraft(entry) {
+  function restoreDraft(entry: Json) {
     const index = S.parkedDrafts.indexOf(entry);
     if (index < 0) return;
     S.parkedDrafts.splice(index, 1);
@@ -1269,7 +1271,7 @@ export async function reviewPage(page, id, relArg = '') {
     if (S.draft.quick) openQuick();
     else notesPanel.focusText();
   }
-  function ensureDraft(tAt, focus = true) {
+  function ensureDraft(tAt?: Json, focus = true) {
     const t = tAt ?? noteTime();
     showNotes();
     freezeNoteFrame(t);
@@ -1316,7 +1318,7 @@ export async function reviewPage(page, id, relArg = '') {
     redraw();
   }
   // a lone point gives a tiny crop; widen it so Claude sees what is around the point
-  const padRegion = ([x0, y0, x1, y1], p) => [Math.max(0, x0 - p), Math.max(0, y0 - p), Math.min(1, x1 + p), Math.min(1, y1 + p)];
+  const padRegion = ([x0, y0, x1, y1]: Json, p: Json) => [Math.max(0, x0 - p), Math.max(0, y0 - p), Math.min(1, x1 + p), Math.min(1, y1 + p)];
   async function saveDraft() {
     const d = S.draft;
     if (!d) return;
@@ -1336,7 +1338,7 @@ export async function reviewPage(page, id, relArg = '') {
     const shots = liveSrc
       ? { frame: liveSrc.snap(tAt), ...(r ? { start: liveSrc.snap((r.a + 0.5) / fps()), end: liveSrc.snap((r.b + 0.5) / fps()) } : {}) }
       : null;
-    const body = {
+    const body: Json = {
       file: cur.rel,
       t: r ? (r.a + 0.5) / fps() : tAt,
       t2: r ? (r.b + 0.5) / fps() : null,
@@ -1345,12 +1347,12 @@ export async function reviewPage(page, id, relArg = '') {
       layer: d.layer || null,
       text: (d.text || '').trim(),
       drawing: d.shapes,
-      region: d.shapes.length ? padRegion(bbox(d.shapes), d.shapes.every(x => x.type === 'pin') ? 0.08 : 0) : null,
+      region: d.shapes.length ? padRegion(bbox(d.shapes), d.shapes.every((x: Json) => x.type === 'pin') ? 0.08 : 0) : null,
       images: { strokes },
       fps: fps()
     };
     // optimistic: the note is in the list right away (pictures follow over SSE when the hub has cut them)
-    const tmp = { ...body, id: nextId(), images: {}, pending: true, local: true, status: 'open', createdAt: new Date().toISOString(), history: [] };
+    const tmp: Json = { ...body, id: nextId(), images: {}, pending: true, local: true, status: 'open', createdAt: new Date().toISOString(), history: [] };
     notes.push(tmp);
     saving++;
     S.draft = null;
@@ -1378,15 +1380,15 @@ export async function reviewPage(page, id, relArg = '') {
       Object.assign(tmp, early?.imgV ? early : n);
       if (sel) S.selected = tmp.id;
       if (saving === 1) {
-        for (const [k, e] of earlyNotes) if (!notes.some(x => x.id === k)) notes.push(e);
+        for (const [k, e] of earlyNotes) if (!notes.some((x: Json) => x.id === k)) notes.push(e);
         earlyNotes.clear();
       }
       notesPanel.render();
       timeline.draw();
       redraw();
       toast(`Note #${n.id} saved`);
-    } catch (e) {
-      notes = notes.filter(x => x !== tmp);
+    } catch (e: Json) {
+      notes = notes.filter((x: Json) => x !== tmp);
       notesPanel.render();
       timeline.draw();
       redraw();
@@ -1413,7 +1415,7 @@ export async function reviewPage(page, id, relArg = '') {
   // first video frame after resuming. Nothing is sent for normal saves.
   function probeSave() {
     const t0 = performance.now(),
-      m = { live: !!liveSrc, notes: notes.length, file: cur.rel };
+      m: Json = { live: !!liveSrc, notes: notes.length, file: cur.rel };
     let pending = 3;
     const done = () => {
       if (--pending) return;
@@ -1424,7 +1426,7 @@ export async function reviewPage(page, id, relArg = '') {
         );
     };
     return {
-      shown(resumed) {
+      shown(resumed: Json) {
         m.jsMs = Math.round(performance.now() - t0);
         requestAnimationFrame(() =>
           requestAnimationFrame(t => {
@@ -1437,14 +1439,14 @@ export async function reviewPage(page, id, relArg = '') {
             m.videoMs = 5000;
             done();
           }, 5000);
-          videoA.requestVideoFrameCallback(now => {
+          videoA.requestVideoFrameCallback((now: Json) => {
             clearTimeout(to);
             m.videoMs = Math.round(now - t0);
             done();
           });
         } else done();
       },
-      post(ms) {
+      post(ms: Json) {
         m.postMs = Math.round(ms);
         done();
       }
@@ -1452,7 +1454,7 @@ export async function reviewPage(page, id, relArg = '') {
   }
   // a canvas as a JPEG data URL, one task later so the list and playback update first
   // (toBlob looked better but its callback waited ~1 s whenever the window was not painting)
-  const encodeJpeg = c =>
+  const encodeJpeg = (c: Json) =>
     new Promise(ok =>
       setTimeout(() => {
         try {
@@ -1464,7 +1466,7 @@ export async function reviewPage(page, id, relArg = '') {
     );
   let saving = 0;
   const earlyNotes = new Map(); // SSE news about a note whose POST has not answered yet
-  function selectNote(nid) {
+  function selectNote(nid: Json) {
     S.selected = nid;
     showNotes();
     notesPanel.render();
@@ -1474,11 +1476,11 @@ export async function reviewPage(page, id, relArg = '') {
   }
 
   // ---------- overlay
-  const octx = ov.getContext('2d');
-  let live = null; // shape being drawn
-  let labelHits = []; // note labels on the frame, in 0..1 coords, so a click can open the note
-  const nextId = () => notes.reduce((m, n) => Math.max(m, n.id), 0) + 1;
-  const numbered = (shapes, num) => shapes.map(s => (s.type === 'pin' ? { ...s, num } : s));
+  const octx = ov.getContext('2d')!; // a fresh canvas always has a 2d context
+  let live: Json = null; // shape being drawn
+  let labelHits: Json = []; // note labels on the frame, in 0..1 coords, so a click can open the note
+  const nextId = () => notes.reduce((m: Json, n: Json) => Math.max(m, n.id), 0) + 1;
+  const numbered = (shapes: Json, num: Json) => shapes.map((s: Json) => (s.type === 'pin' ? { ...s, num } : s));
   function redraw() {
     const W = ov.width,
       H = ov.height;
@@ -1498,7 +1500,7 @@ export async function reviewPage(page, id, relArg = '') {
       const txt = `#${n.id} ${n.text.slice(0, 42)}`,
         tw = octx.measureText(txt).width;
       const lh = Math.max(22, W * 0.02),
-        onlyPin = sh.length && sh.every(x => x.type === 'pin'),
+        onlyPin = sh.length && sh.every((x: Json) => x.type === 'pin'),
         pr = pinR(W);
       // a point note: label beside the marker head; anything else: above the drawing
       const x = Math.min(W - tw - 20, b[0] * W + (onlyPin ? pr * 1.4 : 0)),
@@ -1514,13 +1516,13 @@ export async function reviewPage(page, id, relArg = '') {
     if (live) paint(octx, [live], W, H);
     placeQuick();
   }
-  const ptOf = e => {
+  const ptOf = (e: Json) => {
     const r = ov.getBoundingClientRect();
     return [Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))];
   };
-  let textAt = null,
-    down = null,
-    panning = null,
+  let textAt: Json = null,
+    down: Json = null,
+    panning: Json = null,
     spaceDown = false,
     spaceUsed = false;
   ov.addEventListener('pointerdown', e => {
@@ -1624,8 +1626,8 @@ export async function reviewPage(page, id, relArg = '') {
   });
 
   // ---------- quick point: click → numbered point + a note box right there
-  function noteAt(pt) {
-    const l = labelHits.find(b => pt[0] >= b.x0 && pt[0] <= b.x1 && pt[1] >= b.y0 && pt[1] <= b.y1);
+  function noteAt(pt: Json) {
+    const l = labelHits.find((b: Json) => pt[0] >= b.x0 && pt[0] <= b.x1 && pt[1] >= b.y0 && pt[1] <= b.y1);
     if (l) return l.n;
     const t = noteTime();
     for (const n of notes) {
@@ -1635,7 +1637,7 @@ export async function reviewPage(page, id, relArg = '') {
     }
     return null;
   }
-  function quickPoint(pt, at = noteTime(), wasPlaying = !videoA.paused) {
+  function quickPoint(pt: Json, at = noteTime(), wasPlaying = !videoA.paused) {
     freezeNoteFrame(at);
     const n = noteAt(pt);
     if (n && !(S.draft && S.frame === S.draft.frame)) {
@@ -1726,7 +1728,7 @@ export async function reviewPage(page, id, relArg = '') {
     }
     if (e.key === 'Escape') {
       e.preventDefault();
-      if (!(S.draft?.text || '').trim() && S.draft?.shapes.every(x => x.type === 'pin')) cancelDraft();
+      if (!(S.draft?.text || '').trim() && S.draft?.shapes.every((x: Json) => x.type === 'pin')) cancelDraft();
       else {
         quickOpen = false;
         quick.hidden = true;
@@ -1747,7 +1749,7 @@ export async function reviewPage(page, id, relArg = '') {
       else step(dir);
     }
   });
-  function openTextInput(pt, e) {
+  function openTextInput(pt: Json, e: Json) {
     const r = view.getBoundingClientRect();
     textInput.hidden = false;
     textInput.value = '';
@@ -1756,7 +1758,7 @@ export async function reviewPage(page, id, relArg = '') {
     textInput.style.color = S.color;
     textInput.focus();
     let done = false;
-    const finish = keep => {
+    const finish = (keep: Json) => {
       if (done) return;
       done = true;
       const txt = textInput.value.trim();
@@ -1780,8 +1782,8 @@ export async function reviewPage(page, id, relArg = '') {
   }
 
   // ---------- compare
-  function setCompare(rel) {
-    const o = vids.find(v => v.rel === rel);
+  function setCompare(rel: Json) {
+    const o = vids.find((v: Json) => v.rel === rel);
     S.cmp = o || null;
     if (o) {
       videoB.src = '/media?p=' + encodeURIComponent(o.path);
@@ -1823,7 +1825,7 @@ export async function reviewPage(page, id, relArg = '') {
   wipeHandle.addEventListener('pointerdown', e => {
     e.stopPropagation();
     wipeHandle.setPointerCapture(e.pointerId);
-    const move = ev => {
+    const move = (ev: Json) => {
       const r = frameA.getBoundingClientRect();
       S.wipe = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
       videoB.style.clipPath = `inset(0 0 0 ${S.wipe * 100}%)`;
@@ -1834,7 +1836,7 @@ export async function reviewPage(page, id, relArg = '') {
       wipeHandle.onpointermove = null;
     };
   });
-  const dctx = diffCv.getContext('2d');
+  const dctx = diffCv.getContext('2d')!; // a fresh canvas always has a 2d context
   function drawDiff() {
     if (!S.cmp || S.cmpMode !== 'diff' || diffCv.hidden) return;
     try {
@@ -1847,13 +1849,13 @@ export async function reviewPage(page, id, relArg = '') {
   const diffTimer = setInterval(drawDiff, 120);
 
   // ---------- changed-only playback
-  let changedRun = null;
+  let changedRun: Json = null;
   function playChanged() {
-    const rs = (versionInfo()?.changedRanges || []).slice().sort((a, b) => a[0] - b[0]);
+    const rs = (versionInfo()?.changedRanges || []).slice().sort((a: Json, b: Json) => a[0] - b[0]);
     if (!rs.length) return;
     let i = 0;
     changedRun = {
-      check: t => {
+      check: (t: Json) => {
         if (t > rs[i][1] + 0.5) {
           i++;
           if (i >= rs.length) {
@@ -1870,7 +1872,7 @@ export async function reviewPage(page, id, relArg = '') {
   }
 
   // ---------- review copy (instant frame stepping)
-  function proxyUi(st) {
+  function proxyUi(st: Json) {
     if (!st) return;
     proxyPill.className = 'pill ' + (st.state === 'ready' ? (S.usingProxy ? 'approved' : 'done') : st.state === 'failed' ? 'reopened' : 'review');
     proxyPill.textContent =
@@ -1884,9 +1886,9 @@ export async function reviewPage(page, id, relArg = '') {
             ? 'could not create review copy'
             : `review copy queued${st.waiting ? ' (' + st.waiting + ')' : ''}`;
   }
-  let proxyUrl = null,
-    proxyKey = null;
-  function useSource(url, isProxy) {
+  let proxyUrl: Json = null,
+    proxyKey: Json = null;
+  function useSource(url: Json, isProxy: Json) {
     S.resumeAt = videoA.currentTime;
     S.resumePlay = !videoA.paused;
     videoA.src = url;
@@ -1917,9 +1919,9 @@ export async function reviewPage(page, id, relArg = '') {
   // scenes for the timeline's scene lane: from the live page when it is ready (stored for the rendered videos too),
   // else what the hub stored / the project's shots.json
   let scenesKey = '';
-  function loadScenes(fromPage) {
+  function loadScenes(fromPage: Json) {
     if (fromPage && liveSrc) {
-      let r = { scenes: [] };
+      let r: Json = { scenes: [] };
       try {
         r = scenesFromPage(liveSrc.win, dur());
       } catch {}
@@ -1941,7 +1943,7 @@ export async function reviewPage(page, id, relArg = '') {
       })
       .catch(() => {});
   }
-  function liveStatus(st) {
+  function liveStatus(st: Json) {
     if (st.state === 'ready') setTimeout(() => loadScenes(true), 0);
     proxyPill.title = 'Live preview: the film is drawn from its code, with no render. Reloads automatically when the code changes · click to reload now';
     if (st.state === 'loading') {
@@ -1981,29 +1983,29 @@ export async function reviewPage(page, id, relArg = '') {
       return;
     }
     const t = noteTime(),
-      ph = trData.phrases.find(([s, e]) => t >= s && t <= e + 0.15);
+      ph = trData.phrases.find(([s, e]: Json) => t >= s && t <= e + 0.15);
     capBar.hidden = !ph;
     if (ph && capBar.textContent !== ph[2]) capBar.textContent = ph[2];
   }
 
   // ---------- check tour: Claude's fixed notes one by one, before/after, approve or "still there"
-  let tour = null;
+  let tour: Json = null;
   function startTour() {
     const ids = notes
-      .filter(n => n.status === 'fixed')
-      .sort((a, b) => a.t - b.t)
-      .map(n => n.id);
+      .filter((n: Json) => n.status === 'fixed')
+      .sort((a: Json, b: Json) => a.t - b.t)
+      .map((n: Json) => n.id);
     if (!ids.length) return toast('No fixed notes to check.');
     // fixes of a rendered film are in its newest version: check there
-    if (!liveMode && p.latest && cur.rel !== p.latest && vids.some(v => v.rel === p.latest)) {
+    if (!liveMode && p.latest && cur.rel !== p.latest && vids.some((v: Json) => v.rel === p.latest)) {
       location.hash = `#/review/${id}/${encodeURIComponent(p.latest)}?tour=1`;
       return;
     }
     tour = { ids, i: 0, ok: 0, again: 0 };
     showTour();
   }
-  function showBefore(on) {
-    const n = tour && notes.find(x => x.id === tour.ids[tour.i]);
+  function showBefore(on: Json) {
+    const n = tour && notes.find((x: Json) => x.id === tour.ids[tour.i]);
     const can = !!n?.images?.frame;
     S.before = on && can;
     beforeImg.hidden = beforeTag.hidden = !S.before;
@@ -2011,7 +2013,7 @@ export async function reviewPage(page, id, relArg = '') {
     if (on && !can) toast('This note has no previous frame.');
   }
   function showTour() {
-    const n = notes.find(x => x.id === tour.ids[tour.i]);
+    const n = notes.find((x: Json) => x.id === tour.ids[tour.i]);
     if (!n) return endTour();
     selectNote(n.id);
     showBefore(false);
@@ -2076,8 +2078,8 @@ export async function reviewPage(page, id, relArg = '') {
     );
     tourBar.hidden = false;
   }
-  async function verdict(status, why) {
-    const n = notes.find(x => x.id === tour.ids[tour.i]);
+  async function verdict(status: Json, why?: Json) {
+    const n = notes.find((x: Json) => x.id === tour.ids[tour.i]);
     if (!n) return next();
     const body = {
       status,
@@ -2090,7 +2092,7 @@ export async function reviewPage(page, id, relArg = '') {
     };
     try {
       Object.assign(n, await api(`/api/project/${id}/note/${n.id}`, { method: 'POST', body }));
-    } catch (e) {
+    } catch (e: Json) {
       return toast('Could not save: ' + e.message, true);
     }
     if (status === 'approved') tour.ok++;
@@ -2115,11 +2117,11 @@ export async function reviewPage(page, id, relArg = '') {
   }
 
   // notes changed elsewhere (pictures ready, Claude's replies, another window): merge without reloading the list
-  const offNote = onHubEvent('note', ev => {
+  const offNote = onHubEvent('note', (ev: Json) => {
     if (ev?.project !== id) return;
     if (ev.removed != null) {
-      if (notes.some(n => n.id === ev.removed)) {
-        notes = notes.filter(n => n.id !== ev.removed);
+      if (notes.some((n: Json) => n.id === ev.removed)) {
+        notes = notes.filter((n: Json) => n.id !== ev.removed);
         notesPanel.render();
         timeline.draw();
         redraw();
@@ -2132,7 +2134,7 @@ export async function reviewPage(page, id, relArg = '') {
     }
     const n = ev.note;
     if (!n) return;
-    const mine = notes.find(x => x.id === n.id && !x.local);
+    const mine = notes.find((x: Json) => x.id === n.id && !x.local);
     if (mine) {
       if (JSON.stringify(mine) === JSON.stringify(n)) return;
       for (const k of Object.keys(mine)) delete mine[k];
@@ -2145,7 +2147,7 @@ export async function reviewPage(page, id, relArg = '') {
     timeline.draw();
     redraw();
   });
-  const offLive = onHubEvent('live-changed', ev => {
+  const offLive = onHubEvent('live-changed', (ev: Json) => {
     if (liveSrc && ev?.project === id) {
       api('/api/project/' + id + '/live')
         .then(fresh => {
@@ -2155,7 +2157,7 @@ export async function reviewPage(page, id, relArg = '') {
       toast('Code changed, preview reloaded' + (ev.files?.length ? ': ' + ev.files.slice(0, 3).join(', ') : ''));
     }
   });
-  const offProxy = onHubEvent('proxy', ev => {
+  const offProxy = onHubEvent('proxy', (ev: Json) => {
     if (!ev || ev.key !== proxyKey) return;
     if (ev.state === 'ready')
       api('/api/media/proxy?p=' + encodeURIComponent(cur.path)).then(st => {
@@ -2173,12 +2175,12 @@ export async function reviewPage(page, id, relArg = '') {
   const wavePath = liveSrc ? liveInfo.audioPath : cur.path;
   // waveforms: peaks for the timeline rows (sharp when zoomed in); the PNG when the peaks route fails
   // (png = false for clip files: no PNG fallback there)
-  async function loadWave(wid, file, png = true) {
+  async function loadWave(wid: Json, file: Json, png = true) {
     try {
       const r = await fetch('/api/media/peaks?p=' + encodeURIComponent(file));
       if (!r.ok) throw new Error('peaks ' + r.status);
       const data = new Int8Array(await r.arrayBuffer());
-      timeline.setPeaks(wid, { rate: +r.headers.get('X-Peaks-Rate') || 100, dur: +r.headers.get('X-Duration') || data.length / 200, data });
+      timeline.setPeaks(wid, { rate: +(r.headers.get('X-Peaks-Rate') as Json) || 100, dur: +(r.headers.get('X-Duration') as Json) || data.length / 200, data });
     } catch {
       if (!png) return;
       const w = await api('/api/media/wave?p=' + encodeURIComponent(file)).catch(() => null);
@@ -2206,21 +2208,21 @@ export async function reviewPage(page, id, relArg = '') {
     dur: () => dur(),
     range: () => (rangeOk() ? rangeSec() : null),
     clips: () => soundEd?.clips() || [],
-    clipUrl: src => '/media?p=' + encodeURIComponent(p.path + '/' + src),
+    clipUrl: (src: Json) => '/media?p=' + encodeURIComponent(p.path + '/' + src),
     applyQueue,
     history: { push: () => pushTag('sound') },
     status: () => stSounds,
-    onSaved: r => sceneEd?.syncSound(r.sound),
-    scaleClips: f => soundEd?.scaleGains(f)
+    onSaved: (r: Json) => sceneEd?.syncSound(r.sound),
+    scaleClips: (f: Json) => soundEd?.scaleGains(f)
   });
   soundsHost.append(mixer.duckEl, mixer.el);
   // P4: the music-level bands on the Music row (ducks: select, drag edges, Delete)
   const bandOps = {
-    select: s => {
+    select: (s: Json) => {
       mixer?.selectDuck(s);
       if (s) side.show('sounds');
     },
-    set: (s, patch) => mixer?.setDuck(s, patch)
+    set: (s: Json, patch: Json) => mixer?.setDuck(s, patch)
   };
   mixer.onChange(() => {
     timeline.setBands(mixer.musicBands(), bandOps);
@@ -2235,23 +2237,23 @@ export async function reviewPage(page, id, relArg = '') {
     timeline,
     dur: () => dur(),
     time: () => nowT(),
-    seek: t => seek(t),
+    seek: (t: Json) => seek(t),
     fps,
     applyQueue,
     status: () => stClip,
     onPush: () => pushTag('clips'),
-    onSelect: cid => {
+    onSelect: (cid: Json) => {
       if (cid) side.show('clip');
     },
-    onClips: loaded => mixer?.clipsChanged(loaded)
+    onClips: (loaded: Json) => mixer?.clipsChanged(loaded)
   });
   clipHost.append(soundEd.el);
   setTimeout(() => soundEd?.init().catch(() => {}), 900);
   // P4: the sound library at the top of the Sounds tab (▶ listen, + at the playhead, drag onto the timeline)
-  const library = createLibrary({ onAdd: item => soundEd?.dropAdd({ item, t: nowT() }), onFile: () => soundEd?.pickFile() });
+  const library = createLibrary({ onAdd: (item: Json) => soundEd?.dropAdd({ item, t: nowT() }), onFile: () => soundEd?.pickFile() });
   soundsHost.prepend(library.el);
   // files dragged from your file manager and dropped anywhere but the timeline would make the window open the file
-  const dropGuard = e => {
+  const dropGuard = (e: Json) => {
     if (![...(e.dataTransfer?.types || [])].includes('Files') || e.target?.closest?.('.tl2-body')) return;
     e.preventDefault();
     if (e.type === 'dragover') e.dataTransfer.dropEffect = 'none';
@@ -2268,10 +2270,10 @@ export async function reviewPage(page, id, relArg = '') {
       ])
         .then(async ([L, info, tw]) => {
           if (!mixer) return;
-          layerLabels = L.layers.map(l => l.label).concat(L.cues && L.cues.length && !L.layers.some(l => l.id === 'sfx') ? ['Effects'] : []);
+          layerLabels = L.layers.map((l: Json) => l.label).concat(L.cues && L.cues.length && !L.layers.some((l: Json) => l.id === 'sfx') ? ['Effects'] : []);
           // a 3D studio film mixes voice / music / effects on buses without stem files: placeholder rows (level only)
           const rowsL =
-            info?.mode === 'studio' && !L.layers.some(l => ['vo', 'music', 'sfx'].includes(l.id))
+            info?.mode === 'studio' && !L.layers.some((l: Json) => ['vo', 'music', 'sfx'].includes(l.id))
               ? {
                   ...L,
                   layers: [
@@ -2334,7 +2336,7 @@ export async function reviewPage(page, id, relArg = '') {
         });
       }
       if (!data) throw new Error('could not capture frame');
-      const img = await new Promise((res, rej) => {
+      const img = await new Promise<HTMLImageElement>((res, rej) => {
         const i = new Image();
         i.onload = () => res(i);
         i.onerror = rej;
@@ -2357,7 +2359,7 @@ export async function reviewPage(page, id, relArg = '') {
         }
       });
       location.hash = `#/thumbstudio/${t.pid}/${t.tid}`;
-    } catch (e) {
+    } catch (e: Json) {
       toast('Could not start thumbnail: ' + e.message, true);
     }
   }
@@ -2365,13 +2367,13 @@ export async function reviewPage(page, id, relArg = '') {
     if (document.fullscreenElement) document.exitFullscreen();
     else rv2.requestFullscreen().catch(() => {});
   } // the whole editor: timeline and side panel stay
-  function toggleHelp(on) {
+  function toggleHelp(on?: Json) {
     helpBox.hidden = on === undefined ? !helpBox.hidden : !on;
   }
-  function nextNote(dir) {
-    const list = notes.slice().sort((a, b) => a.t - b.t),
+  function nextNote(dir: Json) {
+    const list = notes.slice().sort((a: Json, b: Json) => a.t - b.t),
       t = videoA.currentTime;
-    const n = dir > 0 ? list.find(x => x.t > t + 0.05) : list.reverse().find(x => x.t < t - 0.05);
+    const n = dir > 0 ? list.find((x: Json) => x.t > t + 0.05) : list.reverse().find((x: Json) => x.t < t - 0.05);
     if (n) {
       selectNote(n.id);
       seek(n.t);
@@ -2379,7 +2381,7 @@ export async function reviewPage(page, id, relArg = '') {
   }
 
   // ---------- keys
-  const onKey = e => {
+  const onKey = (e: Json) => {
     // Alt+← / → would be the browser's Back / Forward: never let it leave the editor, also from a text field
     const altArrow = e.altKey && !e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight');
     if (altArrow) e.preventDefault();
@@ -2606,14 +2608,14 @@ export async function reviewPage(page, id, relArg = '') {
     }
   };
   // [ / ]: the speed select one step down / up
-  function speedStep(d) {
+  function speedStep(d: Json) {
     const i = SPEEDS.indexOf(transport.rate()),
       j = Math.max(0, Math.min(SPEEDS.length - 1, (i < 0 ? SPEEDS.indexOf(1) : i) + d));
     setRate(SPEEDS[j]);
     toast('Speed: ' + SPEEDS[j] + '×');
   }
   // Z: the timeline shows the I/O range (else ±5 s around the playhead); Shift+Z: the whole film
-  function zoomTimeline(fitAll) {
+  function zoomTimeline(fitAll: Json) {
     const V = timeline.view;
     if (fitAll) {
       V.fit();
@@ -2627,7 +2629,7 @@ export async function reviewPage(page, id, relArg = '') {
       V.zoomToRange(t - 5, t + 5, 0);
     }
   }
-  const onKeyUp = e => {
+  const onKeyUp = (e: Json) => {
     if (e.key === ' ') {
       if (spaceDown && !spaceUsed && !e.target.closest?.('textarea, select, input:not([type=range])')) togglePlay();
       spaceDown = false;
@@ -2637,12 +2639,12 @@ export async function reviewPage(page, id, relArg = '') {
   document.addEventListener('keyup', onKeyUp);
 
   // a focused button would also react to Space; buttons give focus back after a click
-  page.addEventListener('click', e => {
+  page.addEventListener('click', (e: Json) => {
     const b = e.target.closest('button');
     if (b) b.blur();
   });
   // same for dropdowns: after a pick, arrow keys should step frames, not change the dropdown
-  page.addEventListener('change', e => {
+  page.addEventListener('change', (e: Json) => {
     if (e.target.tagName === 'SELECT') e.target.blur();
   });
   refreshTools();
